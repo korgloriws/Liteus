@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Lista, Item } from '../types';
+import { Lista, Item, Categoria } from '../types';
 
 const LISTAS_KEY = '@liteus_listas';
 
@@ -17,11 +17,23 @@ export class StorageService {
   static async carregarListas(): Promise<Lista[]> {
     try {
       const data = await AsyncStorage.getItem(LISTAS_KEY);
-      return data ? JSON.parse(data) : [];
+      const listas = data ? JSON.parse(data) : [];
+      
+
+      return listas.map((lista: any) => ({
+        ...lista,
+        categorias: lista.categorias || [],
+        itens: lista.itens || [],
+      }));
     } catch (error) {
       console.error('Erro ao carregar listas:', error);
       return [];
     }
+  }
+
+  // Alias para buscarTodasListas
+  static async buscarTodasListas(): Promise<Lista[]> {
+    return this.carregarListas();
   }
 
   // Adicionar nova lista
@@ -30,6 +42,7 @@ export class StorageService {
       const listas = await this.carregarListas();
       const novaLista: Lista = {
         ...lista,
+        categorias: lista.categorias || [],
         id: Date.now().toString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -160,10 +173,127 @@ export class StorageService {
   static async buscarLista(id: string): Promise<Lista | null> {
     try {
       const listas = await this.carregarListas();
-      return listas.find(lista => lista.id === id) || null;
+      const lista = listas.find(lista => lista.id === id);
+      
+      if (!lista) return null;
+      
+
+      return {
+        ...lista,
+        categorias: lista.categorias || [],
+        itens: lista.itens || [],
+      };
     } catch (error) {
       console.error('Erro ao buscar lista:', error);
       return null;
+    }
+  }
+
+  // Duplicar lista
+  static async duplicarLista(id: string): Promise<Lista | null> {
+    try {
+      const listaOriginal = await this.buscarLista(id);
+      if (!listaOriginal) return null;
+
+      const listaDuplicada: Lista = {
+        ...listaOriginal,
+        id: Date.now().toString(),
+        nome: `${listaOriginal.nome} (Cópia)`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        itens: listaOriginal.itens.map(item => ({
+          ...item,
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })),
+      };
+
+      const listas = await this.carregarListas();
+      listas.push(listaDuplicada);
+      await this.salvarListas(listas);
+      
+      return listaDuplicada;
+    } catch (error) {
+      console.error('Erro ao duplicar lista:', error);
+      throw error;
+    }
+  }
+
+  // Duplicar item
+  static async duplicarItem(listaId: string, itemId: string): Promise<Item | null> {
+    try {
+      const listas = await this.carregarListas();
+      const listaIndex = listas.findIndex(lista => lista.id === listaId);
+      
+      if (listaIndex === -1) return null;
+      
+      const itemOriginal = listas[listaIndex].itens.find(item => item.id === itemId);
+      if (!itemOriginal) return null;
+      
+      const itemDuplicado: Item = {
+        ...itemOriginal,
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        texto: `${itemOriginal.texto} (Cópia)`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      listas[listaIndex].itens.push(itemDuplicado);
+      listas[listaIndex].updatedAt = new Date().toISOString();
+      
+      await this.salvarListas(listas);
+      return itemDuplicado;
+    } catch (error) {
+      console.error('Erro ao duplicar item:', error);
+      throw error;
+    }
+  }
+
+  // Adicionar categoria à lista
+  static async adicionarCategoria(listaId: string, categoria: Omit<Categoria, 'id' | 'createdAt'>): Promise<Categoria | null> {
+    try {
+      const listas = await this.carregarListas();
+      const listaIndex = listas.findIndex(lista => lista.id === listaId);
+      
+      if (listaIndex === -1) return null;
+      
+      const novaCategoria: Categoria = {
+        ...categoria,
+        id: Date.now().toString(),
+        createdAt: new Date().toISOString(),
+      };
+      
+      listas[listaIndex].categorias.push(novaCategoria);
+      listas[listaIndex].updatedAt = new Date().toISOString();
+      
+      await this.salvarListas(listas);
+      return novaCategoria;
+    } catch (error) {
+      console.error('Erro ao adicionar categoria:', error);
+      throw error;
+    }
+  }
+
+  // Remover categoria da lista
+  static async removerCategoria(listaId: string, categoriaId: string): Promise<boolean> {
+    try {
+      const listas = await this.carregarListas();
+      const listaIndex = listas.findIndex(lista => lista.id === listaId);
+      
+      if (listaIndex === -1) return false;
+      
+      const categoriaIndex = listas[listaIndex].categorias.findIndex(cat => cat.id === categoriaId);
+      if (categoriaIndex === -1) return false;
+      
+      listas[listaIndex].categorias.splice(categoriaIndex, 1);
+      listas[listaIndex].updatedAt = new Date().toISOString();
+      
+      await this.salvarListas(listas);
+      return true;
+    } catch (error) {
+      console.error('Erro ao remover categoria:', error);
+      throw error;
     }
   }
 } 

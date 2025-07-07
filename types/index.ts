@@ -1,14 +1,31 @@
+export interface FormatoTexto {
+  texto: string;
+  negrito?: boolean;
+  italico?: boolean;
+  cor?: string;
+  tamanho?: number;
+}
+
 export interface Item {
   id: string;
   texto: string;
+  textoFormatado?: FormatoTexto[];
   descricao?: string;
   imagem?: string;
   data?: string;
   prioridade?: number;
   categoria?: string;
   tags?: string[];
+  concluido?: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Categoria {
+  id: string;
+  nome: string;
+  cor?: string;
+  createdAt: string;
 }
 
 export interface Lista {
@@ -18,6 +35,7 @@ export interface Lista {
   cor?: string;
   icone?: string;
   itens: Item[];
+  categorias: Categoria[];
   permiteSelecaoAleatoria: boolean;
   tipoAnimacao?: 'roleta' | 'cubo';
   createdAt: string;
@@ -25,4 +43,15 @@ export interface Lista {
 }
 
 export type OrdenacaoTipo = 'alfabetica' | 'data' | 'prioridade' | 'categoria';
-export type OrdenacaoDirecao = 'asc' | 'desc'; 
+export type OrdenacaoDirecao = 'asc' | 'desc';
+
+export interface FiltroBusca {
+  texto: string;
+  categoria?: string;
+  tags?: string[];
+}
+
+export interface OpcoesOrdenacao {
+  tipo: OrdenacaoTipo;
+  direcao: OrdenacaoDirecao;
+} 

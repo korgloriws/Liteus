@@ -30,7 +30,7 @@ function TabLayoutContent() {
         name="criar-lista"
         options={{
           title: 'Criar Lista',
-          headerShown: true,
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="add-box" size={size} color={color} />
           ),
@@ -40,7 +40,7 @@ function TabLayoutContent() {
         name="configuracoes"
         options={{
           title: 'Configurações',
-          headerShown: true,
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="settings" size={size} color={color} />
           ),
@@ -54,6 +54,12 @@ function TabLayoutContent() {
       />
       <Tabs.Screen
         name="selecao-aleatoria"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="estatisticas"
         options={{
           href: null,
         }}

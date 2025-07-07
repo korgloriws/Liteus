@@ -12,6 +12,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Lista, Item } from '../types';
 import { StorageService } from '../services/storage';
+import { FormattedText } from '../services/FormattedText';
 import { useTheme } from '../services/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
@@ -290,7 +291,12 @@ export default function SelecaoAleatoriaScreen() {
             >
               <MaterialIcons name="star" size={48} color="#fff" />
               <Text style={styles.resultTitle}>Item Selecionado!</Text>
-              <Text style={styles.resultItem}>{itemSelecionado?.texto}</Text>
+              <FormattedText 
+                texto={itemSelecionado?.texto || ''}
+                textoFormatado={itemSelecionado?.textoFormatado}
+                style={styles.resultItem}
+                isDarkMode={false}
+              />
               {itemSelecionado?.descricao && (
                 <Text style={styles.resultDescription}>
                   {itemSelecionado.descricao}

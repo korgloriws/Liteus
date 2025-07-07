@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Lista } from '../types';
 import { StorageService } from '../services/storage';
@@ -16,7 +17,7 @@ import { useTheme } from '../services/ThemeContext';
 
 export default function ConfiguracoesScreen() {
   const { isDarkMode, setDarkMode } = useTheme();
-  const [versao] = useState('1.0.0');
+  const [versao] = useState('1.0.1');
   const [listas, setListas] = useState<Lista[]>([]);
 
   useEffect(() => {
@@ -87,14 +88,27 @@ export default function ConfiguracoesScreen() {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: isDarkMode ? '#000' : '#F2F2F7' }]} showsVerticalScrollIndicator={false}>
-      <View style={styles.content}>
-        {/* Header do App */}
-        <View style={styles.header}>
-          <MaterialIcons name="casino" size={48} color="#007AFF" />
-          <Text style={[styles.appName, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Liteus</Text>
-          <Text style={[styles.appSlogan, { color: isDarkMode ? '#8E8E93' : '#8E8E93' }]}>Listas Inteligentes</Text>
-        </View>
+    <View style={{ flex: 1 }}>
+      {/* Cabeçalho Customizado */}
+      <View style={[styles.customHeader, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
+        <TouchableOpacity
+          style={styles.headerButton}
+          onPress={() => router.back()}
+        >
+          <MaterialIcons name="arrow-back" size={24} color="#007AFF" />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Configurações</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
+      <ScrollView style={[styles.container, { backgroundColor: isDarkMode ? '#000' : '#F2F2F7' }]} showsVerticalScrollIndicator={false}>
+        <View style={styles.content}>
+          {/* Header do App */}
+          <View style={styles.header}>
+            <MaterialIcons name="casino" size={48} color="#007AFF" />
+            <Text style={[styles.appName, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Liteus</Text>
+            <Text style={[styles.appSlogan, { color: isDarkMode ? '#8E8E93' : '#8E8E93' }]}>Listas Inteligentes</Text>
+          </View>
 
         {/* Seção de Aparência */}
         <View style={[styles.section, { 
@@ -124,20 +138,19 @@ export default function ConfiguracoesScreen() {
         }]}>
           <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Dados</Text>
           
-          <TouchableOpacity style={styles.optionItem} onPress={exportarTodasListas}>
+          <TouchableOpacity 
+            style={styles.optionItem} 
+            onPress={() => router.push('/estatisticas')}
+          >
             <View style={styles.optionInfo}>
-              <MaterialIcons name="file-download" size={24} color="#007AFF" />
-              <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Exportar Listas</Text>
+              <MaterialIcons name="analytics" size={24} color="#007AFF" />
+              <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Estatísticas</Text>
             </View>
             <MaterialIcons name="chevron-right" size={24} color="#8E8E93" />
           </TouchableOpacity>
-
-          <TouchableOpacity style={styles.optionItem} onPress={limparDados}>
-            <View style={styles.optionInfo}>
-              <MaterialIcons name="delete-sweep" size={24} color="#FF3B30" />
-              <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Limpar Todos os Dados</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color="#8E8E93" />
+          
+          <TouchableOpacity style={styles.optionItem} onPress={exportarTodasListas}>
+            
           </TouchableOpacity>
         </View>
 
@@ -201,6 +214,7 @@ export default function ConfiguracoesScreen() {
         </View>
       </View>
     </ScrollView>
+    </View>
   );
 }
 
@@ -275,5 +289,27 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 12,
+  },
+
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 50,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+  },
+  headerButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  headerSpacer: {
+    width: 40,
   },
 }); 
