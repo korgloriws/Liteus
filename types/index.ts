@@ -15,6 +15,7 @@ export interface Item {
   data?: string;
   prioridade?: number;
   categoria?: string;
+  categorias?: string[];
   tags?: string[];
   concluido?: boolean;
   createdAt: string;
@@ -43,7 +44,7 @@ export interface Lista {
 }
 
 export type OrdenacaoTipo = 'alfabetica' | 'data' | 'prioridade' | 'categoria';
-export type OrdenacaoDirecao = 'asc' | 'desc';
+export type OrdenacaoDirecao = 'asc' | 'desc'; 
 
 export interface FiltroBusca {
   texto: string;

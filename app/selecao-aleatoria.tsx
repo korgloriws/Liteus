@@ -126,7 +126,7 @@ export default function SelecaoAleatoriaScreen() {
 
     cubeAnimation.start();
 
-    // Parar após 3 segundos e selecionar item
+
     setTimeout(() => {
       cubeAnimation.stop();
       finalizarSelecao();
@@ -136,7 +136,7 @@ export default function SelecaoAleatoriaScreen() {
   const finalizarSelecao = () => {
     if (!lista) return;
 
-    // Selecionar item aleatório
+ 
     const indiceAleatorio = Math.floor(Math.random() * lista.itens.length);
     const item = lista.itens[indiceAleatorio];
     
@@ -144,7 +144,7 @@ export default function SelecaoAleatoriaScreen() {
     setSelecionando(false);
     setMostrarResultado(true);
 
-    // Animação de entrada do resultado
+
     Animated.sequence([
       Animated.timing(scaleValue, {
         toValue: 0,

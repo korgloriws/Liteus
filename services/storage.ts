@@ -198,7 +198,7 @@ export class StorageService {
       const listaDuplicada: Lista = {
         ...listaOriginal,
         id: Date.now().toString(),
-        nome: `${listaOriginal.nome} (Cópia)`,
+        nome: listaOriginal.nome,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         itens: listaOriginal.itens.map(item => ({
@@ -234,7 +234,7 @@ export class StorageService {
       const itemDuplicado: Item = {
         ...itemOriginal,
         id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-        texto: `${itemOriginal.texto} (Cópia)`,
+        texto: itemOriginal.texto,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };

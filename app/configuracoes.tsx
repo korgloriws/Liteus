@@ -17,7 +17,7 @@ import { useTheme } from '../services/ThemeContext';
 
 export default function ConfiguracoesScreen() {
   const { isDarkMode, setDarkMode } = useTheme();
-  const [versao] = useState('1.0.1');
+  const [versao] = useState('1.0.2');
   const [listas, setListas] = useState<Lista[]>([]);
 
   useEffect(() => {

@@ -31,8 +31,9 @@ export class UtilsService {
 
       case 'categoria':
         itensOrdenados.sort((a, b) => {
-          const categoriaA = a.categoria || '';
-          const categoriaB = b.categoria || '';
+          // Considerar tanto categoria única quanto múltiplas categorias
+          const categoriaA = a.categoria || (a.categorias && a.categorias.length > 0 ? a.categorias[0] : '');
+          const categoriaB = b.categoria || (b.categorias && b.categorias.length > 0 ? b.categorias[0] : '');
           const comparacao = categoriaA.localeCompare(categoriaB, 'pt-BR');
           return direcao === 'asc' ? comparacao : -comparacao;
         });
@@ -85,8 +86,10 @@ export class UtilsService {
       
       const matchTexto = textoItem.includes(textoBusca) || descricaoItem.includes(textoBusca);
 
-      // Busca por categoria
-      const matchCategoria = !filtro.categoria || item.categoria === filtro.categoria;
+      // Busca por categoria (suporta múltiplas categorias)
+      const matchCategoria = !filtro.categoria || 
+        item.categoria === filtro.categoria || 
+        (item.categorias && item.categorias.includes(filtro.categoria));
 
       // Busca por tags
       const matchTags = !filtro.tags || filtro.tags.length === 0 || 
@@ -113,8 +116,18 @@ export class UtilsService {
     const categorias: string[] = [];
     
     itens.forEach(item => {
+      // Adicionar categoria única se existir
       if (item.categoria && item.categoria.trim() !== '' && !categorias.includes(item.categoria)) {
         categorias.push(item.categoria);
+      }
+      
+      // Adicionar múltiplas categorias se existirem
+      if (item.categorias) {
+        item.categorias.forEach(categoriaId => {
+          if (categoriaId && categoriaId.trim() !== '' && !categorias.includes(categoriaId)) {
+            categorias.push(categoriaId);
+          }
+        });
       }
     });
     

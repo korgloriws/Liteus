@@ -198,47 +198,68 @@ export default function ListasScreen() {
       const result = await DocumentPicker.getDocumentAsync({
         type: ['text/plain'],
         copyToCacheDirectory: true,
+        multiple: false,
       });
 
-      if (!result.canceled && result.assets[0]) {
+      if (!result.canceled && result.assets && result.assets.length > 0) {
         const arquivo = result.assets[0];
         setArquivoImportado(arquivo);
         
-        // Extrair nome do arquivo para sugestão de nome da lista
-        const nomeArquivo = arquivo.name.replace(/\.[^/.]+$/, ''); // Remove extensão
+
+        const nomeArquivo = arquivo.name.replace(/\.[^/.]+$/, ''); 
         setNomeListaImportada(nomeArquivo);
         
-        // Ler e processar o arquivo
+
         await processarArquivo(arquivo);
       }
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível selecionar o arquivo');
+      console.error('Erro ao selecionar arquivo:', error);
+      Alert.alert('Erro', 'Não foi possível selecionar o arquivo. Verifique se o arquivo é válido.');
     }
   };
 
   const processarArquivo = async (arquivo: any) => {
     try {
-      if (arquivo.type !== 'text/plain') {
+      // Verificar se o arquivo é do tipo correto
+      if (arquivo.type !== 'text/plain' && !arquivo.name.endsWith('.txt')) {
         Alert.alert('Erro', 'Apenas arquivos .txt são suportados');
         return;
       }
 
-      const conteudo = await FileSystem.readAsStringAsync(arquivo.uri);
+      // Verificar se o arquivo tem URI válida
+      if (!arquivo.uri) {
+        Alert.alert('Erro', 'Arquivo inválido');
+        return;
+      }
+
+      const conteudo = await FileSystem.readAsStringAsync(arquivo.uri, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+      
+      if (!conteudo || conteudo.trim().length === 0) {
+        Alert.alert('Erro', 'O arquivo está vazio');
+        return;
+      }
+
       const itens = extrairItensDoTexto(conteudo);
       
       setItensImportados(itens);
       
       if (itens.length === 0) {
-        Alert.alert('Aviso', 'Nenhum item foi encontrado no arquivo');
+        Alert.alert('Aviso', 'Nenhum item foi encontrado no arquivo. Verifique se o arquivo contém itens válidos.');
       }
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível ler o arquivo');
+      console.error('Erro ao processar arquivo:', error);
+      Alert.alert('Erro', 'Não foi possível ler o arquivo. Verifique se o arquivo não está corrompido.');
     }
   };
 
   const extrairItensDoTexto = (texto: string): string[] => {
+    // Normalizar quebras de linha
+    const textoNormalizado = texto.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    
     // Dividir por linhas e filtrar linhas vazias
-    const linhas = texto.split('\n')
+    const linhas = textoNormalizado.split('\n')
       .map(linha => linha.trim())
       .filter(linha => linha.length > 0);
 
@@ -251,6 +272,7 @@ export default function ListasScreen() {
         .replace(/^[-•*]\s*/, '') // Remove hífen, bullet, asterisco
         .replace(/^\d+\.\s*/, '') // Remove numeração
         .replace(/^[a-zA-Z]\.\s*/, '') // Remove letras com ponto
+        .replace(/^[•▪▫◦‣⁃]\s*/, '') // Remove outros bullets Unicode
         .trim();
 
       if (itemLimpo.length > 0) {

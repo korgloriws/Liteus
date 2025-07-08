@@ -10,9 +10,11 @@ import {
   Modal,
   Share,
 } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { Lista, Item, OrdenacaoTipo, OrdenacaoDirecao } from '../types';
+import { Lista, Item, OrdenacaoTipo, OrdenacaoDirecao, FormatoTexto } from '../types';
 import { StorageService } from '../services/storage';
 import { UtilsService } from '../services/utils';
 import { FormattedText } from '../services/FormattedText';
@@ -28,6 +30,8 @@ export default function ListaDetalhesScreen() {
   const [novoItemTexto, setNovoItemTexto] = useState('');
   const [novoItemDescricao, setNovoItemDescricao] = useState('');
   const [novoItemCategoria, setNovoItemCategoria] = useState<string | undefined>(undefined);
+  const [novoItemCategorias, setNovoItemCategorias] = useState<string[]>([]);
+  const [novoItemFormato, setNovoItemFormato] = useState<FormatoTexto[] | undefined>(undefined);
   const [modalCategoria, setModalCategoria] = useState(false);
   
   // Estados para busca, filtro e ordenação
@@ -68,14 +72,17 @@ export default function ListaDetalhesScreen() {
     try {
       await StorageService.adicionarItem(listaId, {
         texto: novoItemTexto.trim(),
-        textoFormatado: editandoItem?.textoFormatado,
+        textoFormatado: novoItemFormato,
         descricao: novoItemDescricao.trim() || undefined,
         categoria: novoItemCategoria,
+        categorias: novoItemCategorias.length > 0 ? novoItemCategorias : undefined,
       });
       
       setNovoItemTexto('');
       setNovoItemDescricao('');
       setNovoItemCategoria(undefined);
+      setNovoItemCategorias([]);
+      setNovoItemFormato(undefined);
       setModalVisible(false);
       await carregarLista();
     } catch (error) {
@@ -92,14 +99,17 @@ export default function ListaDetalhesScreen() {
     try {
       await StorageService.atualizarItem(listaId, editandoItem.id, {
         texto: novoItemTexto.trim(),
-        textoFormatado: editandoItem?.textoFormatado,
+        textoFormatado: editandoItem.textoFormatado,
         descricao: novoItemDescricao.trim() || undefined,
         categoria: novoItemCategoria,
+        categorias: novoItemCategorias.length > 0 ? novoItemCategorias : undefined,
       });
       
       setNovoItemTexto('');
       setNovoItemDescricao('');
       setNovoItemCategoria(undefined);
+      setNovoItemCategorias([]);
+      setNovoItemFormato(undefined);
       setEditandoItem(null);
       setModalVisible(false);
       await carregarLista();
@@ -159,6 +169,8 @@ export default function ListaDetalhesScreen() {
     setNovoItemTexto(item.texto);
     setNovoItemDescricao(item.descricao || '');
     setNovoItemCategoria(item.categoria);
+    setNovoItemCategorias(item.categorias || []);
+    setNovoItemFormato(item.textoFormatado);
     setModalVisible(true);
   };
 
@@ -167,6 +179,8 @@ export default function ListaDetalhesScreen() {
     setNovoItemTexto('');
     setNovoItemDescricao('');
     setNovoItemCategoria(undefined);
+    setNovoItemCategorias([]);
+    setNovoItemFormato(undefined);
     setModalVisible(true);
   };
 
@@ -223,19 +237,38 @@ export default function ListaDetalhesScreen() {
             }
           });
         } else {
-          // Usar texto simples
+
           itemTexto = item.texto;
         }
 
-        // Adicionar categoria se existir
-        if (item.categoria) {
-          const categoria = lista.categorias.find(cat => cat.id === item.categoria);
-          if (categoria) {
-            itemTexto += ` [${categoria.nome}]`;
+
+        if (item.categoria || (item.categorias && item.categorias.length > 0)) {
+          const categorias: string[] = [];
+          
+
+          if (item.categoria) {
+            const categoria = lista.categorias.find(cat => cat.id === item.categoria);
+            if (categoria) {
+              categorias.push(categoria.nome);
+            }
+          }
+          
+
+          if (item.categorias) {
+            item.categorias.forEach(categoriaId => {
+              const categoria = lista.categorias.find(cat => cat.id === categoriaId);
+              if (categoria && !categorias.includes(categoria.nome)) {
+                categorias.push(categoria.nome);
+              }
+            });
+          }
+          
+          if (categorias.length > 0) {
+            itemTexto += ` [${categorias.join(', ')}]`;
           }
         }
 
-        // Adicionar descrição se existir
+
         if (item.descricao) {
           itemTexto += ` - ${item.descricao}`;
         }
@@ -243,19 +276,47 @@ export default function ListaDetalhesScreen() {
         conteudo += `${index + 1}. ${itemTexto}\n`;
       });
 
-      // Compartilhar o arquivo
-      await Share.share({
-        message: conteudo,
-        title: `${lista.nome}.txt`,
+      // Criar nome do arquivo
+      const nomeArquivo = `${lista.nome.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+      
+      // Criar caminho do arquivo temporário
+      const fileUri = `${FileSystem.documentDirectory}${nomeArquivo}`;
+      
+      // Escrever o arquivo
+      await FileSystem.writeAsStringAsync(fileUri, conteudo, {
+        encoding: FileSystem.EncodingType.UTF8,
       });
 
+      // Verificar se o compartilhamento está disponível
+      const isAvailable = await Sharing.isAvailableAsync();
+      
+      if (isAvailable) {
+        // Compartilhar o arquivo
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/plain',
+          dialogTitle: `Exportar ${lista.nome}`,
+          UTI: 'public.plain-text',
+        });
+      } else {
+        // Fallback para o método anterior
+        await Share.share({
+          message: conteudo,
+          title: nomeArquivo,
+        });
+      }
+
     } catch (error) {
+      console.error('Erro na exportação:', error);
       Alert.alert('Erro', 'Não foi possível exportar a lista');
     }
   };
 
   const renderItem = ({ item }: { item: Item }) => {
-    const categoria = lista?.categorias?.find(cat => cat.id === item.categoria);
+    const categoriasSelecionadas = item.categorias 
+      ? lista?.categorias?.filter(cat => item.categorias?.includes(cat.id)) || []
+      : item.categoria 
+        ? lista?.categorias?.filter(cat => cat.id === item.categoria) || []
+        : [];
     
     return (
       <View style={[styles.itemContainer, { 
@@ -277,15 +338,19 @@ export default function ListaDetalhesScreen() {
             </TouchableOpacity>
             
             <View style={styles.itemTextContainer}>
-                              <FormattedText 
-                  texto={item.texto}
-                  textoFormatado={item.textoFormatado}
-                  style={styles.itemTexto}
-                  isDarkMode={isDarkMode}
-                />
-              {categoria && (
-                <View style={[styles.categoriaTag, { backgroundColor: categoria.cor || '#007AFF' }]}>
-                  <Text style={styles.categoriaTagText}>{categoria.nome}</Text>
+              <FormattedText 
+                texto={item.texto}
+                textoFormatado={item.textoFormatado}
+                style={styles.itemTexto}
+                isDarkMode={isDarkMode}
+              />
+              {categoriasSelecionadas.length > 0 && (
+                <View style={styles.categoriasContainer}>
+                  {categoriasSelecionadas.map((categoria) => (
+                    <View key={categoria.id} style={[styles.categoriaTag, { backgroundColor: categoria.cor || '#007AFF' }]}>
+                      <Text style={styles.categoriaTagText}>{categoria.nome}</Text>
+                    </View>
+                  ))}
                 </View>
               )}
             </View>
@@ -293,7 +358,7 @@ export default function ListaDetalhesScreen() {
           {item.descricao && (
             <Text style={[styles.itemDescricao, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>{item.descricao}</Text>
           )}
-          <Text style={[styles.itemData, { color: isDarkMode ? '#c7c7cc' : '#c7c7cc' }]}>
+          <Text style={[styles.itemData, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
             Criado em: {new Date(item.createdAt).toLocaleDateString()}
           </Text>
         </View>
@@ -556,10 +621,17 @@ export default function ListaDetalhesScreen() {
             
             <RichTextEditor
               value={novoItemTexto}
-              textoFormatado={editandoItem?.textoFormatado}
+              textoFormatado={editandoItem ? editandoItem.textoFormatado : novoItemFormato}
               onChange={(texto, formato) => {
                 setNovoItemTexto(texto);
-
+                if (editandoItem) {
+                  setEditandoItem({
+                    ...editandoItem,
+                    textoFormatado: formato
+                  });
+                } else {
+                  setNovoItemFormato(formato);
+                }
               }}
               placeholder="Texto do item"
               multiline={true}
@@ -578,42 +650,48 @@ export default function ListaDetalhesScreen() {
               multiline
             />
             
-            {/* Seletor de Categoria */}
+            {/* Seletor de Categorias */}
             {lista?.categorias && lista.categorias.length > 0 && (
               <View style={styles.categoriaSelector}>
                 <Text style={[styles.label, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
-                  Categoria (opcional)
+                  Categorias (opcional)
                 </Text>
                 <View style={styles.categoriaOptions}>
-                  <TouchableOpacity
-                    style={[
-                      styles.categoriaOption,
-                      { backgroundColor: isDarkMode ? '#38383A' : '#fff', borderColor: isDarkMode ? '#5856D6' : '#e5e5ea' },
-                      !novoItemCategoria && styles.categoriaOptionSelected
-                    ]}
-                    onPress={() => setNovoItemCategoria(undefined)}
-                  >
-                    <Text style={[styles.categoriaOptionText, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
-                      Sem categoria
-                    </Text>
-                  </TouchableOpacity>
                   {lista.categorias.map((categoria) => (
                     <TouchableOpacity
                       key={categoria.id}
                       style={[
                         styles.categoriaOption,
                         { backgroundColor: isDarkMode ? '#38383A' : '#fff', borderColor: isDarkMode ? '#5856D6' : '#e5e5ea' },
-                        novoItemCategoria === categoria.id && styles.categoriaOptionSelected
+                        novoItemCategorias.includes(categoria.id) && styles.categoriaOptionSelected
                       ]}
-                      onPress={() => setNovoItemCategoria(categoria.id)}
+                      onPress={() => {
+                        if (novoItemCategorias.includes(categoria.id)) {
+                          setNovoItemCategorias(novoItemCategorias.filter(id => id !== categoria.id));
+                        } else {
+                          setNovoItemCategorias([...novoItemCategorias, categoria.id]);
+                        }
+                      }}
                     >
                       <View style={[styles.categoriaColor, { backgroundColor: categoria.cor || '#007AFF' }]} />
                       <Text style={[styles.categoriaOptionText, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
                         {categoria.nome}
                       </Text>
+                      {novoItemCategorias.includes(categoria.id) && (
+                        <MaterialIcons name="check" size={16} color="#007AFF" />
+                      )}
                     </TouchableOpacity>
                   ))}
                 </View>
+                {novoItemCategorias.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.btnLimparCategorias}
+                    onPress={() => setNovoItemCategorias([])}
+                  >
+                    <MaterialIcons name="clear" size={16} color="#FF3B30" />
+                    <Text style={styles.btnLimparCategoriasText}>Limpar Categorias</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
             
@@ -994,5 +1072,23 @@ const styles = StyleSheet.create({
     color: '#FF3B30',
     fontSize: 14,
     fontWeight: '600',
+  },
+  btnLimparCategorias: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    gap: 4,
+  },
+  btnLimparCategoriasText: {
+    color: '#FF3B30',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  categoriasContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 4,
   },
 }); 

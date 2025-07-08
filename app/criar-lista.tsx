@@ -109,10 +109,10 @@ export default function CriarListaScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView style={[styles.container, { backgroundColor: isDarkMode ? '#000' : '#F2F2F7' }]} showsVerticalScrollIndicator={false}>
-        
+    <ScrollView style={[styles.container, { backgroundColor: isDarkMode ? '#000' : '#F2F2F7' }]} showsVerticalScrollIndicator={false}>
+      
 
-        <View style={styles.content}>
+      <View style={styles.content}>
         <View style={styles.introSection}>
          
         </View>
@@ -317,8 +317,8 @@ export default function CriarListaScreen() {
             Sua lista será salva automaticamente
           </Text>
         </View>
-              </View>
-      </ScrollView>
+      </View>
+    </ScrollView>
 
       {/* Modal para Adicionar Categoria */}
       <Modal
@@ -388,7 +388,7 @@ export default function CriarListaScreen() {
         </View>
       </Modal>
     </View>
-    );
+  );
 }
 
 const styles = StyleSheet.create({

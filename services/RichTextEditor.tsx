@@ -7,6 +7,7 @@ import {
   TextInput,
   Modal,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { FormatoTexto } from '../types';
@@ -41,16 +42,40 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   const aplicarFormato = (tipo: 'negrito' | 'italico' | 'cor', valor?: string) => {
     const textoSelecionado = editandoTexto.substring(selecao.start, selecao.end);
-    if (!textoSelecionado) return;
+    if (!textoSelecionado) {
+      Alert.alert('Aviso', 'Selecione um texto para aplicar formatação');
+      return;
+    }
 
-    const novoFormato: FormatoTexto = {
-      texto: textoSelecionado,
-      negrito: tipo === 'negrito' ? true : undefined,
-      italico: tipo === 'italico' ? true : undefined,
-      cor: tipo === 'cor' ? valor : undefined,
-    };
+    // Verificar se já existe uma formatação para este texto
+    const formatoExistenteIndex = editandoFormato.findIndex(
+      formato => formato.texto === textoSelecionado
+    );
 
-    setEditandoFormato([...editandoFormato, novoFormato]);
+    if (formatoExistenteIndex >= 0) {
+      // Atualizar formatação existente
+      const formatoExistente = editandoFormato[formatoExistenteIndex];
+      const novoFormato: FormatoTexto = {
+        ...formatoExistente,
+        negrito: tipo === 'negrito' ? !formatoExistente.negrito : formatoExistente.negrito,
+        italico: tipo === 'italico' ? !formatoExistente.italico : formatoExistente.italico,
+        cor: tipo === 'cor' ? valor : formatoExistente.cor,
+      };
+
+      const novosFormatos = [...editandoFormato];
+      novosFormatos[formatoExistenteIndex] = novoFormato;
+      setEditandoFormato(novosFormatos);
+    } else {
+      // Criar nova formatação
+      const novoFormato: FormatoTexto = {
+        texto: textoSelecionado,
+        negrito: tipo === 'negrito' ? true : undefined,
+        italico: tipo === 'italico' ? true : undefined,
+        cor: tipo === 'cor' ? valor : undefined,
+      };
+
+      setEditandoFormato([...editandoFormato, novoFormato]);
+    }
   };
 
   const removerFormato = (index: number) => {
@@ -67,6 +92,31 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     setEditandoTexto(value);
     setEditandoFormato(textoFormatado || []);
     setModalVisible(false);
+  };
+
+  const isFormatoAtivo = (tipo: 'negrito' | 'italico' | 'cor', valor?: string) => {
+    const textoSelecionado = editandoTexto.substring(selecao.start, selecao.end);
+    if (!textoSelecionado) {
+      return false;
+    }
+
+    const formatoExistente = editandoFormato.find(
+      formato => formato.texto === textoSelecionado
+    );
+
+    if (formatoExistente) {
+      if (tipo === 'negrito') {
+        return formatoExistente.negrito === true;
+      }
+      if (tipo === 'italico') {
+        return formatoExistente.italico === true;
+      }
+      if (tipo === 'cor') {
+        return formatoExistente.cor === valor;
+      }
+    }
+
+    return false;
   };
 
   return (
@@ -96,6 +146,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
               Editar Texto
             </Text>
 
+            <Text style={[styles.instructionText, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
+              Selecione um texto e use os botões abaixo para aplicar formatação
+            </Text>
+
             <TextInput
               style={[styles.textInput, { 
                 backgroundColor: isDarkMode ? '#38383A' : '#fff',
@@ -113,27 +167,84 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
               }}
             />
 
+            {/* Prévia do texto formatado */}
+            {editandoFormato.length > 0 && (
+              <View style={styles.previewContainer}>
+                <Text style={[styles.previewTitle, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+                  Prévia:
+                </Text>
+                <View style={[styles.previewText, { 
+                  backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7',
+                  borderColor: isDarkMode ? '#5856D6' : '#e5e5ea'
+                }]}>
+                  {editandoFormato.map((formato, index) => {
+                    const textStyle: any = {
+                      color: isDarkMode ? '#fff' : '#1c1c1e',
+                    };
+
+                    if (formato.negrito) {
+                      textStyle.fontWeight = 'bold';
+                    }
+
+                    if (formato.italico) {
+                      textStyle.fontStyle = 'italic';
+                    }
+
+                    if (formato.cor) {
+                      textStyle.color = formato.cor;
+                    }
+
+                    return (
+                      <Text key={index} style={textStyle}>
+                        {formato.texto}
+                      </Text>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
             {/* Barra de Ferramentas */}
             <View style={styles.toolbar}>
               <TouchableOpacity
-                style={[styles.toolButton, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}
+                style={[
+                  styles.toolButton, 
+                  { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' },
+                  isFormatoAtivo('negrito') && styles.toolButtonActive
+                ]}
                 onPress={() => aplicarFormato('negrito')}
               >
-                <MaterialIcons name="format-bold" size={20} color="#007AFF" />
+                <MaterialIcons 
+                  name="format-bold" 
+                  size={20} 
+                  color={isFormatoAtivo('negrito') ? '#fff' : '#007AFF'} 
+                />
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.toolButton, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}
+                style={[
+                  styles.toolButton, 
+                  { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' },
+                  isFormatoAtivo('italico') && styles.toolButtonActive
+                ]}
                 onPress={() => aplicarFormato('italico')}
               >
-                <MaterialIcons name="format-italic" size={20} color="#007AFF" />
+                <MaterialIcons 
+                  name="format-italic" 
+                  size={20} 
+                  color={isFormatoAtivo('italico') ? '#fff' : '#007AFF'} 
+                />
               </TouchableOpacity>
 
               <View style={styles.colorPicker}>
                 {cores.map((cor) => (
                   <TouchableOpacity
                     key={cor}
-                    style={[styles.colorButton, { backgroundColor: cor }]}
+                    style={[
+                      styles.colorButton, 
+                      { backgroundColor: cor },
+                      isFormatoAtivo('cor', cor) && styles.colorButtonActive
+                    ]}
                     onPress={() => aplicarFormato('cor', cor)}
                   />
                 ))}
@@ -144,16 +255,32 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             {editandoFormato.length > 0 && (
               <View style={styles.formatosContainer}>
                 <Text style={[styles.formatosTitle, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
-                  Formatações:
+                  Formatações Aplicadas:
                 </Text>
                 {editandoFormato.map((formato, index) => (
                   <View key={index} style={styles.formatoItem}>
-                    <Text style={[styles.formatoText, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
-                      "{formato.texto}" - 
-                      {formato.negrito && ' Negrito'}
-                      {formato.italico && ' Itálico'}
-                      {formato.cor && ` Cor: ${formato.cor}`}
-                    </Text>
+                    <View style={styles.formatoInfo}>
+                      <Text style={[styles.formatoText, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
+                        "{formato.texto}"
+                      </Text>
+                      <View style={styles.formatoTags}>
+                        {formato.negrito && (
+                          <View style={[styles.formatoTag, { backgroundColor: '#007AFF' }]}>
+                            <Text style={styles.formatoTagText}>Negrito</Text>
+                          </View>
+                        )}
+                        {formato.italico && (
+                          <View style={[styles.formatoTag, { backgroundColor: '#34C759' }]}>
+                            <Text style={styles.formatoTagText}>Itálico</Text>
+                          </View>
+                        )}
+                        {formato.cor && (
+                          <View style={[styles.formatoTag, { backgroundColor: formato.cor }]}>
+                            <Text style={styles.formatoTagText}>Cor</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
                     <TouchableOpacity onPress={() => removerFormato(index)}>
                       <MaterialIcons name="close" size={16} color="#FF3B30" />
                     </TouchableOpacity>
@@ -216,6 +343,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     textAlign: 'center',
   },
+  instructionText: {
+    fontSize: 14,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
   textInput: {
     borderWidth: 1,
     borderRadius: 8,
@@ -237,6 +369,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  toolButtonActive: {
+    backgroundColor: '#007AFF',
+  },
   colorPicker: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -248,6 +383,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E5E5EA',
+  },
+  colorButtonActive: {
+    borderWidth: 2,
+    borderColor: '#007AFF',
   },
   formatosContainer: {
     marginBottom: 16,
@@ -263,9 +402,29 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 4,
   },
+  formatoInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   formatoText: {
     fontSize: 12,
     flex: 1,
+  },
+  formatoTags: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  formatoTag: {
+    padding: 4,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    borderRadius: 4,
+  },
+  formatoTagText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#fff',
   },
   modalButtons: {
     flexDirection: 'row',
@@ -296,5 +455,20 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  previewContainer: {
+    marginBottom: 16,
+  },
+  previewTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  previewText: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
 }); 
