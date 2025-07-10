@@ -59,12 +59,12 @@ export default function SelecaoAleatoriaScreen() {
     setMostrarResultado(false);
     setItemSelecionado(null);
 
-    // Resetar animações
+
     spinValue.setValue(0);
     scaleValue.setValue(1);
     opacityValue.setValue(1);
 
-    // Determinar tipo de animação
+
     const tipoAnimacao = lista.tipoAnimacao || 'roleta';
     
     if (tipoAnimacao === 'roleta') {
@@ -75,7 +75,7 @@ export default function SelecaoAleatoriaScreen() {
   };
 
   const animacaoRoleta = () => {
-    // Animação de rotação
+
     const spinAnimation = Animated.loop(
       Animated.timing(spinValue, {
         toValue: 1,
@@ -86,7 +86,7 @@ export default function SelecaoAleatoriaScreen() {
 
     spinAnimation.start();
 
-    // Parar após 3 segundos e selecionar item
+
     setTimeout(() => {
       spinAnimation.stop();
       finalizarSelecao();

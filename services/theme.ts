@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useColorScheme } from 'react-native';
 
 export const carregarConfiguracoes = async () => {
   try {
@@ -25,15 +24,7 @@ export const salvarConfiguracoes = async (modoEscuro: boolean) => {
   }
 };
 
-export const useTheme = () => {
-  const systemColorScheme = useColorScheme();
-  
-  const isDarkMode = (modoEscuro: boolean) => {
-    return modoEscuro || systemColorScheme === 'dark';
-  };
-
-  return {
-    isDarkMode,
-    systemColorScheme,
-  };
+// Função auxiliar para verificar se o modo escuro está ativo
+export const isDarkModeActive = (modoEscuro: boolean) => {
+  return modoEscuro;
 }; 

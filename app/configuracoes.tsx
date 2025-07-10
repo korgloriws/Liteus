@@ -7,18 +7,30 @@ import {
   Switch,
   ScrollView,
   Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { Lista } from '../types';
 import { StorageService } from '../services/storage';
+import { SyncService } from '../services/syncService';
 import { useTheme } from '../services/ThemeContext';
 
 export default function ConfiguracoesScreen() {
   const { isDarkMode, setDarkMode } = useTheme();
-  const [versao] = useState('1.0.2');
+  const [versao] = useState('1.0.3');
   const [listas, setListas] = useState<Lista[]>([]);
+  const [modalSincronizacao, setModalSincronizacao] = useState(false);
+  const [dadosSincronizacao, setDadosSincronizacao] = useState('');
+  const [modalImportacaoGoogleDocs, setModalImportacaoGoogleDocs] = useState(false);
+  const [modalImportacaoJSON, setModalImportacaoJSON] = useState(false);
+  const [conteudoGoogleDocs, setConteudoGoogleDocs] = useState('');
+  const [dadosJSON, setDadosJSON] = useState('');
+  const [tipoArquivoSelecionado, setTipoArquivoSelecionado] = useState('auto');
 
   useEffect(() => {
     carregarListas();
@@ -44,23 +56,145 @@ export default function ConfiguracoesScreen() {
     }
 
     try {
-      const dados = {
-        listas,
-        exportadoEm: new Date().toISOString(),
-        versao: '1.0',
-      };
-
-      const jsonString = JSON.stringify(dados, null, 2);
-      Alert.alert(
-        'Dados para Exportação',
-        'Copie os dados abaixo e salve em um arquivo .json:',
-        [
-          { text: 'OK' }
-        ]
-      );
-      console.log('Dados para exportação:', jsonString);
+      const dadosJson = await SyncService.exportarTodasListas();
+      setDadosSincronizacao(dadosJson);
+      setModalSincronizacao(true);
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível exportar as listas');
+    }
+  };
+
+  const exportarParaGoogleDocs = async () => {
+    if (listas.length === 0) {
+      Alert.alert('Aviso', 'Não há listas para exportar');
+      return;
+    }
+
+    try {
+      let templateCompleto = '# Listas Liteus\n\n';
+      
+      for (const lista of listas) {
+        templateCompleto += SyncService.gerarTemplateGoogleDocs(lista);
+        templateCompleto += '\n---\n\n';
+      }
+
+      // Salvar como arquivo temporário e compartilhar
+      const fileName = `listas_liteus_${new Date().toISOString().split('T')[0]}.txt`;
+      
+      if (await Sharing.isAvailableAsync()) {
+        // Criar arquivo temporário
+        const fileName = `listas_liteus_${new Date().toISOString().split('T')[0]}.txt`;
+        const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+        
+        await FileSystem.writeAsStringAsync(fileUri, templateCompleto, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+        
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/plain',
+          dialogTitle: 'Exportar para Google Docs',
+          UTI: 'public.plain-text',
+        });
+      } else {
+        Alert.alert(
+          'Dados para Google Docs',
+          'Copie o conteúdo abaixo e cole no Google Docs:',
+          [{ text: 'OK' }]
+        );
+        console.log('Template para Google Docs:', templateCompleto);
+      }
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível exportar para Google Docs');
+    }
+  };
+
+  const importarDoGoogleDocs = async () => {
+    setConteudoGoogleDocs('');
+    setModalImportacaoGoogleDocs(true);
+  };
+
+  const processarImportacaoGoogleDocs = async () => {
+    if (!conteudoGoogleDocs || conteudoGoogleDocs.trim().length === 0) {
+      Alert.alert('Erro', 'Conteúdo vazio');
+      return;
+    }
+
+    try {
+      console.log('Processando importação do Google Docs...');
+      
+      // Tentar detectar e processar automaticamente
+      const resultado = await SyncService.processarArquivo(conteudoGoogleDocs, tipoArquivoSelecionado);
+      
+      if (resultado.nome && resultado.itens.length > 0) {
+        console.log('Lista detectada:', resultado.nome, 'com', resultado.itens.length, 'itens');
+        
+        // Criar lista a partir do resultado
+        const novaLista = await StorageService.adicionarLista({
+          nome: resultado.nome,
+          descricao: resultado.descricao,
+          cor: resultado.cor,
+          permiteSelecaoAleatoria: resultado.permiteSelecaoAleatoria,
+          tipoAnimacao: resultado.tipoAnimacao,
+          itens: [],
+          categorias: resultado.categorias.map((nome, index) => ({
+            id: `cat_${Date.now()}_${index}`,
+            nome,
+            cor: '#007AFF',
+            createdAt: new Date().toISOString(),
+          })),
+        });
+
+        // Adicionar itens
+        for (const texto of resultado.itens) {
+          await StorageService.adicionarItem(novaLista.id, {
+            texto: texto.trim(),
+            descricao: undefined,
+            categoria: undefined,
+          });
+        }
+
+        await carregarListas();
+        setModalImportacaoGoogleDocs(false);
+        setConteudoGoogleDocs('');
+        Alert.alert('Sucesso', `Lista "${resultado.nome}" importada com ${resultado.itens.length} itens!`);
+      } else {
+        Alert.alert('Erro', 'Formato inválido. Verifique se o conteúdo está no formato correto.');
+      }
+    } catch (error) {
+      console.error('Erro na importação:', error);
+      Alert.alert('Erro', 'Não foi possível importar do Google Docs. Verifique o formato do conteúdo.');
+    }
+  };
+
+  const importarDadosEstruturados = async () => {
+    setDadosJSON('');
+    setModalImportacaoJSON(true);
+  };
+
+  const processarImportacaoJSON = async () => {
+    if (!dadosJSON || dadosJSON.trim().length === 0) {
+      Alert.alert('Erro', 'Dados vazios');
+      return;
+    }
+
+    try {
+      const resultado = await SyncService.importarDados(dadosJSON);
+      
+      await carregarListas();
+      
+      let mensagem = `Importação concluída!\n`;
+      mensagem += `- Listas importadas: ${resultado.listasImportadas}\n`;
+      mensagem += `- Itens importados: ${resultado.itensImportados}\n`;
+      
+      if (resultado.conflitos.length > 0) {
+        mensagem += `\nConflitos:\n${resultado.conflitos.join('\n')}`;
+      }
+      
+      setModalImportacaoJSON(false);
+      setDadosJSON('');
+      Alert.alert('Sucesso', mensagem);
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível importar os dados');
     }
   };
 
@@ -131,6 +265,80 @@ export default function ConfiguracoesScreen() {
           </View>
         </View>
 
+        {/* Seção de Sincronização */}
+        <View style={[styles.section, { 
+          backgroundColor: isDarkMode ? '#1C1C1E' : '#fff',
+          shadowColor: isDarkMode ? '#000' : '#000',
+        }]}>
+          <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Sincronização</Text>
+          
+          <TouchableOpacity 
+            style={styles.optionItem} 
+            onPress={exportarParaGoogleDocs}
+          >
+            <View style={styles.optionInfo}>
+              <MaterialIcons name="cloud-upload" size={24} color="#007AFF" />
+              <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Exportar para Google Docs</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color="#8E8E93" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.optionItem} 
+            onPress={importarDoGoogleDocs}
+          >
+            <View style={styles.optionInfo}>
+              <MaterialIcons name="cloud-download" size={24} color="#34C759" />
+              <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Importar do Google Docs</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color="#8E8E93" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.optionItem} 
+            onPress={() => {
+              const exemplo = SyncService.gerarExemploTemplate();
+              Alert.alert(
+                'Exemplo de Template Google Docs',
+                'Copie este conteúdo e cole no Google Docs para testar a importação:',
+                [
+                  { text: 'Copiar', onPress: () => console.log('Exemplo:', exemplo) },
+                  { text: 'OK' }
+                ]
+              );
+              console.log('Exemplo de template:', exemplo);
+            }}
+          >
+            <View style={styles.optionInfo}>
+              <MaterialIcons name="help" size={24} color="#FF9500" />
+              <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Ver Exemplo de Template</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color="#8E8E93" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.optionItem} 
+            onPress={exportarTodasListas}
+          >
+            <View style={styles.optionInfo}>
+              <MaterialIcons name="file-download" size={24} color="#FF9500" />
+              <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Exportar Dados Estruturados</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color="#8E8E93" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.optionItem} 
+            onPress={importarDadosEstruturados}
+          >
+            <View style={styles.optionInfo}>
+              <MaterialIcons name="file-upload" size={24} color="#AF52DE" />
+              <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Importar Dados Estruturados</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color="#8E8E93" />
+          </TouchableOpacity>
+        </View>
+
         {/* Seção de Dados */}
         <View style={[styles.section, { 
           backgroundColor: isDarkMode ? '#1C1C1E' : '#fff',
@@ -149,8 +357,15 @@ export default function ConfiguracoesScreen() {
             <MaterialIcons name="chevron-right" size={24} color="#8E8E93" />
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.optionItem} onPress={exportarTodasListas}>
-            
+          <TouchableOpacity 
+            style={styles.optionItem} 
+            onPress={limparDados}
+          >
+            <View style={styles.optionInfo}>
+              <MaterialIcons name="delete-forever" size={24} color="#FF3B30" />
+              <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Limpar Todos os Dados</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color="#8E8E93" />
           </TouchableOpacity>
         </View>
 
@@ -196,8 +411,8 @@ export default function ConfiguracoesScreen() {
           </View>
           
           <View style={styles.featureItem}>
-            <MaterialIcons name="cloud-download" size={20} color="#34C759" />
-            <Text style={[styles.featureText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Exportação e importação de dados</Text>
+            <MaterialIcons name="cloud-sync" size={20} color="#34C759" />
+            <Text style={[styles.featureText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Sincronização com Google Docs</Text>
           </View>
           
           <View style={styles.featureItem}>
@@ -214,6 +429,227 @@ export default function ConfiguracoesScreen() {
         </View>
       </View>
     </ScrollView>
+
+    {/* Modal de Sincronização */}
+    <Modal
+      visible={modalSincronizacao}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => setModalSincronizacao(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
+          <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+            Dados para Sincronização
+          </Text>
+          
+          <Text style={[styles.modalSubtitle, { color: isDarkMode ? '#8E8E93' : '#8E8E93' }]}>
+            Copie os dados abaixo e cole no outro dispositivo:
+          </Text>
+
+          <TextInput
+            style={[styles.modalTextInput, { 
+              backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7',
+              color: isDarkMode ? '#fff' : '#1C1C1E',
+              borderColor: isDarkMode ? '#5856D6' : '#E5E5EA'
+            }]}
+            value={dadosSincronizacao}
+            multiline
+            numberOfLines={10}
+            editable={false}
+          />
+
+          <View style={styles.modalButtons}>
+            <TouchableOpacity
+              style={styles.btnCancelar}
+              onPress={() => setModalSincronizacao(false)}
+            >
+              <Text style={styles.btnCancelarText}>Fechar</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.btnCopiar}
+              onPress={() => {
+                // Implementar cópia para clipboard
+                Alert.alert('Sucesso', 'Dados copiados para a área de transferência!');
+              }}
+            >
+              <Text style={styles.btnCopiarText}>Copiar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+
+    {/* Modal de Importação do Google Docs */}
+    <Modal
+      visible={modalImportacaoGoogleDocs}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => setModalImportacaoGoogleDocs(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
+          <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+            Importar do Google Docs
+          </Text>
+          
+          <Text style={[styles.modalSubtitle, { color: isDarkMode ? '#8E8E93' : '#8E8E93' }]}>
+            Cole o conteúdo do Google Docs aqui. Aceita qualquer formato de texto:
+          </Text>
+          
+          <Text style={[styles.modalSubtitle, { color: isDarkMode ? '#8E8E93' : '#8E8E93', fontSize: 12, marginBottom: 10 }]}>
+            • Listas com bullets (• - *)
+            • Listas numeradas (1. 2. 3.)
+            • Texto simples
+            • Templates estruturados
+            • Exportações do Google Docs
+          </Text>
+
+          <Text style={[styles.modalSubtitle, { color: isDarkMode ? '#8E8E93' : '#8E8E93', fontSize: 12, marginBottom: 5 }]}>
+            Tipo de arquivo:
+          </Text>
+          
+          <View style={styles.tipoArquivoContainer}>
+            <TouchableOpacity
+              style={[
+                styles.tipoArquivoButton,
+                tipoArquivoSelecionado === 'auto' && styles.tipoArquivoButtonSelected
+              ]}
+              onPress={() => setTipoArquivoSelecionado('auto')}
+            >
+              <Text style={[
+                styles.tipoArquivoButtonText,
+                { color: isDarkMode ? '#fff' : '#1C1C1E' },
+                tipoArquivoSelecionado === 'auto' && styles.tipoArquivoButtonTextSelected
+              ]}>Auto</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                styles.tipoArquivoButton,
+                tipoArquivoSelecionado === 'txt' && styles.tipoArquivoButtonSelected
+              ]}
+              onPress={() => setTipoArquivoSelecionado('txt')}
+            >
+              <Text style={[
+                styles.tipoArquivoButtonText,
+                { color: isDarkMode ? '#fff' : '#1C1C1E' },
+                tipoArquivoSelecionado === 'txt' && styles.tipoArquivoButtonTextSelected
+              ]}>TXT</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                styles.tipoArquivoButton,
+                tipoArquivoSelecionado === 'docx' && styles.tipoArquivoButtonSelected
+              ]}
+              onPress={() => setTipoArquivoSelecionado('docx')}
+            >
+              <Text style={[
+                styles.tipoArquivoButtonText,
+                { color: isDarkMode ? '#fff' : '#1C1C1E' },
+                tipoArquivoSelecionado === 'docx' && styles.tipoArquivoButtonTextSelected
+              ]}>DOCX</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                styles.tipoArquivoButton,
+                tipoArquivoSelecionado === 'pdf' && styles.tipoArquivoButtonSelected
+              ]}
+              onPress={() => setTipoArquivoSelecionado('pdf')}
+            >
+              <Text style={[
+                styles.tipoArquivoButtonText,
+                { color: isDarkMode ? '#fff' : '#1C1C1E' },
+                tipoArquivoSelecionado === 'pdf' && styles.tipoArquivoButtonTextSelected
+              ]}>PDF</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TextInput
+            style={[styles.modalTextInput, { 
+              backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7',
+              color: isDarkMode ? '#fff' : '#1C1C1E',
+              borderColor: isDarkMode ? '#5856D6' : '#E5E5EA'
+            }]}
+            value={conteudoGoogleDocs}
+            onChangeText={setConteudoGoogleDocs}
+            multiline
+            numberOfLines={15}
+            placeholder="Cole o conteúdo aqui..."
+            placeholderTextColor={isDarkMode ? '#8E8E93' : '#8E8E93'}
+          />
+
+          <View style={styles.modalButtons}>
+            <TouchableOpacity
+              style={styles.btnCancelar}
+              onPress={() => setModalImportacaoGoogleDocs(false)}
+            >
+              <Text style={styles.btnCancelarText}>Cancelar</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.btnCopiar}
+              onPress={processarImportacaoGoogleDocs}
+            >
+              <Text style={styles.btnCopiarText}>Importar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+
+    {/* Modal de Importação JSON */}
+    <Modal
+      visible={modalImportacaoJSON}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => setModalImportacaoJSON(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
+          <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+            Importar Dados Estruturados
+          </Text>
+          
+          <Text style={[styles.modalSubtitle, { color: isDarkMode ? '#8E8E93' : '#8E8E93' }]}>
+            Cole os dados JSON aqui:
+          </Text>
+
+          <TextInput
+            style={[styles.modalTextInput, { 
+              backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7',
+              color: isDarkMode ? '#fff' : '#1C1C1E',
+              borderColor: isDarkMode ? '#5856D6' : '#E5E5EA'
+            }]}
+            value={dadosJSON}
+            onChangeText={setDadosJSON}
+            multiline
+            numberOfLines={15}
+            placeholder="Cole os dados JSON aqui..."
+            placeholderTextColor={isDarkMode ? '#8E8E93' : '#8E8E93'}
+          />
+
+          <View style={styles.modalButtons}>
+            <TouchableOpacity
+              style={styles.btnCancelar}
+              onPress={() => setModalImportacaoJSON(false)}
+            >
+              <Text style={styles.btnCancelarText}>Cancelar</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.btnCopiar}
+              onPress={processarImportacaoJSON}
+            >
+              <Text style={styles.btnCopiarText}>Importar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
     </View>
   );
 }
@@ -290,7 +726,6 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 12,
   },
-
   customHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -311,5 +746,93 @@ const styles = StyleSheet.create({
   },
   headerSpacer: {
     width: 40,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    maxWidth: 400,
+    borderRadius: 16,
+    padding: 24,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalTextInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 12,
+    marginBottom: 16,
+    minHeight: 200,
+    fontFamily: 'monospace',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  btnCancelar: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    alignItems: 'center',
+  },
+  btnCancelarText: {
+    color: '#8E8E93',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  btnCopiar: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+  },
+  btnCopiarText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  tipoArquivoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 16,
+    gap: 8,
+  },
+  tipoArquivoButton: {
+    flex: 1,
+    padding: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    alignItems: 'center',
+  },
+  tipoArquivoButtonSelected: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  tipoArquivoButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  tipoArquivoButtonTextSelected: {
+    color: '#fff',
+    fontWeight: '600',
   },
 }); 

@@ -20,6 +20,7 @@ import { StorageService } from '../services/storage';
 import { UtilsService } from '../services/utils';
 import { DocumentProcessor } from '../services/documentProcessor';
 import { useTheme } from '../services/ThemeContext';
+import { SyncService } from '../services/syncService';
 
 export default function ListasScreen() {
   const { isDarkMode } = useTheme();
@@ -196,7 +197,14 @@ export default function ListasScreen() {
   const selecionarArquivo = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['text/plain'],
+        type: [
+          'text/plain',
+          'application/json',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.oasis.opendocument.text',
+          'application/rtf',
+          'application/pdf',
+        ],
         copyToCacheDirectory: true,
         multiple: false,
       });
@@ -205,11 +213,10 @@ export default function ListasScreen() {
         const arquivo = result.assets[0];
         setArquivoImportado(arquivo);
         
-
+        // Extrair nome do arquivo sem extensão
         const nomeArquivo = arquivo.name.replace(/\.[^/.]+$/, ''); 
         setNomeListaImportada(nomeArquivo);
         
-
         await processarArquivo(arquivo);
       }
     } catch (error) {
@@ -220,12 +227,6 @@ export default function ListasScreen() {
 
   const processarArquivo = async (arquivo: any) => {
     try {
-      // Verificar se o arquivo é do tipo correto
-      if (arquivo.type !== 'text/plain' && !arquivo.name.endsWith('.txt')) {
-        Alert.alert('Erro', 'Apenas arquivos .txt são suportados');
-        return;
-      }
-
       // Verificar se o arquivo tem URI válida
       if (!arquivo.uri) {
         Alert.alert('Erro', 'Arquivo inválido');
@@ -241,12 +242,30 @@ export default function ListasScreen() {
         return;
       }
 
-      const itens = extrairItensDoTexto(conteudo);
+      // Determinar tipo do arquivo baseado na extensão
+      const extensao = arquivo.name.split('.').pop()?.toLowerCase() || 'txt';
       
-      setItensImportados(itens);
-      
-      if (itens.length === 0) {
-        Alert.alert('Aviso', 'Nenhum item foi encontrado no arquivo. Verifique se o arquivo contém itens válidos.');
+      try {
+        // Usar o novo sistema de processamento de arquivos
+        const dadosProcessados = await SyncService.processarArquivo(conteudo, extensao);
+        
+        setItensImportados(dadosProcessados.itens);
+        setNomeListaImportada(dadosProcessados.nome || nomeListaImportada);
+        setDescricaoListaImportada(dadosProcessados.descricao || '');
+        setCorListaImportada(dadosProcessados.cor || '#007AFF');
+        
+        if (dadosProcessados.itens.length === 0) {
+          Alert.alert('Aviso', 'Nenhum item foi encontrado no arquivo. Verifique se o arquivo contém itens válidos.');
+        }
+      } catch (error) {
+        console.error('Erro ao processar arquivo:', error);
+        // Fallback para o método antigo
+        const itens = extrairItensDoTexto(conteudo);
+        setItensImportados(itens);
+        
+        if (itens.length === 0) {
+          Alert.alert('Aviso', 'Nenhum item foi encontrado no arquivo. Verifique se o arquivo contém itens válidos.');
+        }
       }
     } catch (error) {
       console.error('Erro ao processar arquivo:', error);
@@ -405,7 +424,7 @@ export default function ListasScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: isDarkMode ? '#000' : '#F2F2F7' }]}>
-      {/* Header */}
+      {}
       <View style={[styles.header, { 
         backgroundColor: isDarkMode ? '#1C1C1E' : '#fff',
         borderBottomColor: isDarkMode ? '#38383A' : '#E5E5EA'
@@ -896,6 +915,10 @@ export default function ListasScreen() {
               <Text style={[styles.modalEditarTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
                 Importar Lista
               </Text>
+              
+              <Text style={[styles.modalSubtitle, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
+                Formatos suportados: TXT, JSON, DOCX, ODT, RTF, PDF
+              </Text>
 
               {/* Seleção de Arquivo */}
               <View style={styles.editarGrupo}>
@@ -908,7 +931,7 @@ export default function ListasScreen() {
                 >
                   <MaterialIcons name="file-upload" size={24} color="#007AFF" />
                   <Text style={[styles.btnSelecionarArquivoText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
-                    {arquivoImportado ? arquivoImportado.name : 'Escolher arquivo (.txt)'}
+                    {arquivoImportado ? arquivoImportado.name : 'Escolher arquivo'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1307,6 +1330,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    marginBottom: 16,
     textAlign: 'center',
   },
   editarGrupo: {

@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useColorScheme } from 'react-native';
 import { carregarConfiguracoes, salvarConfiguracoes } from './theme';
 
 interface ThemeContextType {
@@ -11,14 +10,14 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const systemColorScheme = useColorScheme();
   const [modoEscuro, setModoEscuro] = useState(false);
 
   useEffect(() => {
     carregarConfiguracoes().then(setModoEscuro);
   }, []);
 
-  const isDarkMode = modoEscuro || systemColorScheme === 'dark';
+  // Agora o modo escuro é controlado apenas pelo usuário
+  const isDarkMode = modoEscuro;
 
   const toggleTheme = async () => {
     const novoModo = !modoEscuro;

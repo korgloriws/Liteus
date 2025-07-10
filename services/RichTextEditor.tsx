@@ -33,6 +33,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const [editandoTexto, setEditandoTexto] = useState(value);
   const [editandoFormato, setEditandoFormato] = useState<FormatoTexto[]>(textoFormatado || []);
   const [selecao, setSelecao] = useState({ start: 0, end: 0 });
+  const [formatoAtual, setFormatoAtual] = useState<Partial<FormatoTexto>>({});
 
   const cores = [
     '#FF3B30', '#FF9500', '#FFCC02', '#34C759', 
@@ -47,6 +48,25 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       return;
     }
 
+    // Atualizar formato atual
+    const novoFormatoAtual = { ...formatoAtual };
+    if (tipo === 'negrito') {
+      novoFormatoAtual.negrito = !novoFormatoAtual.negrito;
+    } else if (tipo === 'italico') {
+      novoFormatoAtual.italico = !novoFormatoAtual.italico;
+    } else if (tipo === 'cor') {
+      novoFormatoAtual.cor = valor;
+    }
+    setFormatoAtual(novoFormatoAtual);
+
+    // Aplicar formatação ao texto selecionado
+    const novoFormato: FormatoTexto = {
+      texto: textoSelecionado,
+      negrito: novoFormatoAtual.negrito,
+      italico: novoFormatoAtual.italico,
+      cor: novoFormatoAtual.cor,
+    };
+
     // Verificar se já existe uma formatação para este texto
     const formatoExistenteIndex = editandoFormato.findIndex(
       formato => formato.texto === textoSelecionado
@@ -54,33 +74,53 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
     if (formatoExistenteIndex >= 0) {
       // Atualizar formatação existente
-      const formatoExistente = editandoFormato[formatoExistenteIndex];
-      const novoFormato: FormatoTexto = {
-        ...formatoExistente,
-        negrito: tipo === 'negrito' ? !formatoExistente.negrito : formatoExistente.negrito,
-        italico: tipo === 'italico' ? !formatoExistente.italico : formatoExistente.italico,
-        cor: tipo === 'cor' ? valor : formatoExistente.cor,
-      };
-
       const novosFormatos = [...editandoFormato];
       novosFormatos[formatoExistenteIndex] = novoFormato;
       setEditandoFormato(novosFormatos);
     } else {
-      // Criar nova formatação
-      const novoFormato: FormatoTexto = {
-        texto: textoSelecionado,
-        negrito: tipo === 'negrito' ? true : undefined,
-        italico: tipo === 'italico' ? true : undefined,
-        cor: tipo === 'cor' ? valor : undefined,
-      };
-
+      // Adicionar nova formatação
       setEditandoFormato([...editandoFormato, novoFormato]);
     }
+  };
+
+  const aplicarFormatoCompleto = () => {
+    const textoSelecionado = editandoTexto.substring(selecao.start, selecao.end);
+    if (!textoSelecionado) {
+      Alert.alert('Aviso', 'Selecione um texto para aplicar formatação');
+      return;
+    }
+
+    const novoFormato: FormatoTexto = {
+      texto: textoSelecionado,
+      ...formatoAtual,
+    };
+
+    // Verificar se já existe uma formatação para este texto
+    const formatoExistenteIndex = editandoFormato.findIndex(
+      formato => formato.texto === textoSelecionado
+    );
+
+    if (formatoExistenteIndex >= 0) {
+      // Atualizar formatação existente
+      const novosFormatos = [...editandoFormato];
+      novosFormatos[formatoExistenteIndex] = novoFormato;
+      setEditandoFormato(novosFormatos);
+    } else {
+      // Adicionar nova formatação
+      setEditandoFormato([...editandoFormato, novoFormato]);
+    }
+
+    // Limpar formato atual
+    setFormatoAtual({});
   };
 
   const removerFormato = (index: number) => {
     const novoFormato = editandoFormato.filter((_, i) => i !== index);
     setEditandoFormato(novoFormato);
+  };
+
+  const limparFormatoAtual = () => {
+    setFormatoAtual({});
   };
 
   const salvarEdicao = () => {
@@ -91,32 +131,94 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const cancelarEdicao = () => {
     setEditandoTexto(value);
     setEditandoFormato(textoFormatado || []);
+    setFormatoAtual({});
     setModalVisible(false);
   };
 
   const isFormatoAtivo = (tipo: 'negrito' | 'italico' | 'cor', valor?: string) => {
-    const textoSelecionado = editandoTexto.substring(selecao.start, selecao.end);
-    if (!textoSelecionado) {
-      return false;
+    if (tipo === 'negrito') {
+      return formatoAtual.negrito === true;
     }
-
-    const formatoExistente = editandoFormato.find(
-      formato => formato.texto === textoSelecionado
-    );
-
-    if (formatoExistente) {
-      if (tipo === 'negrito') {
-        return formatoExistente.negrito === true;
-      }
-      if (tipo === 'italico') {
-        return formatoExistente.italico === true;
-      }
-      if (tipo === 'cor') {
-        return formatoExistente.cor === valor;
-      }
+    if (tipo === 'italico') {
+      return formatoAtual.italico === true;
     }
-
+    if (tipo === 'cor') {
+      return formatoAtual.cor === valor;
+    }
     return false;
+  };
+
+  const renderizarTextoFormatado = () => {
+    if (editandoFormato.length === 0) {
+      return (
+        <Text style={[styles.previewText, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+          {editandoTexto || 'Digite o texto...'}
+        </Text>
+      );
+    }
+
+    // Criar um array de partes do texto com formatação
+    const partesFormatadas: Array<{ texto: string; formato?: FormatoTexto }> = [];
+    let posicaoAtual = 0;
+
+    // Ordenar formatações por posição no texto
+    const formatosOrdenados = [...editandoFormato].sort((a, b) => {
+      const posA = editandoTexto.indexOf(a.texto);
+      const posB = editandoTexto.indexOf(b.texto);
+      return posA - posB;
+    });
+
+    formatosOrdenados.forEach((formato) => {
+      const posicaoFormato = editandoTexto.indexOf(formato.texto, posicaoAtual);
+      
+      // Adicionar texto antes da formatação
+      if (posicaoFormato > posicaoAtual) {
+        const textoAntes = editandoTexto.substring(posicaoAtual, posicaoFormato);
+        partesFormatadas.push({ texto: textoAntes });
+      }
+
+      // Adicionar texto formatado
+      partesFormatadas.push({ texto: formato.texto, formato });
+
+      posicaoAtual = posicaoFormato + formato.texto.length;
+    });
+
+    // Adicionar texto restante
+    if (posicaoAtual < editandoTexto.length) {
+      const textoRestante = editandoTexto.substring(posicaoAtual);
+      partesFormatadas.push({ texto: textoRestante });
+    }
+
+    return (
+      <View style={[styles.previewText, { 
+        backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7',
+        borderColor: isDarkMode ? '#5856D6' : '#e5e5ea'
+      }]}>
+        {partesFormatadas.map((parte, index) => {
+          const textStyle: any = {
+            color: isDarkMode ? '#fff' : '#1c1c1e',
+          };
+
+          if (parte.formato) {
+            if (parte.formato.negrito) {
+              textStyle.fontWeight = 'bold';
+            }
+            if (parte.formato.italico) {
+              textStyle.fontStyle = 'italic';
+            }
+            if (parte.formato.cor) {
+              textStyle.color = parte.formato.cor;
+            }
+          }
+
+          return (
+            <Text key={index} style={textStyle}>
+              {parte.texto}
+            </Text>
+          );
+        })}
+      </View>
+    );
   };
 
   return (
@@ -168,39 +270,39 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             />
 
             {/* Prévia do texto formatado */}
-            {editandoFormato.length > 0 && (
-              <View style={styles.previewContainer}>
-                <Text style={[styles.previewTitle, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
-                  Prévia:
+            <View style={styles.previewContainer}>
+              <Text style={[styles.previewTitle, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+                Prévia:
+              </Text>
+              {renderizarTextoFormatado()}
+            </View>
+
+            {/* Formatação Atual */}
+            {(formatoAtual.negrito || formatoAtual.italico || formatoAtual.cor) && (
+              <View style={styles.formatoAtualContainer}>
+                <Text style={[styles.formatoAtualTitle, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+                  Formatação Atual:
                 </Text>
-                <View style={[styles.previewText, { 
-                  backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7',
-                  borderColor: isDarkMode ? '#5856D6' : '#e5e5ea'
-                }]}>
-                  {editandoFormato.map((formato, index) => {
-                    const textStyle: any = {
-                      color: isDarkMode ? '#fff' : '#1c1c1e',
-                    };
-
-                    if (formato.negrito) {
-                      textStyle.fontWeight = 'bold';
-                    }
-
-                    if (formato.italico) {
-                      textStyle.fontStyle = 'italic';
-                    }
-
-                    if (formato.cor) {
-                      textStyle.color = formato.cor;
-                    }
-
-                    return (
-                      <Text key={index} style={textStyle}>
-                        {formato.texto}
-                      </Text>
-                    );
-                  })}
+                <View style={styles.formatoAtualTags}>
+                  {formatoAtual.negrito && (
+                    <View style={[styles.formatoTag, { backgroundColor: '#007AFF' }]}>
+                      <Text style={styles.formatoTagText}>Negrito</Text>
+                    </View>
+                  )}
+                  {formatoAtual.italico && (
+                    <View style={[styles.formatoTag, { backgroundColor: '#34C759' }]}>
+                      <Text style={styles.formatoTagText}>Itálico</Text>
+                    </View>
+                  )}
+                  {formatoAtual.cor && (
+                    <View style={[styles.formatoTag, { backgroundColor: formatoAtual.cor }]}>
+                      <Text style={styles.formatoTagText}>Cor</Text>
+                    </View>
+                  )}
                 </View>
+                <TouchableOpacity onPress={limparFormatoAtual} style={styles.btnLimparFormato}>
+                  <Text style={styles.btnLimparFormatoText}>Limpar</Text>
+                </TouchableOpacity>
               </View>
             )}
 
@@ -250,6 +352,14 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 ))}
               </View>
             </View>
+
+            {/* Botão Aplicar Formatação */}
+            <TouchableOpacity
+              style={[styles.btnAplicarFormato, { backgroundColor: '#007AFF' }]}
+              onPress={aplicarFormatoCompleto}
+            >
+              <Text style={styles.btnAplicarFormatoText}>Aplicar Formatação</Text>
+            </TouchableOpacity>
 
             {/* Formatações Aplicadas */}
             {editandoFormato.length > 0 && (
@@ -336,6 +446,7 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     borderRadius: 16,
     padding: 24,
+    maxHeight: '80%',
   },
   modalTitle: {
     fontSize: 18,
@@ -388,6 +499,43 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#007AFF',
   },
+  formatoAtualContainer: {
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+  },
+  formatoAtualTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  formatoAtualTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginBottom: 8,
+  },
+  btnLimparFormato: {
+    alignSelf: 'flex-start',
+    padding: 4,
+  },
+  btnLimparFormatoText: {
+    color: '#FF3B30',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  btnAplicarFormato: {
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  btnAplicarFormatoText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   formatosContainer: {
     marginBottom: 16,
   },
@@ -405,6 +553,7 @@ const styles = StyleSheet.create({
   formatoInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   formatoText: {
     fontSize: 12,
