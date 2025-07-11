@@ -1,21 +1,23 @@
 import { Tabs } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { ThemeProvider, useTheme } from '../services/ThemeContext';
+import AuthGate from '../components/AuthGate';
 
 function TabLayoutContent() {
   const { isDarkMode } = useTheme();
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: isDarkMode ? '#0A84FF' : '#007AFF',
-        tabBarInactiveTintColor: isDarkMode ? '#8E8E93' : '#8E8E93',
-        tabBarStyle: {
-          backgroundColor: isDarkMode ? '#1C1C1E' : '#fff',
-          borderTopColor: isDarkMode ? '#38383A' : '#E5E5EA',
-        },
-        headerShown: false,
-      }}>
+    <AuthGate>
+      <Tabs
+        screenOptions={{
+          tabBarActiveTintColor: isDarkMode ? '#0A84FF' : '#007AFF',
+          tabBarInactiveTintColor: isDarkMode ? '#8E8E93' : '#8E8E93',
+          tabBarStyle: {
+            backgroundColor: isDarkMode ? '#1C1C1E' : '#fff',
+            borderTopColor: isDarkMode ? '#38383A' : '#E5E5EA',
+          },
+          headerShown: false,
+        }}>
       <Tabs.Screen
         name="index"
         options={{
@@ -47,6 +49,12 @@ function TabLayoutContent() {
         }}
       />
       <Tabs.Screen
+        name="seguranca"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
         name="lista-detalhes"
         options={{
           href: null,
@@ -64,7 +72,8 @@ function TabLayoutContent() {
           href: null,
         }}
       />
-    </Tabs>
+      </Tabs>
+    </AuthGate>
   );
 }
 

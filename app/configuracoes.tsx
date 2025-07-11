@@ -145,12 +145,28 @@ export default function ConfiguracoesScreen() {
         });
 
         // Adicionar itens
-        for (const texto of resultado.itens) {
-          await StorageService.adicionarItem(novaLista.id, {
-            texto: texto.trim(),
-            descricao: undefined,
-            categoria: undefined,
-          });
+        for (const item of resultado.itens) {
+          if (typeof item === 'string') {
+            // Item simples como string
+            await StorageService.adicionarItem(novaLista.id, {
+              texto: item.trim(),
+              descricao: undefined,
+              categoria: undefined,
+            });
+          } else {
+            // Item estruturado com descrição e categoria
+            await StorageService.adicionarItem(novaLista.id, {
+              texto: item.texto.trim(),
+              descricao: item.descricao,
+              categoria: item.categoria,
+              categorias: item.categorias,
+              tags: item.tags,
+              prioridade: item.prioridade,
+              data: item.data,
+              concluido: item.concluido,
+              textoFormatado: item.textoFormatado,
+            });
+          }
         }
 
         await carregarListas();
@@ -263,6 +279,25 @@ export default function ConfiguracoesScreen() {
               thumbColor={isDarkMode ? '#fff' : '#fff'}
             />
           </View>
+        </View>
+
+        {/* Seção de Segurança */}
+        <View style={[styles.section, { 
+          backgroundColor: isDarkMode ? '#1C1C1E' : '#fff',
+          shadowColor: isDarkMode ? '#000' : '#000',
+        }]}>
+          <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Segurança</Text>
+          
+          <TouchableOpacity 
+            style={styles.optionItem} 
+            onPress={() => router.push('/seguranca')}
+          >
+            <View style={styles.optionInfo}>
+              <MaterialIcons name="security" size={24} color="#FF3B30" />
+              <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Configurações de Segurança</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color="#8E8E93" />
+          </TouchableOpacity>
         </View>
 
         {/* Seção de Sincronização */}

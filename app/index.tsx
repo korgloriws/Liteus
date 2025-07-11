@@ -48,7 +48,17 @@ export default function ListasScreen() {
 
   const [modalImportacao, setModalImportacao] = useState(false);
   const [arquivoImportado, setArquivoImportado] = useState<any>(null);
-  const [itensImportados, setItensImportados] = useState<string[]>([]);
+  const [itensImportados, setItensImportados] = useState<Array<string | {
+    texto: string;
+    descricao?: string;
+    categoria?: string;
+    categorias?: string[];
+    tags?: string[];
+    prioridade?: number;
+    data?: string;
+    concluido?: boolean;
+    textoFormatado?: any[];
+  }>>([]);
   const [nomeListaImportada, setNomeListaImportada] = useState('');
   const [descricaoListaImportada, setDescricaoListaImportada] = useState('');
   const [corListaImportada, setCorListaImportada] = useState('#007AFF');
@@ -321,15 +331,33 @@ export default function ListasScreen() {
       });
 
       // Adicionar os itens importados
-      for (const texto of itensImportados) {
-        const textoProcessado = DocumentProcessor.processarTextoComFormatacao(texto.trim());
-        
-        await StorageService.adicionarItem(novaLista.id, {
-          texto: textoProcessado.texto,
-          textoFormatado: textoProcessado.formato,
-          descricao: undefined,
-          categoria: undefined,
-        });
+      for (const item of itensImportados) {
+        if (typeof item === 'string') {
+          // Item simples como string
+          const textoProcessado = DocumentProcessor.processarTextoComFormatacao(item.trim());
+          
+          await StorageService.adicionarItem(novaLista.id, {
+            texto: textoProcessado.texto,
+            textoFormatado: textoProcessado.formato,
+            descricao: undefined,
+            categoria: undefined,
+          });
+        } else {
+          // Item estruturado com descrição e categoria
+          const textoProcessado = DocumentProcessor.processarTextoComFormatacao(item.texto.trim());
+          
+          await StorageService.adicionarItem(novaLista.id, {
+            texto: textoProcessado.texto,
+            textoFormatado: textoProcessado.formato,
+            descricao: item.descricao,
+            categoria: item.categoria,
+            categorias: item.categorias,
+            tags: item.tags,
+            prioridade: item.prioridade,
+            data: item.data,
+            concluido: item.concluido,
+          });
+        }
       }
 
       // Limpar estados
@@ -1010,7 +1038,7 @@ export default function ListasScreen() {
                         <ScrollView style={styles.previewScroll} showsVerticalScrollIndicator={false}>
                           {itensImportados.slice(0, 10).map((item, index) => (
                             <Text key={index} style={[styles.previewItem, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
-                              • {item}
+                              • {typeof item === 'string' ? item : item.texto}
                             </Text>
                           ))}
                           {itensImportados.length > 10 && (

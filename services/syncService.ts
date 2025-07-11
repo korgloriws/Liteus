@@ -115,7 +115,17 @@ export class SyncService {
   static async processarArquivo(conteudo: string, tipoArquivo: string): Promise<{
     nome: string;
     descricao?: string;
-    itens: string[];
+    itens: Array<string | {
+      texto: string;
+      descricao?: string;
+      categoria?: string;
+      categorias?: string[];
+      tags?: string[];
+      prioridade?: number;
+      data?: string;
+      concluido?: boolean;
+      textoFormatado?: any[];
+    }>;
     cor?: string;
     categorias: string[];
     permiteSelecaoAleatoria: boolean;
@@ -169,7 +179,17 @@ export class SyncService {
         return {
           nome: lista.nome,
           descricao: lista.descricao,
-          itens: lista.itens.map((item: any) => item.texto),
+          itens: lista.itens.map((item: any) => ({
+            texto: item.texto,
+            descricao: item.descricao,
+            categoria: item.categoria,
+            categorias: item.categorias,
+            tags: item.tags,
+            prioridade: item.prioridade,
+            data: item.data,
+            concluido: item.concluido,
+            textoFormatado: item.textoFormatado,
+          })),
           cor: lista.cor,
           categorias: lista.categorias?.map((cat: any) => cat.nome) || [],
           permiteSelecaoAleatoria: lista.permiteSelecaoAleatoria || true,
@@ -195,7 +215,17 @@ export class SyncService {
 
     // Processar como lista simples do Google Docs
     console.log('Processando como lista simples');
-    const itens: string[] = [];
+    const itens: Array<string | {
+      texto: string;
+      descricao?: string;
+      categoria?: string;
+      categorias?: string[];
+      tags?: string[];
+      prioridade?: number;
+      data?: string;
+      concluido?: boolean;
+      textoFormatado?: any[];
+    }> = [];
     let nomeLista = 'Lista Importada';
     let descricao = '';
     let cor = '#007AFF';
@@ -478,7 +508,17 @@ Descrição: Lista com diferentes tipos de marcadores
   static processarTemplateGoogleDocs(conteudo: string): {
     nome: string;
     descricao?: string;
-    itens: string[];
+    itens: Array<string | {
+      texto: string;
+      descricao?: string;
+      categoria?: string;
+      categorias?: string[];
+      tags?: string[];
+      prioridade?: number;
+      data?: string;
+      concluido?: boolean;
+      textoFormatado?: any[];
+    }>;
     cor?: string;
     categorias: string[];
     permiteSelecaoAleatoria: boolean;
@@ -488,7 +528,17 @@ Descrição: Lista com diferentes tipos de marcadores
     
     let nome = '';
     let descricao = '';
-    let itens: string[] = [];
+    let itens: Array<string | {
+      texto: string;
+      descricao?: string;
+      categoria?: string;
+      categorias?: string[];
+      tags?: string[];
+      prioridade?: number;
+      data?: string;
+      concluido?: boolean;
+      textoFormatado?: any[];
+    }> = [];
     let cor = '#007AFF';
     let categorias: string[] = [];
     let permiteSelecaoAleatoria = true;
@@ -509,8 +559,37 @@ Descrição: Lista com diferentes tipos de marcadores
       } else if (secaoAtual === 'descricao' && linha.length > 0) {
         descricao = linha;
       } else if (secaoAtual === 'itens' && linha.match(/^\d+\./)) {
-        const item = linha.replace(/^\d+\.\s*/, '');
-        itens.push(item);
+        const itemCompleto = linha.replace(/^\d+\.\s*/, '');
+        
+        // Tentar extrair descrição e categoria do item
+        let texto = itemCompleto;
+        let descricao: string | undefined;
+        let categoria: string | undefined;
+        
+        // Verificar se tem descrição entre parênteses
+        const descricaoMatch = itemCompleto.match(/\(([^)]+)\)/);
+        if (descricaoMatch) {
+          descricao = descricaoMatch[1];
+          texto = texto.replace(/\([^)]+\)/, '').trim();
+        }
+        
+        // Verificar se tem categoria entre colchetes
+        const categoriaMatch = itemCompleto.match(/\[([^\]]+)\]/);
+        if (categoriaMatch) {
+          categoria = categoriaMatch[1];
+          texto = texto.replace(/\[[^\]]+\]/, '').trim();
+        }
+        
+        // Se o item tem informações extras, criar objeto estruturado
+        if (descricao || categoria) {
+          itens.push({
+            texto: texto,
+            descricao: descricao,
+            categoria: categoria,
+          });
+        } else {
+          itens.push(texto);
+        }
       } else if (secaoAtual === 'metadados') {
         if (linha.startsWith('- Cor:')) {
           const corMatch = linha.match(/#[0-9A-Fa-f]{6}/);
