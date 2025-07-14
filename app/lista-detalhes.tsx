@@ -23,7 +23,7 @@ import { SyncService } from '../services/syncService';
 import { useTheme } from '../services/ThemeContext';
 
 export default function ListaDetalhesScreen() {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colors, typography } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [lista, setLista] = useState<Lista | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,6 +39,9 @@ export default function ListaDetalhesScreen() {
   const [filtroCategoria, setFiltroCategoria] = useState<string>('');
   const [ordenacaoTipo, setOrdenacaoTipo] = useState<OrdenacaoTipo>('alfabetica');
   const [ordenacaoDirecao, setOrdenacaoDirecao] = useState<OrdenacaoDirecao>('asc');
+  const [modalSelecaoAleatoria, setModalSelecaoAleatoria] = useState(false);
+  const [itemSelecionado, setItemSelecionado] = useState<Item | null>(null);
+  const [animandoSelecao, setAnimandoSelecao] = useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -191,6 +194,51 @@ export default function ListaDetalhesScreen() {
     setOrdenacaoDirecao(ordenacaoDirecao === 'asc' ? 'desc' : 'asc');
   };
 
+  const selecionarAleatoriamente = () => {
+    if (!lista || lista.itens.length === 0) {
+      Alert.alert('Aviso', 'Não há itens na lista para selecionar');
+      return;
+    }
+
+    // Filtrar itens baseado nos filtros ativos
+    let itensFiltrados = lista.itens;
+    
+    if (textoBusca) {
+      itensFiltrados = itensFiltrados.filter(item => 
+        item.texto.toLowerCase().includes(textoBusca.toLowerCase())
+      );
+    }
+    
+    if (filtroCategoria) {
+      itensFiltrados = itensFiltrados.filter(item => 
+        item.categoria === filtroCategoria
+      );
+    }
+
+    if (itensFiltrados.length === 0) {
+      Alert.alert('Aviso', 'Nenhum item encontrado com os filtros ativos');
+      return;
+    }
+
+    setAnimandoSelecao(true);
+    setModalSelecaoAleatoria(true);
+    setItemSelecionado(null);
+
+    // Simular animação de seleção
+    let contador = 0;
+    const maxIteracoes = 20;
+    const intervalo = setInterval(() => {
+      const itemAleatorio = itensFiltrados[Math.floor(Math.random() * itensFiltrados.length)];
+      setItemSelecionado(itemAleatorio);
+      contador++;
+
+      if (contador >= maxIteracoes) {
+        clearInterval(intervalo);
+        setAnimandoSelecao(false);
+      }
+    }, 100);
+  };
+
   const exportarLista = async () => {
     if (!lista) return;
 
@@ -295,8 +343,8 @@ export default function ListaDetalhesScreen() {
     
     return (
       <View style={[styles.itemContainer, { 
-        backgroundColor: isDarkMode ? '#1C1C1E' : '#fff',
-        shadowColor: isDarkMode ? '#000' : '#000',
+        backgroundColor: colors.surface,
+        shadowColor: colors.text,
         opacity: item.concluido ? 0.6 : 1,
       }]}>
         <View style={styles.itemInfo}>
@@ -378,7 +426,7 @@ export default function ListaDetalhesScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: isDarkMode ? '#000' : '#f2f2f7' }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: lista.cor || '#007AFF' }]}>
         <TouchableOpacity
@@ -394,6 +442,12 @@ export default function ListaDetalhesScreen() {
           )}
         </View>
         <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.btnExportar}
+            onPress={selecionarAleatoriamente}
+          >
+            <MaterialIcons name="casino" size={24} color="#fff" />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.btnExportar}
             onPress={exportarLista}
@@ -412,58 +466,58 @@ export default function ListaDetalhesScreen() {
       {/* Conteúdo */}
       <View style={styles.content}>
         {/* Estatísticas */}
-        <View style={[styles.statsContainer, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
+        <View style={[styles.statsContainer, { backgroundColor: colors.surface }]}>
           <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+            <Text style={[styles.statNumber, { color: colors.text }, typography.titleMedium]}>
               {lista.itens.length}
             </Text>
-            <Text style={[styles.statLabel, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }, typography.caption]}>
               Total
             </Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+            <Text style={[styles.statNumber, { color: colors.text }, typography.titleMedium]}>
               {lista.itens.filter(item => item.concluido).length}
             </Text>
-            <Text style={[styles.statLabel, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }, typography.caption]}>
               Concluídos
             </Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+            <Text style={[styles.statNumber, { color: colors.text }, typography.titleMedium]}>
               {lista.categorias.length}
             </Text>
-            <Text style={[styles.statLabel, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }, typography.caption]}>
               Categorias
             </Text>
           </View>
         </View>
 
         {/* Barra de Busca */}
-        <View style={[styles.buscaContainer, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
+        <View style={[styles.buscaContainer, { backgroundColor: colors.surface }]}>
           <View style={styles.buscaInput}>
-            <MaterialIcons name="search" size={20} color={isDarkMode ? '#8e8e93' : '#8e8e93'} />
+            <MaterialIcons name="search" size={20} color={colors.textSecondary} />
             <TextInput
-              style={[styles.buscaTextInput, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}
+              style={[styles.buscaTextInput, { color: colors.text }, typography.body]}
               placeholder="Buscar itens..."
-              placeholderTextColor={isDarkMode ? '#8e8e93' : '#8e8e93'}
+              placeholderTextColor={colors.textSecondary}
               value={textoBusca}
               onChangeText={setTextoBusca}
             />
             {textoBusca.length > 0 && (
               <TouchableOpacity onPress={() => setTextoBusca('')}>
-                <MaterialIcons name="close" size={20} color={isDarkMode ? '#8e8e93' : '#8e8e93'} />
+                <MaterialIcons name="close" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
           <TouchableOpacity
-            style={[styles.btnFiltros, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}
+            style={[styles.btnFiltros, { backgroundColor: colors.accent }]}
             onPress={() => setMostrarFiltros(!mostrarFiltros)}
           >
             <MaterialIcons 
               name="tune" 
               size={20} 
-              color={mostrarFiltros ? "#007AFF" : (isDarkMode ? "#fff" : "#1c1c1e")} 
+              color={mostrarFiltros ? colors.primary : colors.text} 
             />
           </TouchableOpacity>
         </View>
@@ -608,12 +662,12 @@ export default function ListaDetalhesScreen() {
         onRequestClose={() => setModalAdicionar(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
-            <Text style={[styles.modalTitulo, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitulo, { color: colors.text }, typography.titleMedium]}>
               Adicionar Item
             </Text>
 
-            <Text style={[styles.label, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+            <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
               Texto do Item *
             </Text>
             <RichTextEditor
@@ -627,34 +681,34 @@ export default function ListaDetalhesScreen() {
               multiline={true}
             />
 
-            <Text style={[styles.label, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+            <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
               Descrição (opcional)
             </Text>
             <TextInput
               style={[styles.textInput, { 
-                backgroundColor: isDarkMode ? '#38383A' : '#fff', 
-                color: isDarkMode ? '#fff' : '#1c1c1e',
-                borderColor: isDarkMode ? '#5856D6' : '#e5e5ea'
+                backgroundColor: colors.accent, 
+                color: colors.text,
+                borderColor: colors.border
               }]}
               value={novaDescricao}
               onChangeText={setNovaDescricao}
               placeholder="Descrição do item..."
-              placeholderTextColor={isDarkMode ? '#8e8e93' : '#8e8e93'}
+              placeholderTextColor={colors.textSecondary}
             />
 
-            <Text style={[styles.label, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+            <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
               Categoria (opcional)
             </Text>
             <View style={styles.categoriaContainer}>
               <TouchableOpacity
                 style={[
                   styles.categoriaOption,
-                  { backgroundColor: isDarkMode ? '#38383A' : '#fff', borderColor: isDarkMode ? '#5856D6' : '#e5e5ea' },
+                  { backgroundColor: colors.accent, borderColor: colors.border },
                   novaCategoria === '' && styles.categoriaOptionSelecionada
                 ]}
                 onPress={() => setNovaCategoria('')}
               >
-                <Text style={[styles.categoriaOptionText, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+                <Text style={[styles.categoriaOptionText, { color: colors.text }, typography.body]}>
                   Sem categoria
                 </Text>
               </TouchableOpacity>
@@ -663,12 +717,12 @@ export default function ListaDetalhesScreen() {
                   key={categoria.id}
                   style={[
                     styles.categoriaOption,
-                    { backgroundColor: isDarkMode ? '#38383A' : '#fff', borderColor: isDarkMode ? '#5856D6' : '#e5e5ea' },
+                    { backgroundColor: colors.accent, borderColor: colors.border },
                     novaCategoria === categoria.id && styles.categoriaOptionSelecionada
                   ]}
                   onPress={() => setNovaCategoria(categoria.id)}
                 >
-                  <Text style={[styles.categoriaOptionText, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+                  <Text style={[styles.categoriaOptionText, { color: colors.text }, typography.body]}>
                     {categoria.nome}
                   </Text>
                 </TouchableOpacity>
@@ -701,12 +755,12 @@ export default function ListaDetalhesScreen() {
         onRequestClose={() => setModalEditar(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
-            <Text style={[styles.modalTitulo, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitulo, { color: colors.text }, typography.titleMedium]}>
               Editar Item
             </Text>
 
-            <Text style={[styles.label, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+            <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
               Texto do Item *
             </Text>
             <RichTextEditor
@@ -720,34 +774,34 @@ export default function ListaDetalhesScreen() {
               multiline={true}
             />
 
-            <Text style={[styles.label, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+            <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
               Descrição (opcional)
             </Text>
             <TextInput
               style={[styles.textInput, { 
-                backgroundColor: isDarkMode ? '#38383A' : '#fff', 
-                color: isDarkMode ? '#fff' : '#1c1c1e',
-                borderColor: isDarkMode ? '#5856D6' : '#e5e5ea'
+                backgroundColor: colors.accent, 
+                color: colors.text,
+                borderColor: colors.border
               }]}
               value={novaDescricao}
               onChangeText={setNovaDescricao}
               placeholder="Descrição do item..."
-              placeholderTextColor={isDarkMode ? '#8e8e93' : '#8e8e93'}
+              placeholderTextColor={colors.textSecondary}
             />
 
-            <Text style={[styles.label, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+            <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
               Categoria (opcional)
             </Text>
             <View style={styles.categoriaContainer}>
               <TouchableOpacity
                 style={[
                   styles.categoriaOption,
-                  { backgroundColor: isDarkMode ? '#38383A' : '#fff', borderColor: isDarkMode ? '#5856D6' : '#e5e5ea' },
+                  { backgroundColor: colors.accent, borderColor: colors.border },
                   novaCategoria === '' && styles.categoriaOptionSelecionada
                 ]}
                 onPress={() => setNovaCategoria('')}
               >
-                <Text style={[styles.categoriaOptionText, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+                <Text style={[styles.categoriaOptionText, { color: colors.text }, typography.body]}>
                   Sem categoria
                 </Text>
               </TouchableOpacity>
@@ -756,12 +810,12 @@ export default function ListaDetalhesScreen() {
                   key={categoria.id}
                   style={[
                     styles.categoriaOption,
-                    { backgroundColor: isDarkMode ? '#38383A' : '#fff', borderColor: isDarkMode ? '#5856D6' : '#e5e5ea' },
+                    { backgroundColor: colors.accent, borderColor: colors.border },
                     novaCategoria === categoria.id && styles.categoriaOptionSelecionada
                   ]}
                   onPress={() => setNovaCategoria(categoria.id)}
                 >
-                  <Text style={[styles.categoriaOptionText, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+                  <Text style={[styles.categoriaOptionText, { color: colors.text }, typography.body]}>
                     {categoria.nome}
                   </Text>
                 </TouchableOpacity>
@@ -781,6 +835,69 @@ export default function ListaDetalhesScreen() {
               >
                 <Text style={styles.btnSalvarText}>Salvar</Text>
               </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Seleção Aleatória */}
+      <Modal
+        visible={modalSelecaoAleatoria}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setModalSelecaoAleatoria(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }, typography.titleLarge]}>
+              {animandoSelecao ? 'Selecionando...' : 'Item Selecionado!'}
+            </Text>
+            
+            {itemSelecionado && (
+              <View style={[styles.itemSelecionadoContainer, { backgroundColor: colors.accent }]}>
+                <View style={styles.itemSelecionadoHeader}>
+                  <MaterialIcons 
+                    name="casino" 
+                    size={32} 
+                    color={colors.primary} 
+                  />
+                  <Text style={[styles.itemSelecionadoTitle, { color: colors.text }, typography.titleMedium]}>
+                    {itemSelecionado.texto}
+                  </Text>
+                </View>
+                
+                {itemSelecionado.descricao && (
+                  <Text style={[styles.itemSelecionadoDescricao, { color: colors.textSecondary }, typography.body]}>
+                    {itemSelecionado.descricao}
+                  </Text>
+                )}
+                
+                {itemSelecionado.categoria && (
+                  <View style={styles.itemSelecionadoCategoria}>
+                    <Text style={[styles.itemSelecionadoCategoriaText, { color: colors.textSecondary }, typography.caption]}>
+                      Categoria: {itemSelecionado.categoria}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.btnCancelar}
+                onPress={() => setModalSelecaoAleatoria(false)}
+              >
+                <Text style={styles.btnCancelarText}>Fechar</Text>
+              </TouchableOpacity>
+              
+              {!animandoSelecao && (
+                <TouchableOpacity
+                  style={styles.btnCopiar}
+                  onPress={selecionarAleatoriamente}
+                >
+                  <Text style={styles.btnCopiarText}>Nova Seleção</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </View>
@@ -999,6 +1116,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  btnCopiar: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+  },
+  btnCopiarText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   btnSalvar: {
     flex: 1,
     padding: 12,
@@ -1200,5 +1340,33 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 4,
     marginTop: 4,
+  },
+  // Estilos para seleção aleatória
+  itemSelecionadoContainer: {
+    padding: 20,
+    borderRadius: 12,
+    marginVertical: 20,
+    borderWidth: 2,
+    borderColor: '#007AFF',
+  },
+  itemSelecionadoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  itemSelecionadoTitle: {
+    flex: 1,
+    marginLeft: 12,
+    fontWeight: '600',
+  },
+  itemSelecionadoDescricao: {
+    marginBottom: 8,
+    fontStyle: 'italic',
+  },
+  itemSelecionadoCategoria: {
+    marginTop: 8,
+  },
+  itemSelecionadoCategoriaText: {
+    fontWeight: '500',
   },
 }); 

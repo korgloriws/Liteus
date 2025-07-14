@@ -9,6 +9,7 @@ import {
   Alert,
   Modal,
   TextInput,
+  Image,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -21,8 +22,8 @@ import { SyncService } from '../services/syncService';
 import { useTheme } from '../services/ThemeContext';
 
 export default function ConfiguracoesScreen() {
-  const { isDarkMode, setDarkMode } = useTheme();
-  const [versao] = useState('1.0.3');
+  const { isDarkMode, setDarkMode, colors, typography } = useTheme();
+  const [versao] = useState('1.0.4');
   const [listas, setListas] = useState<Lista[]>([]);
   const [modalSincronizacao, setModalSincronizacao] = useState(false);
   const [dadosSincronizacao, setDadosSincronizacao] = useState('');
@@ -240,53 +241,59 @@ export default function ConfiguracoesScreen() {
   return (
     <View style={{ flex: 1 }}>
       {/* Cabeçalho Customizado */}
-      <View style={[styles.customHeader, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
+      <View style={[styles.customHeader, { backgroundColor: colors.surface }]}>
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => router.back()}
         >
-          <MaterialIcons name="arrow-back" size={24} color="#007AFF" />
+          <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Configurações</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }, typography.titleMedium]}>Configurações</Text>
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView style={[styles.container, { backgroundColor: isDarkMode ? '#000' : '#F2F2F7' }]} showsVerticalScrollIndicator={false}>
+      <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           {/* Header do App */}
           <View style={styles.header}>
-            <MaterialIcons name="casino" size={48} color="#007AFF" />
-            <Text style={[styles.appName, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Liteus</Text>
-            <Text style={[styles.appSlogan, { color: isDarkMode ? '#8E8E93' : '#8E8E93' }]}>Listas Inteligentes</Text>
+            <Image
+              source={isDarkMode 
+                ? require('../assets/logo_vertical_amarelo.png')
+                : require('../assets/logo_vertical_azul.png')
+              }
+              style={styles.logo}
+              resizeMode="contain"
+            />
+
           </View>
 
         {/* Seção de Aparência */}
         <View style={[styles.section, { 
-          backgroundColor: isDarkMode ? '#1C1C1E' : '#fff',
-          shadowColor: isDarkMode ? '#000' : '#000',
+          backgroundColor: colors.surface,
+          shadowColor: colors.text,
         }]}>
-          <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Aparência</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>Aparência</Text>
           
           <View style={styles.optionItem}>
             <View style={styles.optionInfo}>
-              <MaterialIcons name="dark-mode" size={24} color="#007AFF" />
-              <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Modo Escuro</Text>
+              <MaterialIcons name="dark-mode" size={24} color={colors.primary} />
+              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>Modo Escuro</Text>
             </View>
             <Switch
               value={isDarkMode}
               onValueChange={handleModoEscuroChange}
-              trackColor={{ false: '#E5E5EA', true: '#007AFF' }}
-              thumbColor={isDarkMode ? '#fff' : '#fff'}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={colors.white}
             />
           </View>
         </View>
 
         {/* Seção de Segurança */}
         <View style={[styles.section, { 
-          backgroundColor: isDarkMode ? '#1C1C1E' : '#fff',
-          shadowColor: isDarkMode ? '#000' : '#000',
+          backgroundColor: colors.surface,
+          shadowColor: colors.text,
         }]}>
-          <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Segurança</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>Segurança</Text>
           
           <TouchableOpacity 
             style={styles.optionItem} 
@@ -294,28 +301,28 @@ export default function ConfiguracoesScreen() {
           >
             <View style={styles.optionInfo}>
               <MaterialIcons name="security" size={24} color="#FF3B30" />
-              <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Configurações de Segurança</Text>
+              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>Configurações de Segurança</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={24} color="#8E8E93" />
+            <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {/* Seção de Sincronização */}
         <View style={[styles.section, { 
-          backgroundColor: isDarkMode ? '#1C1C1E' : '#fff',
-          shadowColor: isDarkMode ? '#000' : '#000',
+          backgroundColor: colors.surface,
+          shadowColor: colors.text,
         }]}>
-          <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Sincronização</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>Sincronização</Text>
           
           <TouchableOpacity 
             style={styles.optionItem} 
             onPress={exportarParaGoogleDocs}
           >
             <View style={styles.optionInfo}>
-              <MaterialIcons name="cloud-upload" size={24} color="#007AFF" />
-              <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Exportar para Google Docs</Text>
+              <MaterialIcons name="cloud-upload" size={24} color={colors.primary} />
+              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>Exportar para Google Docs</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={24} color="#8E8E93" />
+            <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -324,9 +331,9 @@ export default function ConfiguracoesScreen() {
           >
             <View style={styles.optionInfo}>
               <MaterialIcons name="cloud-download" size={24} color="#34C759" />
-              <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Importar do Google Docs</Text>
+              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>Importar do Google Docs</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={24} color="#8E8E93" />
+            <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -346,9 +353,9 @@ export default function ConfiguracoesScreen() {
           >
             <View style={styles.optionInfo}>
               <MaterialIcons name="help" size={24} color="#FF9500" />
-              <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Ver Exemplo de Template</Text>
+              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>Ver Exemplo de Template</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={24} color="#8E8E93" />
+            <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -357,9 +364,9 @@ export default function ConfiguracoesScreen() {
           >
             <View style={styles.optionInfo}>
               <MaterialIcons name="file-download" size={24} color="#FF9500" />
-              <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Exportar Dados Estruturados</Text>
+              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>Exportar Dados Estruturados</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={24} color="#8E8E93" />
+            <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -368,28 +375,28 @@ export default function ConfiguracoesScreen() {
           >
             <View style={styles.optionInfo}>
               <MaterialIcons name="file-upload" size={24} color="#AF52DE" />
-              <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Importar Dados Estruturados</Text>
+              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>Importar Dados Estruturados</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={24} color="#8E8E93" />
+            <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {/* Seção de Dados */}
         <View style={[styles.section, { 
-          backgroundColor: isDarkMode ? '#1C1C1E' : '#fff',
-          shadowColor: isDarkMode ? '#000' : '#000',
+          backgroundColor: colors.surface,
+          shadowColor: colors.text,
         }]}>
-          <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Dados</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>Dados</Text>
           
           <TouchableOpacity 
             style={styles.optionItem} 
             onPress={() => router.push('/estatisticas')}
           >
             <View style={styles.optionInfo}>
-              <MaterialIcons name="analytics" size={24} color="#007AFF" />
-              <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Estatísticas</Text>
+              <MaterialIcons name="analytics" size={24} color={colors.primary} />
+              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>Estatísticas</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={24} color="#8E8E93" />
+            <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -398,67 +405,67 @@ export default function ConfiguracoesScreen() {
           >
             <View style={styles.optionInfo}>
               <MaterialIcons name="delete-forever" size={24} color="#FF3B30" />
-              <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Limpar Todos os Dados</Text>
+              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>Limpar Todos os Dados</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={24} color="#8E8E93" />
+            <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {/* Seção de Informações */}
         <View style={[styles.section, { 
-          backgroundColor: isDarkMode ? '#1C1C1E' : '#fff',
-          shadowColor: isDarkMode ? '#000' : '#000',
+          backgroundColor: colors.surface,
+          shadowColor: colors.text,
         }]}>
-          <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Informações</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>Informações</Text>
           
           <View style={styles.optionItem}>
             <View style={styles.optionInfo}>
-              <MaterialIcons name="info" size={24} color="#007AFF" />
-              <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Versão</Text>
+              <MaterialIcons name="info" size={24} color={colors.primary} />
+              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>Versão</Text>
             </View>
-            <Text style={[styles.optionValue, { color: isDarkMode ? '#8E8E93' : '#8E8E93' }]}>{versao}</Text>
+            <Text style={[styles.optionValue, { color: colors.textSecondary }, typography.body]}>{versao}</Text>
           </View>
 
           <View style={styles.optionItem}>
             <View style={styles.optionInfo}>
-              <MaterialIcons name="code" size={24} color="#007AFF" />
-              <Text style={[styles.optionText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Desenvolvedor</Text>
+              <MaterialIcons name="code" size={24} color={colors.primary} />
+              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>Desenvolvedor</Text>
             </View>
-            <Text style={[styles.optionValue, { color: isDarkMode ? '#8E8E93' : '#8E8E93' }]}>Mateus Rodrigues</Text>
+            <Text style={[styles.optionValue, { color: colors.textSecondary }, typography.body]}>Mateus Rodrigues</Text>
           </View>
         </View>
 
         {/* Seção de Recursos */}
         <View style={[styles.section, { 
-          backgroundColor: isDarkMode ? '#1C1C1E' : '#fff',
-          shadowColor: isDarkMode ? '#000' : '#000',
+          backgroundColor: colors.surface,
+          shadowColor: colors.text,
         }]}>
-          <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Recursos</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>Recursos</Text>
           
           <View style={styles.featureItem}>
             <MaterialIcons name="list" size={20} color="#34C759" />
-            <Text style={[styles.featureText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Criação de listas personalizadas</Text>
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Criação de listas personalizadas</Text>
           </View>
           
           <View style={styles.featureItem}>
             <MaterialIcons name="casino" size={20} color="#34C759" />
-            <Text style={[styles.featureText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Seleção aleatória com animações</Text>
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Seleção aleatória com animações</Text>
           </View>
           
           <View style={styles.featureItem}>
             <MaterialIcons name="cloud-sync" size={20} color="#34C759" />
-            <Text style={[styles.featureText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Sincronização com Google Docs</Text>
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Sincronização com Google Docs</Text>
           </View>
           
           <View style={styles.featureItem}>
             <MaterialIcons name="palette" size={20} color="#34C759" />
-            <Text style={[styles.featureText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Temas e cores personalizáveis</Text>
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Temas e cores personalizáveis</Text>
           </View>
         </View>
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: isDarkMode ? '#8E8E93' : '#8E8E93' }]}>
+          <Text style={[styles.footerText, { color: colors.textSecondary }, typography.caption]}>
             © 2025 Liteus - Listas Inteligentes
           </Text>
         </View>
@@ -473,21 +480,21 @@ export default function ConfiguracoesScreen() {
       onRequestClose={() => setModalSincronizacao(false)}
     >
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
-          <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+        <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.modalTitle, { color: colors.text }, typography.titleMedium]}>
             Dados para Sincronização
           </Text>
           
-          <Text style={[styles.modalSubtitle, { color: isDarkMode ? '#8E8E93' : '#8E8E93' }]}>
+          <Text style={[styles.modalSubtitle, { color: colors.textSecondary }, typography.body]}>
             Copie os dados abaixo e cole no outro dispositivo:
           </Text>
 
           <TextInput
             style={[styles.modalTextInput, { 
-              backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7',
-              color: isDarkMode ? '#fff' : '#1C1C1E',
-              borderColor: isDarkMode ? '#5856D6' : '#E5E5EA'
-            }]}
+              backgroundColor: colors.accent,
+              color: colors.text,
+              borderColor: colors.border
+            }, typography.body]}
             value={dadosSincronizacao}
             multiline
             numberOfLines={10}
@@ -524,16 +531,16 @@ export default function ConfiguracoesScreen() {
       onRequestClose={() => setModalImportacaoGoogleDocs(false)}
     >
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
-          <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+        <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.modalTitle, { color: colors.text }, typography.titleMedium]}>
             Importar do Google Docs
           </Text>
           
-          <Text style={[styles.modalSubtitle, { color: isDarkMode ? '#8E8E93' : '#8E8E93' }]}>
+          <Text style={[styles.modalSubtitle, { color: colors.textSecondary }, typography.body]}>
             Cole o conteúdo do Google Docs aqui. Aceita qualquer formato de texto:
           </Text>
           
-          <Text style={[styles.modalSubtitle, { color: isDarkMode ? '#8E8E93' : '#8E8E93', fontSize: 12, marginBottom: 10 }]}>
+          <Text style={[styles.modalSubtitle, { color: colors.textSecondary, fontSize: 12, marginBottom: 10 }, typography.caption]}>
             • Listas com bullets (• - *)
             • Listas numeradas (1. 2. 3.)
             • Texto simples
@@ -541,7 +548,7 @@ export default function ConfiguracoesScreen() {
             • Exportações do Google Docs
           </Text>
 
-          <Text style={[styles.modalSubtitle, { color: isDarkMode ? '#8E8E93' : '#8E8E93', fontSize: 12, marginBottom: 5 }]}>
+          <Text style={[styles.modalSubtitle, { color: colors.textSecondary, fontSize: 12, marginBottom: 5 }, typography.caption]}>
             Tipo de arquivo:
           </Text>
           
@@ -555,7 +562,8 @@ export default function ConfiguracoesScreen() {
             >
               <Text style={[
                 styles.tipoArquivoButtonText,
-                { color: isDarkMode ? '#fff' : '#1C1C1E' },
+                { color: colors.text },
+                typography.body,
                 tipoArquivoSelecionado === 'auto' && styles.tipoArquivoButtonTextSelected
               ]}>Auto</Text>
             </TouchableOpacity>
@@ -569,7 +577,8 @@ export default function ConfiguracoesScreen() {
             >
               <Text style={[
                 styles.tipoArquivoButtonText,
-                { color: isDarkMode ? '#fff' : '#1C1C1E' },
+                { color: colors.text },
+                typography.body,
                 tipoArquivoSelecionado === 'txt' && styles.tipoArquivoButtonTextSelected
               ]}>TXT</Text>
             </TouchableOpacity>
@@ -583,7 +592,8 @@ export default function ConfiguracoesScreen() {
             >
               <Text style={[
                 styles.tipoArquivoButtonText,
-                { color: isDarkMode ? '#fff' : '#1C1C1E' },
+                { color: colors.text },
+                typography.body,
                 tipoArquivoSelecionado === 'docx' && styles.tipoArquivoButtonTextSelected
               ]}>DOCX</Text>
             </TouchableOpacity>
@@ -597,25 +607,26 @@ export default function ConfiguracoesScreen() {
             >
               <Text style={[
                 styles.tipoArquivoButtonText,
-                { color: isDarkMode ? '#fff' : '#1C1C1E' },
+                { color: colors.text },
+                typography.body,
                 tipoArquivoSelecionado === 'pdf' && styles.tipoArquivoButtonTextSelected
               ]}>PDF</Text>
             </TouchableOpacity>
           </View>
 
-          <TextInput
-            style={[styles.modalTextInput, { 
-              backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7',
-              color: isDarkMode ? '#fff' : '#1C1C1E',
-              borderColor: isDarkMode ? '#5856D6' : '#E5E5EA'
-            }]}
-            value={conteudoGoogleDocs}
-            onChangeText={setConteudoGoogleDocs}
-            multiline
-            numberOfLines={15}
-            placeholder="Cole o conteúdo aqui..."
-            placeholderTextColor={isDarkMode ? '#8E8E93' : '#8E8E93'}
-          />
+                      <TextInput
+              style={[styles.modalTextInput, { 
+                backgroundColor: colors.accent,
+                color: colors.text,
+                borderColor: colors.border
+              }, typography.body]}
+              value={conteudoGoogleDocs}
+              onChangeText={setConteudoGoogleDocs}
+              multiline
+              numberOfLines={15}
+              placeholder="Cole o conteúdo aqui..."
+              placeholderTextColor={colors.textSecondary}
+            />
 
           <View style={styles.modalButtons}>
             <TouchableOpacity
@@ -644,27 +655,27 @@ export default function ConfiguracoesScreen() {
       onRequestClose={() => setModalImportacaoJSON(false)}
     >
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
-          <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+        <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.modalTitle, { color: colors.text }, typography.titleMedium]}>
             Importar Dados Estruturados
           </Text>
           
-          <Text style={[styles.modalSubtitle, { color: isDarkMode ? '#8E8E93' : '#8E8E93' }]}>
+          <Text style={[styles.modalSubtitle, { color: colors.textSecondary }, typography.body]}>
             Cole os dados JSON aqui:
           </Text>
 
           <TextInput
             style={[styles.modalTextInput, { 
-              backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7',
-              color: isDarkMode ? '#fff' : '#1C1C1E',
-              borderColor: isDarkMode ? '#5856D6' : '#E5E5EA'
-            }]}
+              backgroundColor: colors.accent,
+              color: colors.text,
+              borderColor: colors.border
+            }, typography.body]}
             value={dadosJSON}
             onChangeText={setDadosJSON}
             multiline
             numberOfLines={15}
             placeholder="Cole os dados JSON aqui..."
-            placeholderTextColor={isDarkMode ? '#8E8E93' : '#8E8E93'}
+            placeholderTextColor={colors.textSecondary}
           />
 
           <View style={styles.modalButtons}>
@@ -700,6 +711,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 30,
     paddingVertical: 20,
+  },
+  logo: {
+    width: 100,
+    height: 100,
+    marginBottom: 10,
   },
   appName: {
     fontSize: 32,

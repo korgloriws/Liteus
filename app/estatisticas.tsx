@@ -27,7 +27,7 @@ interface EstatisticasGerais {
 }
 
 export default function EstatisticasScreen() {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colors, typography } = useTheme();
   const [listas, setListas] = useState<Lista[]>([]);
   const [loading, setLoading] = useState(true);
   const [estatisticas, setEstatisticas] = useState<EstatisticasGerais | null>(null);
@@ -161,10 +161,10 @@ export default function EstatisticasScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: isDarkMode ? '#000' : '#f2f2f7' }]}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.loadingContainer}>
-          <MaterialIcons name="analytics" size={48} color="#007AFF" />
-          <Text style={[styles.loadingText, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
+          <MaterialIcons name="analytics" size={48} color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }, typography.subtitle]}>
             Carregando estatísticas...
           </Text>
         </View>
@@ -177,10 +177,10 @@ export default function EstatisticasScreen() {
       <View style={[styles.container, { backgroundColor: isDarkMode ? '#000' : '#f2f2f7' }]}>
         <View style={styles.emptyContainer}>
           <MaterialIcons name="analytics" size={64} color="#C7C7CC" />
-          <Text style={[styles.emptyTitle, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+          <Text style={[styles.emptyTitle, { color: colors.text }, typography.titleLarge]}>
             Nenhuma estatística disponível
           </Text>
-          <Text style={[styles.emptySubtitle, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
+          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }, typography.body]}>
             Crie algumas listas para ver estatísticas interessantes
           </Text>
         </View>
@@ -191,18 +191,18 @@ export default function EstatisticasScreen() {
   return (
     <View style={[styles.container, { backgroundColor: isDarkMode ? '#000' : '#f2f2f7' }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface }]}>
         <TouchableOpacity
           style={styles.btnVoltar}
           onPress={() => router.back()}
         >
-          <MaterialIcons name="arrow-back" size={24} color={isDarkMode ? '#fff' : '#1c1c1e'} />
+          <MaterialIcons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.headerInfo}>
-          <Text style={[styles.headerTitulo, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+          <Text style={[styles.headerTitulo, { color: colors.text }, typography.titleLarge]}>
             Estatísticas
           </Text>
-          <Text style={[styles.headerSubtitle, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }, typography.subtitle]}>
             Visão geral das suas listas
           </Text>
         </View>
@@ -211,82 +211,82 @@ export default function EstatisticasScreen() {
       {/* Conteúdo */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Resumo Geral */}
-        <View style={[styles.section, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
-          <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>
             Resumo Geral
           </Text>
           
           <View style={styles.statsGrid}>
-            <View style={[styles.statCard, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}>
-              <MaterialIcons name="list" size={24} color="#007AFF" />
-              <Text style={[styles.statNumber, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+            <View style={[styles.statCard, { backgroundColor: colors.accent }]}>
+              <MaterialIcons name="list" size={24} color={colors.primary} />
+              <Text style={[styles.statNumber, { color: colors.text }, typography.titleMedium]}>
                 {estatisticas.totalListas}
               </Text>
-              <Text style={[styles.statLabel, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }, typography.caption]}>
                 Listas
               </Text>
             </View>
 
-            <View style={[styles.statCard, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}>
+            <View style={[styles.statCard, { backgroundColor: colors.accent }]}>
               <MaterialIcons name="check-circle" size={24} color="#34C759" />
-              <Text style={[styles.statNumber, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+              <Text style={[styles.statNumber, { color: colors.text }, typography.titleMedium]}>
                 {estatisticas.totalItens}
               </Text>
-              <Text style={[styles.statLabel, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }, typography.caption]}>
                 Itens
               </Text>
             </View>
 
-            <View style={[styles.statCard, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}>
+            <View style={[styles.statCard, { backgroundColor: colors.accent }]}>
               <MaterialIcons name="category" size={24} color="#AF52DE" />
-              <Text style={[styles.statNumber, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+              <Text style={[styles.statNumber, { color: colors.text }, typography.titleMedium]}>
                 {estatisticas.listasComCategorias}
               </Text>
-              <Text style={[styles.statLabel, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }, typography.caption]}>
                 Com Categorias
               </Text>
             </View>
 
-            <View style={[styles.statCard, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}>
+            <View style={[styles.statCard, { backgroundColor: colors.accent }]}>
               <MaterialIcons name="casino" size={24} color="#FF9500" />
-              <Text style={[styles.statNumber, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+              <Text style={[styles.statNumber, { color: colors.text }, typography.titleMedium]}>
                 {estatisticas.listasComSelecaoAleatoria}
               </Text>
-              <Text style={[styles.statLabel, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }, typography.caption]}>
                 Com Seleção Aleatória
               </Text>
             </View>
           </View>
 
-          <View style={[styles.statCard, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}>
+          <View style={[styles.statCard, { backgroundColor: colors.accent }]}>
             <MaterialIcons name="analytics" size={24} color="#5856D6" />
-            <Text style={[styles.statNumber, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+            <Text style={[styles.statNumber, { color: colors.text }, typography.titleMedium]}>
               {estatisticas.mediaItensPorLista}
             </Text>
-            <Text style={[styles.statLabel, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }, typography.caption]}>
               Média de Itens por Lista
             </Text>
           </View>
         </View>
 
         {/* Estatísticas Detalhadas */}
-        <View style={[styles.section, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
-          <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>
             Estatísticas Detalhadas
           </Text>
 
           {/* Lista Mais Antiga */}
           {estatisticas.listaMaisAntiga && (
-            <View style={[styles.detailCard, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}>
+            <View style={[styles.detailCard, { backgroundColor: colors.accent }]}>
               <MaterialIcons name="schedule" size={20} color="#FF3B30" />
               <View style={styles.detailInfo}>
-                <Text style={[styles.detailTitle, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+                <Text style={[styles.detailTitle, { color: colors.text }, typography.subtitleBold]}>
                   Lista Mais Antiga
                 </Text>
-                <Text style={[styles.detailValue, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
+                <Text style={[styles.detailValue, { color: colors.textSecondary }, typography.body]}>
                   {estatisticas.listaMaisAntiga.nome}
                 </Text>
-                <Text style={[styles.detailSubtitle, { color: isDarkMode ? '#c7c7cc' : '#c7c7cc' }]}>
+                <Text style={[styles.detailSubtitle, { color: colors.textSecondary }, typography.caption]}>
                   Criada em {formatarData(estatisticas.listaMaisAntiga.createdAt)} 
                   ({formatarTempoDecorrido(estatisticas.listaMaisAntiga.createdAt)})
                 </Text>
@@ -296,16 +296,16 @@ export default function EstatisticasScreen() {
 
           {/* Lista Mais Recente */}
           {estatisticas.listaMaisRecente && (
-            <View style={[styles.detailCard, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}>
+            <View style={[styles.detailCard, { backgroundColor: colors.accent }]}>
               <MaterialIcons name="new-releases" size={20} color="#34C759" />
               <View style={styles.detailInfo}>
-                <Text style={[styles.detailTitle, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+                <Text style={[styles.detailTitle, { color: colors.text }, typography.subtitleBold]}>
                   Lista Mais Recente
                 </Text>
-                <Text style={[styles.detailValue, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
+                <Text style={[styles.detailValue, { color: colors.textSecondary }, typography.body]}>
                   {estatisticas.listaMaisRecente.nome}
                 </Text>
-                <Text style={[styles.detailSubtitle, { color: isDarkMode ? '#c7c7cc' : '#c7c7cc' }]}>
+                <Text style={[styles.detailSubtitle, { color: colors.textSecondary }, typography.caption]}>
                   Criada em {formatarData(estatisticas.listaMaisRecente.createdAt)} 
                   ({formatarTempoDecorrido(estatisticas.listaMaisRecente.createdAt)})
                 </Text>
@@ -315,16 +315,16 @@ export default function EstatisticasScreen() {
 
           {/* Item Mais Longo */}
           {estatisticas.itemMaisLongo && (
-            <View style={[styles.detailCard, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}>
-              <MaterialIcons name="text-fields" size={20} color="#007AFF" />
+            <View style={[styles.detailCard, { backgroundColor: colors.accent }]}>
+              <MaterialIcons name="text-fields" size={20} color={colors.primary} />
               <View style={styles.detailInfo}>
-                <Text style={[styles.detailTitle, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+                <Text style={[styles.detailTitle, { color: colors.text }, typography.subtitleBold]}>
                   Item Mais Longo
                 </Text>
-                <Text style={[styles.detailValue, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
+                <Text style={[styles.detailValue, { color: colors.textSecondary }, typography.body]}>
                   {estatisticas.itemMaisLongo.texto}
                 </Text>
-                <Text style={[styles.detailSubtitle, { color: isDarkMode ? '#c7c7cc' : '#c7c7cc' }]}>
+                <Text style={[styles.detailSubtitle, { color: colors.textSecondary }, typography.caption]}>
                   {estatisticas.itemMaisLongo.texto.length} caracteres
                 </Text>
               </View>
@@ -333,16 +333,16 @@ export default function EstatisticasScreen() {
 
           {/* Item Mais Curto */}
           {estatisticas.itemMaisCurto && (
-            <View style={[styles.detailCard, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}>
+            <View style={[styles.detailCard, { backgroundColor: colors.accent }]}>
               <MaterialIcons name="text-fields" size={20} color="#FF9500" />
               <View style={styles.detailInfo}>
-                <Text style={[styles.detailTitle, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+                <Text style={[styles.detailTitle, { color: colors.text }, typography.subtitleBold]}>
                   Item Mais Curto
                 </Text>
-                <Text style={[styles.detailValue, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
+                <Text style={[styles.detailValue, { color: colors.textSecondary }, typography.body]}>
                   {estatisticas.itemMaisCurto.texto}
                 </Text>
-                <Text style={[styles.detailSubtitle, { color: isDarkMode ? '#c7c7cc' : '#c7c7cc' }]}>
+                <Text style={[styles.detailSubtitle, { color: colors.textSecondary }, typography.caption]}>
                   {estatisticas.itemMaisCurto.texto.length} caracteres
                 </Text>
               </View>
@@ -351,16 +351,16 @@ export default function EstatisticasScreen() {
 
           {/* Categoria Mais Usada */}
           {estatisticas.categoriaMaisUsada && (
-            <View style={[styles.detailCard, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}>
+            <View style={[styles.detailCard, { backgroundColor: colors.accent }]}>
               <MaterialIcons name="category" size={20} color="#AF52DE" />
               <View style={styles.detailInfo}>
-                <Text style={[styles.detailTitle, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+                <Text style={[styles.detailTitle, { color: colors.text }, typography.subtitleBold]}>
                   Categoria Mais Usada
                 </Text>
-                <Text style={[styles.detailValue, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
+                <Text style={[styles.detailValue, { color: colors.textSecondary }, typography.body]}>
                   {estatisticas.categoriaMaisUsada.nome}
                 </Text>
-                <Text style={[styles.detailSubtitle, { color: isDarkMode ? '#c7c7cc' : '#c7c7cc' }]}>
+                <Text style={[styles.detailSubtitle, { color: colors.textSecondary }, typography.caption]}>
                   {estatisticas.categoriaMaisUsada.quantidade} itens
                 </Text>
               </View>
@@ -369,29 +369,29 @@ export default function EstatisticasScreen() {
         </View>
 
         {/* Lista de Todas as Listas */}
-        <View style={[styles.section, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
-          <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>
             Todas as Listas
           </Text>
           
           {listas.map((lista) => (
             <TouchableOpacity
               key={lista.id}
-              style={[styles.listaCard, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}
+              style={[styles.listaCard, { backgroundColor: colors.accent }]}
               onPress={() => router.push({
                 pathname: '/lista-detalhes',
                 params: { id: lista.id }
               })}
             >
               <View style={styles.listaInfo}>
-                <Text style={[styles.listaNome, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+                <Text style={[styles.listaNome, { color: colors.text }, typography.subtitleBold]}>
                   {lista.nome}
                 </Text>
-                <Text style={[styles.listaStats, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
+                <Text style={[styles.listaStats, { color: colors.textSecondary }, typography.caption]}>
                   {lista.itens.length} itens • Criada {formatarTempoDecorrido(lista.createdAt)}
                 </Text>
               </View>
-              <MaterialIcons name="chevron-right" size={20} color={isDarkMode ? '#8e8e93' : '#8e8e93'} />
+              <MaterialIcons name="chevron-right" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           ))}
         </View>

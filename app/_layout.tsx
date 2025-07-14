@@ -2,22 +2,26 @@ import { Tabs } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { ThemeProvider, useTheme } from '../services/ThemeContext';
 import AuthGate from '../components/AuthGate';
+import { useFonts } from 'expo-font';
+import { Righteous_400Regular } from '@expo-google-fonts/righteous';
+import { NotoSans_400Regular, NotoSans_700Bold } from '@expo-google-fonts/noto-sans';
+import { View } from 'react-native';
 
 function TabLayoutContent() {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colors } = useTheme();
 
   return (
     <AuthGate>
-      <Tabs
-        screenOptions={{
-          tabBarActiveTintColor: isDarkMode ? '#0A84FF' : '#007AFF',
-          tabBarInactiveTintColor: isDarkMode ? '#8E8E93' : '#8E8E93',
-          tabBarStyle: {
-            backgroundColor: isDarkMode ? '#1C1C1E' : '#fff',
-            borderTopColor: isDarkMode ? '#38383A' : '#E5E5EA',
-          },
-          headerShown: false,
-        }}>
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+        },
+        headerShown: false,
+      }}>
       <Tabs.Screen
         name="index"
         options={{
@@ -72,12 +76,22 @@ function TabLayoutContent() {
           href: null,
         }}
       />
-      </Tabs>
+    </Tabs>
     </AuthGate>
   );
 }
 
 export default function TabLayout() {
+  const [fontsLoaded] = useFonts({
+    Righteous_400Regular,
+    NotoSans_400Regular,
+    NotoSans_700Bold,
+  });
+
+  if (!fontsLoaded) {
+    return <View />;
+  }
+
   return (
     <ThemeProvider>
       <TabLayoutContent />

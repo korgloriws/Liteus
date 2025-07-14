@@ -90,8 +90,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       return;
     }
 
-    const novoFormato: FormatoTexto = {
-      texto: textoSelecionado,
+      const novoFormato: FormatoTexto = {
+        texto: textoSelecionado,
       ...formatoAtual,
     };
 
@@ -136,13 +136,13 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   };
 
   const isFormatoAtivo = (tipo: 'negrito' | 'italico' | 'cor', valor?: string) => {
-    if (tipo === 'negrito') {
+      if (tipo === 'negrito') {
       return formatoAtual.negrito === true;
-    }
-    if (tipo === 'italico') {
+      }
+      if (tipo === 'italico') {
       return formatoAtual.italico === true;
-    }
-    if (tipo === 'cor') {
+      }
+      if (tipo === 'cor') {
       return formatoAtual.cor === valor;
     }
     return false;
@@ -270,10 +270,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             />
 
             {/* Prévia do texto formatado */}
-            <View style={styles.previewContainer}>
-              <Text style={[styles.previewTitle, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
-                Prévia:
-              </Text>
+              <View style={styles.previewContainer}>
+                <Text style={[styles.previewTitle, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+                  Prévia:
+                </Text>
               {renderizarTextoFormatado()}
             </View>
 
@@ -282,7 +282,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
               <View style={styles.formatoAtualContainer}>
                 <Text style={[styles.formatoAtualTitle, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
                   Formatação Atual:
-                </Text>
+                      </Text>
                 <View style={styles.formatoAtualTags}>
                   {formatoAtual.negrito && (
                     <View style={[styles.formatoTag, { backgroundColor: '#007AFF' }]}>

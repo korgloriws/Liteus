@@ -17,12 +17,12 @@ import { Categoria } from '../types';
 import { useTheme } from '../services/ThemeContext';
 
 export default function CriarListaScreen() {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colors, typography } = useTheme();
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
   const [cor, setCor] = useState('#007AFF');
   const [permiteSelecaoAleatoria, setPermiteSelecaoAleatoria] = useState(true);
-  const [tipoAnimacao, setTipoAnimacao] = useState<'roleta' | 'cubo'>('roleta');
+  const [tipoAnimacao, setTipoAnimacao] = useState<'roleta' | 'cubo' | 'confete' | 'ondas' | 'particulas' | 'espiral' | 'pulsar' | 'deslizar'>('roleta');
   const [loading, setLoading] = useState(false);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [modalCategoria, setModalCategoria] = useState(false);
@@ -98,18 +98,18 @@ export default function CriarListaScreen() {
   return (
     <View style={{ flex: 1 }}>
       {/* Cabeçalho Customizado */}
-      <View style={[styles.header, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface }]}>
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => router.back()}
         >
-          <MaterialIcons name="arrow-back" size={24} color="#007AFF" />
+          <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Criar Lista</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }, typography.titleMedium]}>Criar Lista</Text>
         <View style={styles.headerSpacer} />
       </View>
 
-    <ScrollView style={[styles.container, { backgroundColor: isDarkMode ? '#000' : '#F2F2F7' }]} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
       
 
       <View style={styles.content}>
@@ -120,37 +120,37 @@ export default function CriarListaScreen() {
         {/* Nome da Lista */}
         <View style={styles.inputGroup}>
           <View style={styles.sectionHeader}>
-            <MaterialIcons name="edit" size={20} color="#007AFF" />
-            <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Informações Básicas</Text>
+            <MaterialIcons name="edit" size={20} color={colors.primary} />
+            <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>Informações Básicas</Text>
           </View>
-          <Text style={[styles.label, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Nome da Lista *</Text>
+          <Text style={[styles.label, { color: colors.text }, typography.body]}>Nome da Lista *</Text>
           <TextInput
             style={[styles.input, { 
-              backgroundColor: isDarkMode ? '#1C1C1E' : '#fff',
-              color: isDarkMode ? '#fff' : '#1C1C1E',
-              borderColor: isDarkMode ? '#38383A' : '#E5E5EA'
-            }]}
+              backgroundColor: colors.surface,
+              color: colors.text,
+              borderColor: colors.border
+            }, typography.body]}
             value={nome}
             onChangeText={setNome}
             placeholder="Digite o nome da lista"
-            placeholderTextColor={isDarkMode ? '#8E8E93' : '#8E8E93'}
+            placeholderTextColor={colors.textSecondary}
             maxLength={50}
           />
         </View>
 
         {/* Descrição */}
         <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Descrição (opcional)</Text>
+          <Text style={[styles.label, { color: colors.text }, typography.body]}>Descrição (opcional)</Text>
           <TextInput
             style={[styles.input, styles.textArea, { 
-              backgroundColor: isDarkMode ? '#1C1C1E' : '#fff',
-              color: isDarkMode ? '#fff' : '#1C1C1E',
-              borderColor: isDarkMode ? '#38383A' : '#E5E5EA'
-            }]}
+              backgroundColor: colors.surface,
+              color: colors.text,
+              borderColor: colors.border
+            }, typography.body]}
             value={descricao}
             onChangeText={setDescricao}
             placeholder="Digite uma descrição para a lista"
-            placeholderTextColor={isDarkMode ? '#8E8E93' : '#8E8E93'}
+            placeholderTextColor={colors.textSecondary}
             multiline
             numberOfLines={3}
             maxLength={200}
@@ -160,10 +160,10 @@ export default function CriarListaScreen() {
         {/* Cor */}
         <View style={styles.inputGroup}>
           <View style={styles.sectionHeader}>
-            <MaterialIcons name="palette" size={20} color="#007AFF" />
-            <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Personalização</Text>
+            <MaterialIcons name="palette" size={20} color={colors.primary} />
+            <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>Personalização</Text>
           </View>
-          <Text style={[styles.label, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Cor da Lista</Text>
+          <Text style={[styles.label, { color: colors.text }, typography.body]}>Cor da Lista</Text>
           <View style={styles.coresContainer}>
             {cores.map((corItem) => (
               <TouchableOpacity
@@ -186,10 +186,10 @@ export default function CriarListaScreen() {
         {/* Categorias */}
         <View style={styles.inputGroup}>
           <View style={styles.sectionHeader}>
-            <MaterialIcons name="category" size={20} color="#007AFF" />
-            <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Categorias (Opcional)</Text>
+            <MaterialIcons name="category" size={20} color={colors.primary} />
+            <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>Categorias (Opcional)</Text>
           </View>
-          <Text style={[styles.label, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+          <Text style={[styles.label, { color: colors.text }, typography.body]}>
             Crie categorias para organizar os itens da sua lista
           </Text>
           
@@ -292,6 +292,150 @@ export default function CriarListaScreen() {
                   Cubo
                 </Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.animacaoOption,
+                  { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff', borderColor: isDarkMode ? '#38383A' : '#E5E5EA' },
+                  tipoAnimacao === 'confete' && styles.animacaoSelecionada,
+                ]}
+                onPress={() => setTipoAnimacao('confete')}
+              >
+                <MaterialIcons
+                  name="celebration"
+                  size={24}
+                  color={tipoAnimacao === 'confete' ? '#007AFF' : '#8E8E93'}
+                />
+                <Text
+                  style={[
+                    styles.animacaoText,
+                    { color: isDarkMode ? '#fff' : '#1C1C1E' },
+                    tipoAnimacao === 'confete' && styles.animacaoTextSelecionada,
+                  ]}
+                >
+                  Confete
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.animacaoOption,
+                  { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff', borderColor: isDarkMode ? '#38383A' : '#E5E5EA' },
+                  tipoAnimacao === 'ondas' && styles.animacaoSelecionada,
+                ]}
+                onPress={() => setTipoAnimacao('ondas')}
+              >
+                <MaterialIcons
+                  name="waves"
+                  size={24}
+                  color={tipoAnimacao === 'ondas' ? '#007AFF' : '#8E8E93'}
+                />
+                <Text
+                  style={[
+                    styles.animacaoText,
+                    { color: isDarkMode ? '#fff' : '#1C1C1E' },
+                    tipoAnimacao === 'ondas' && styles.animacaoTextSelecionada,
+                  ]}
+                >
+                  Ondas
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.animacaoOption,
+                  { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff', borderColor: isDarkMode ? '#38383A' : '#E5E5EA' },
+                  tipoAnimacao === 'particulas' && styles.animacaoSelecionada,
+                ]}
+                onPress={() => setTipoAnimacao('particulas')}
+              >
+                <MaterialIcons
+                  name="blur-on"
+                  size={24}
+                  color={tipoAnimacao === 'particulas' ? '#007AFF' : '#8E8E93'}
+                />
+                <Text
+                  style={[
+                    styles.animacaoText,
+                    { color: isDarkMode ? '#fff' : '#1C1C1E' },
+                    tipoAnimacao === 'particulas' && styles.animacaoTextSelecionada,
+                  ]}
+                >
+                  Partículas
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.animacaoOption,
+                  { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff', borderColor: isDarkMode ? '#38383A' : '#E5E5EA' },
+                  tipoAnimacao === 'espiral' && styles.animacaoSelecionada,
+                ]}
+                onPress={() => setTipoAnimacao('espiral')}
+              >
+                <MaterialIcons
+                  name="rotate-right"
+                  size={24}
+                  color={tipoAnimacao === 'espiral' ? '#007AFF' : '#8E8E93'}
+                />
+                <Text
+                  style={[
+                    styles.animacaoText,
+                    { color: isDarkMode ? '#fff' : '#1C1C1E' },
+                    tipoAnimacao === 'espiral' && styles.animacaoTextSelecionada,
+                  ]}
+                >
+                  Espiral
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.animacaoOption,
+                  { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff', borderColor: isDarkMode ? '#38383A' : '#E5E5EA' },
+                  tipoAnimacao === 'pulsar' && styles.animacaoSelecionada,
+                ]}
+                onPress={() => setTipoAnimacao('pulsar')}
+              >
+                <MaterialIcons
+                  name="radio-button-checked"
+                  size={24}
+                  color={tipoAnimacao === 'pulsar' ? '#007AFF' : '#8E8E93'}
+                />
+                <Text
+                  style={[
+                    styles.animacaoText,
+                    { color: isDarkMode ? '#fff' : '#1C1C1E' },
+                    tipoAnimacao === 'pulsar' && styles.animacaoTextSelecionada,
+                  ]}
+                >
+                  Pulsar
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.animacaoOption,
+                  { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff', borderColor: isDarkMode ? '#38383A' : '#E5E5EA' },
+                  tipoAnimacao === 'deslizar' && styles.animacaoSelecionada,
+                ]}
+                onPress={() => setTipoAnimacao('deslizar')}
+              >
+                <MaterialIcons
+                  name="swap-horiz"
+                  size={24}
+                  color={tipoAnimacao === 'deslizar' ? '#007AFF' : '#8E8E93'}
+                />
+                <Text
+                  style={[
+                    styles.animacaoText,
+                    { color: isDarkMode ? '#fff' : '#1C1C1E' },
+                    tipoAnimacao === 'deslizar' && styles.animacaoTextSelecionada,
+                  ]}
+                >
+                  Deslizar
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -328,28 +472,28 @@ export default function CriarListaScreen() {
         onRequestClose={() => setModalCategoria(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
-            <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }, typography.titleMedium]}>
               Adicionar Categoria
             </Text>
             
-            <Text style={[styles.label, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+            <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
               Nome da Categoria
             </Text>
             <TextInput
               style={[styles.input, { 
-                backgroundColor: isDarkMode ? '#38383A' : '#fff',
-                color: isDarkMode ? '#fff' : '#1C1C1E',
-                borderColor: isDarkMode ? '#5856D6' : '#e5e5ea'
+                backgroundColor: colors.accent,
+                color: colors.text,
+                borderColor: colors.border
               }]}
               placeholder="Digite o nome da categoria"
-              placeholderTextColor={isDarkMode ? '#8E8E93' : '#8E8E93'}
+              placeholderTextColor={colors.textSecondary}
               value={novaCategoriaNome}
               onChangeText={setNovaCategoriaNome}
               maxLength={30}
             />
 
-            <Text style={[styles.label, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+            <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
               Cor da Categoria
             </Text>
             <View style={styles.coresContainer}>
@@ -514,13 +658,14 @@ const styles = StyleSheet.create({
   },
   animacaoContainer: {
     flexDirection: 'row',
-    gap: 12,
+    flexWrap: 'wrap',
+    gap: 8,
   },
   animacaoOption: {
-    flex: 1,
+    width: '30%',
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 12,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#E5E5EA',
@@ -538,10 +683,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F8FF',
   },
   animacaoText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
     color: '#8E8E93',
-    marginTop: 8,
+    marginTop: 6,
+    textAlign: 'center',
   },
   animacaoTextSelecionada: {
     color: '#007AFF',

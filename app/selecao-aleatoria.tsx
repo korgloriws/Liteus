@@ -18,7 +18,7 @@ import { useTheme } from '../services/ThemeContext';
 const { width, height } = Dimensions.get('window');
 
 export default function SelecaoAleatoriaScreen() {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colors, typography } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [lista, setLista] = useState<Lista | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,6 +30,11 @@ export default function SelecaoAleatoriaScreen() {
   const spinValue = useRef(new Animated.Value(0)).current;
   const scaleValue = useRef(new Animated.Value(1)).current;
   const opacityValue = useRef(new Animated.Value(1)).current;
+  const translateYValue = useRef(new Animated.Value(0)).current;
+  const translateXValue = useRef(new Animated.Value(0)).current;
+  const rotationValue = useRef(new Animated.Value(0)).current;
+  const pulseValue = useRef(new Animated.Value(1)).current;
+  const waveValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (id) {
@@ -67,10 +72,33 @@ export default function SelecaoAleatoriaScreen() {
 
     const tipoAnimacao = lista.tipoAnimacao || 'roleta';
     
-    if (tipoAnimacao === 'roleta') {
-      animacaoRoleta();
-    } else {
-      animacaoCubo();
+    switch (tipoAnimacao) {
+      case 'roleta':
+        animacaoRoleta();
+        break;
+      case 'cubo':
+        animacaoCubo();
+        break;
+      case 'confete':
+        animacaoConfete();
+        break;
+      case 'ondas':
+        animacaoOndas();
+        break;
+      case 'particulas':
+        animacaoParticulas();
+        break;
+      case 'espiral':
+        animacaoEspiral();
+        break;
+      case 'pulsar':
+        animacaoPulsar();
+        break;
+      case 'deslizar':
+        animacaoDeslizar();
+        break;
+      default:
+        animacaoRoleta();
     }
   };
 
@@ -129,6 +157,213 @@ export default function SelecaoAleatoriaScreen() {
 
     setTimeout(() => {
       cubeAnimation.stop();
+      finalizarSelecao();
+    }, 3000);
+  };
+
+  const animacaoConfete = () => {
+    // Animação de confete com movimento vertical e rotação
+    const confeteAnimation = Animated.loop(
+      Animated.parallel([
+        Animated.timing(translateYValue, {
+          toValue: -50,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(rotationValue, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleValue, {
+          toValue: 1.3,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    confeteAnimation.start();
+
+    setTimeout(() => {
+      confeteAnimation.stop();
+      finalizarSelecao();
+    }, 3000);
+  };
+
+  const animacaoOndas = () => {
+    // Animação de ondas com escala e opacidade
+    const waveAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(scaleValue, {
+            toValue: 1.4,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacityValue, {
+            toValue: 0.3,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.parallel([
+          Animated.timing(scaleValue, {
+            toValue: 0.8,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacityValue, {
+            toValue: 1,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+        ]),
+      ])
+    );
+
+    waveAnimation.start();
+
+    setTimeout(() => {
+      waveAnimation.stop();
+      finalizarSelecao();
+    }, 3000);
+  };
+
+  const animacaoParticulas = () => {
+    // Animação de partículas com movimento horizontal e vertical
+    const particleAnimation = Animated.loop(
+      Animated.parallel([
+        Animated.timing(translateXValue, {
+          toValue: 30,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateYValue, {
+          toValue: -30,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(rotationValue, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    particleAnimation.start();
+
+    setTimeout(() => {
+      particleAnimation.stop();
+      finalizarSelecao();
+    }, 3000);
+  };
+
+  const animacaoEspiral = () => {
+    // Animação espiral com rotação e escala
+    const spiralAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(rotationValue, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleValue, {
+            toValue: 1.5,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.parallel([
+          Animated.timing(rotationValue, {
+            toValue: 0,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleValue, {
+            toValue: 0.7,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ]),
+      ])
+    );
+
+    spiralAnimation.start();
+
+    setTimeout(() => {
+      spiralAnimation.stop();
+      finalizarSelecao();
+    }, 3000);
+  };
+
+  const animacaoPulsar = () => {
+    // Animação pulsar com escala e opacidade
+    const pulseAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(pulseValue, {
+            toValue: 1.6,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacityValue, {
+            toValue: 0.2,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.parallel([
+          Animated.timing(pulseValue, {
+            toValue: 0.8,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacityValue, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]),
+      ])
+    );
+
+    pulseAnimation.start();
+
+    setTimeout(() => {
+      pulseAnimation.stop();
+      finalizarSelecao();
+    }, 3000);
+  };
+
+  const animacaoDeslizar = () => {
+    // Animação de deslizar com movimento horizontal
+    const slideAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(translateXValue, {
+          toValue: 100,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateXValue, {
+          toValue: -100,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateXValue, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    slideAnimation.start();
+
+    setTimeout(() => {
+      slideAnimation.stop();
       finalizarSelecao();
     }, 3000);
   };
@@ -206,7 +441,7 @@ export default function SelecaoAleatoriaScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: isDarkMode ? '#000' : '#f2f2f7' }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: lista.cor || '#007AFF' }]}>
         <TouchableOpacity
@@ -228,7 +463,7 @@ export default function SelecaoAleatoriaScreen() {
           <View style={styles.selectionContainer}>
             <View style={styles.selectionInfo}>
               <MaterialIcons name="casino" size={80} color="#007AFF" />
-              <Text style={[styles.selectionTitle, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+              <Text style={[styles.selectionTitle, { color: colors.text }, typography.titleLarge]}>
                 {selecionando ? 'Selecionando...' : 'Seleção Aleatória'}
               </Text>
               <Text style={[styles.selectionSubtitle, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
@@ -266,7 +501,16 @@ export default function SelecaoAleatoriaScreen() {
                             outputRange: ['0deg', '360deg'],
                           }),
                         },
+                        {
+                          rotate: rotationValue.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: ['0deg', '360deg'],
+                          }),
+                        },
                         { scale: scaleValue },
+                        { scale: pulseValue },
+                        { translateX: translateXValue },
+                        { translateY: translateYValue },
                       ],
                       opacity: opacityValue,
                     },

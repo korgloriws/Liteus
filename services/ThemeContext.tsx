@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { carregarConfiguracoes, salvarConfiguracoes } from './theme';
+import { carregarConfiguracoes, salvarConfiguracoes, getThemeColors, typography } from './theme';
 
 interface ThemeContextType {
   isDarkMode: boolean;
   toggleTheme: () => void;
   setDarkMode: (enabled: boolean) => void;
+  colors: ReturnType<typeof getThemeColors>;
+  typography: typeof typography;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -30,8 +32,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     await salvarConfiguracoes(enabled);
   };
 
+  const themeColors = getThemeColors(isDarkMode);
+
   return (
-    <ThemeContext.Provider value={{ isDarkMode, toggleTheme, setDarkMode }}>
+    <ThemeContext.Provider value={{ 
+      isDarkMode, 
+      toggleTheme, 
+      setDarkMode, 
+      colors: themeColors,
+      typography 
+    }}>
       {children}
     </ThemeContext.Provider>
   );

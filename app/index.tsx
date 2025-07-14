@@ -10,6 +10,7 @@ import {
   Modal,
   ScrollView,
   Switch,
+  Image,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
@@ -23,7 +24,7 @@ import { useTheme } from '../services/ThemeContext';
 import { SyncService } from '../services/syncService';
 
 export default function ListasScreen() {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colors, typography } = useTheme();
   const [listas, setListas] = useState<Lista[]>([]);
   const [listasFiltradas, setListasFiltradas] = useState<Lista[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,7 +40,7 @@ export default function ListasScreen() {
   const [editandoDescricao, setEditandoDescricao] = useState('');
   const [editandoCor, setEditandoCor] = useState('#007AFF');
   const [editandoPermiteSelecaoAleatoria, setEditandoPermiteSelecaoAleatoria] = useState(true);
-  const [editandoTipoAnimacao, setEditandoTipoAnimacao] = useState<'roleta' | 'cubo'>('roleta');
+  const [editandoTipoAnimacao, setEditandoTipoAnimacao] = useState<'roleta' | 'cubo' | 'confete' | 'ondas' | 'particulas' | 'espiral' | 'pulsar' | 'deslizar'>('roleta');
   const [editandoCategorias, setEditandoCategorias] = useState<any[]>([]);
   const [modalCategoria, setModalCategoria] = useState(false);
   const [novaCategoriaNome, setNovaCategoriaNome] = useState('');
@@ -88,12 +89,12 @@ export default function ListasScreen() {
     tipo: OrdenacaoTipo,
     direcao: OrdenacaoDirecao
   ) => {
-    // Aplicar busca
+
     let listasFiltradas = busca.trim() 
       ? UtilsService.buscarListas(listasParaFiltrar, busca)
       : listasParaFiltrar;
 
-    // Aplicar ordenação
+
     listasFiltradas = UtilsService.ordenarListas(listasFiltradas, tipo, direcao);
     
     setListasFiltradas(listasFiltradas);
@@ -143,14 +144,18 @@ export default function ListasScreen() {
     }
   };
 
-  // Funções para editar lista
+
   const abrirModalEditar = (lista: Lista) => {
     setListaEditando(lista);
     setEditandoNome(lista.nome);
     setEditandoDescricao(lista.descricao || '');
     setEditandoCor(lista.cor || '#007AFF');
     setEditandoPermiteSelecaoAleatoria(lista.permiteSelecaoAleatoria);
-    setEditandoTipoAnimacao(lista.tipoAnimacao || 'roleta');
+    setEditandoTipoAnimacao(
+      lista.tipoAnimacao === 'roleta' || lista.tipoAnimacao === 'cubo'
+        ? lista.tipoAnimacao
+        : 'roleta'
+    );
     setEditandoCategorias(lista.categorias || []);
     setModalEditarLista(true);
   };
@@ -226,7 +231,7 @@ export default function ListasScreen() {
         // Extrair nome do arquivo sem extensão
         const nomeArquivo = arquivo.name.replace(/\.[^/.]+$/, ''); 
         setNomeListaImportada(nomeArquivo);
-        
+
         await processarArquivo(arquivo);
       }
     } catch (error) {
@@ -271,10 +276,10 @@ export default function ListasScreen() {
         console.error('Erro ao processar arquivo:', error);
         // Fallback para o método antigo
         const itens = extrairItensDoTexto(conteudo);
-        setItensImportados(itens);
-        
-        if (itens.length === 0) {
-          Alert.alert('Aviso', 'Nenhum item foi encontrado no arquivo. Verifique se o arquivo contém itens válidos.');
+      setItensImportados(itens);
+      
+      if (itens.length === 0) {
+        Alert.alert('Aviso', 'Nenhum item foi encontrado no arquivo. Verifique se o arquivo contém itens válidos.');
         }
       }
     } catch (error) {
@@ -335,13 +340,13 @@ export default function ListasScreen() {
         if (typeof item === 'string') {
           // Item simples como string
           const textoProcessado = DocumentProcessor.processarTextoComFormatacao(item.trim());
-          
-          await StorageService.adicionarItem(novaLista.id, {
-            texto: textoProcessado.texto,
-            textoFormatado: textoProcessado.formato,
-            descricao: undefined,
-            categoria: undefined,
-          });
+        
+        await StorageService.adicionarItem(novaLista.id, {
+          texto: textoProcessado.texto,
+          textoFormatado: textoProcessado.formato,
+          descricao: undefined,
+          categoria: undefined,
+        });
         } else {
           // Item estruturado com descrição e categoria
           const textoProcessado = DocumentProcessor.processarTextoComFormatacao(item.texto.trim());
@@ -387,9 +392,9 @@ export default function ListasScreen() {
   const renderItem = ({ item }: { item: Lista }) => (
     <TouchableOpacity
       style={[styles.listaItem, { 
-        borderLeftColor: item.cor || '#007AFF',
-        backgroundColor: isDarkMode ? '#1C1C1E' : '#fff',
-        shadowColor: isDarkMode ? '#000' : '#000',
+        borderLeftColor: item.cor || colors.primary,
+        backgroundColor: colors.surface,
+        shadowColor: colors.text,
       }]}
       onPress={() => router.push({
         pathname: '/lista-detalhes',
@@ -397,37 +402,37 @@ export default function ListasScreen() {
       })}
     >
       <View style={styles.listaInfo}>
-        <Text style={[styles.listaNome, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>{item.nome}</Text>
+        <Text style={[styles.listaNome, { color: colors.text }, typography.titleMedium]}>{item.nome}</Text>
         {item.descricao && (
-          <Text style={[styles.listaDescricao, { color: isDarkMode ? '#8E8E93' : '#8E8E93' }]}>{item.descricao}</Text>
+          <Text style={[styles.listaDescricao, { color: colors.textSecondary }, typography.body]}>{item.descricao}</Text>
         )}
-        <Text style={[styles.listaItens, { color: isDarkMode ? '#8E8E93' : '#8E8E93' }]}>
+        <Text style={[styles.listaItens, { color: colors.textSecondary }, typography.caption]}>
           {item.itens.length} item{item.itens.length !== 1 ? 's' : ''}
         </Text>
       </View>
       <View style={styles.listaAcoes}>
         <TouchableOpacity
-          style={[styles.btnEditar, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}
+          style={[styles.btnEditar, { backgroundColor: colors.accent }]}
           onPress={() => abrirModalEditar(item)}
         >
-          <MaterialIcons name="edit" size={20} color="#007AFF" />
+          <MaterialIcons name="edit" size={20} color={colors.primary} />
         </TouchableOpacity>
         {item.permiteSelecaoAleatoria && (
           <TouchableOpacity
-            style={[styles.btnAleatorio, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}
+            style={[styles.btnAleatorio, { backgroundColor: colors.accent }]}
             onPress={() => router.push({
               pathname: '/selecao-aleatoria',
               params: { id: item.id }
             })}
           >
-            <MaterialIcons name="casino" size={20} color="#007AFF" />
+            <MaterialIcons name="casino" size={20} color={colors.primary} />
           </TouchableOpacity>
         )}
         <TouchableOpacity
-          style={[styles.btnDuplicar, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}
+          style={[styles.btnDuplicar, { backgroundColor: colors.accent }]}
           onPress={() => duplicarLista(item.id)}
         >
-          <MaterialIcons name="content-copy" size={20} color="#34C759" />
+          <MaterialIcons name="content-copy" size={20} color={colors.secondary} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.btnExcluir}
@@ -441,25 +446,31 @@ export default function ListasScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: isDarkMode ? '#000' : '#F2F2F7' }]}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.loadingContainer}>
-          <MaterialIcons name="hourglass-empty" size={48} color="#007AFF" />
-          <Text style={[styles.loadingText, { color: isDarkMode ? '#8E8E93' : '#8E8E93' }]}>Carregando...</Text>
+          <MaterialIcons name="hourglass-empty" size={48} color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }, typography.subtitle]}>Carregando...</Text>
         </View>
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: isDarkMode ? '#000' : '#F2F2F7' }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {}
       <View style={[styles.header, { 
-        backgroundColor: isDarkMode ? '#1C1C1E' : '#fff',
-        borderBottomColor: isDarkMode ? '#38383A' : '#E5E5EA'
+        backgroundColor: colors.surface,
+        borderBottomColor: colors.border
       }]}>
         <View style={styles.headerContent}>
-          <MaterialIcons name="casino" size={32} color="#007AFF" />
-          <Text style={[styles.headerTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Liteus</Text>
+          <Image
+            source={isDarkMode 
+              ? require('../assets/logo_horizontal_amarelo.png')
+              : require('../assets/logo_horizontal_azul.png')
+            }
+            style={styles.logo}
+            resizeMode="contain"
+          />
         </View>
 
       </View>
@@ -468,65 +479,64 @@ export default function ListasScreen() {
       <View style={styles.content}>
         {listas.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <MaterialIcons name="list" size={64} color="#C7C7CC" />
-            <Text style={[styles.emptyTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Nenhuma lista criada</Text>
-            <Text style={[styles.emptySubtitle, { color: isDarkMode ? '#8E8E93' : '#8E8E93' }]}>
+            <MaterialIcons name="list" size={64} color={colors.textSecondary} />
+            <Text style={[styles.emptyTitle, { color: colors.text }, typography.titleMedium]}>Nenhuma lista criada</Text>
+            <Text style={[styles.emptySubtitle, { color: colors.textSecondary }, typography.subtitle]}>
               Crie sua primeira lista para começar
             </Text>
             <TouchableOpacity
-              style={styles.btnCriarPrimeira}
+              style={[styles.btnCriarPrimeira, { backgroundColor: colors.primary }]}
               onPress={() => router.push('/criar-lista')}
             >
-              <MaterialIcons name="add" size={24} color="#fff" />
-              <Text style={styles.btnCriarPrimeiraText}>Criar Primeira Lista</Text>
+              <MaterialIcons name="add" size={24} color={colors.white} />
+              <Text style={[styles.btnCriarPrimeiraText, { color: colors.white }, typography.button]}>Criar Primeira Lista</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <>
             {/* Barra de Busca */}
             <View style={styles.buscaContainer}>
-              <View style={styles.buscaInputContainer}>
-                <MaterialIcons name="search" size={20} color="#8E8E93" />
+              <View style={[styles.buscaInputContainer, { backgroundColor: colors.accent, borderColor: colors.border }]}>
+                <MaterialIcons name="search" size={20} color={colors.textSecondary} />
                 <TextInput
                   style={[styles.buscaInput, { 
-                    color: isDarkMode ? '#fff' : '#1C1C1E',
-                    backgroundColor: isDarkMode ? '#1C1C1E' : '#fff'
-                  }]}
+                    color: colors.text
+                  }, typography.body]}
                   placeholder="Buscar listas..."
-                  placeholderTextColor="#8E8E93"
+                  placeholderTextColor={colors.background}
                   value={textoBusca}
                   onChangeText={handleBusca}
                 />
                 {textoBusca.length > 0 && (
                   <TouchableOpacity onPress={() => handleBusca('')}>
-                    <MaterialIcons name="close" size={20} color="#8E8E93" />
+                    <MaterialIcons name="close" size={20} color={colors.textSecondary} />
                   </TouchableOpacity>
                 )}
               </View>
               <TouchableOpacity
-                style={[styles.btnOrdenar, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}
+                style={[styles.btnOrdenar, { backgroundColor: colors.accent }]}
                 onPress={() => setModalOrdenacao(true)}
               >
-                <MaterialIcons name="sort" size={20} color="#007AFF" />
+                <MaterialIcons name="sort" size={20} color={colors.primary} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.contentHeader}>
-              <Text style={[styles.contentTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+              <Text style={[styles.contentTitle, { color: colors.text }, typography.titleMedium]}>
                 Suas Listas ({listasFiltradas.length})
               </Text>
                             <View style={styles.headerAcoes}>
                 <TouchableOpacity
-                  style={[styles.btnImportar, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}
+                  style={[styles.btnImportar, { backgroundColor: colors.accent }]}
                   onPress={() => setModalImportacao(true)}
                 >
-                  <MaterialIcons name="file-upload" size={20} color="#007AFF" />
+                  <MaterialIcons name="file-upload" size={20} color={colors.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.btnAdicionar, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}
+                  style={[styles.btnAdicionar, { backgroundColor: colors.accent }]}
                   onPress={() => router.push('/criar-lista')}
                 >
-                  <MaterialIcons name="add" size={24} color="#007AFF" />
+                  <MaterialIcons name="add" size={24} color={colors.primary} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -549,8 +559,8 @@ export default function ListasScreen() {
         onRequestClose={() => setModalOrdenacao(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
-            <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }, typography.titleMedium]}>
               Ordenar Listas
             </Text>
             
@@ -565,11 +575,12 @@ export default function ListasScreen() {
                 <MaterialIcons 
                   name="sort-by-alpha" 
                   size={20} 
-                  color={ordenacaoTipo === 'alfabetica' ? '#007AFF' : '#8E8E93'} 
+                  color={ordenacaoTipo === 'alfabetica' ? colors.primary : colors.textSecondary} 
                 />
                 <Text style={[
                   styles.opcaoTexto,
-                  { color: isDarkMode ? '#fff' : '#1C1C1E' },
+                  { color: colors.text },
+                  typography.subtitle,
                   ordenacaoTipo === 'alfabetica' && styles.opcaoTextoSelecionada
                 ]}>
                   Alfabética
@@ -583,14 +594,15 @@ export default function ListasScreen() {
                 ]}
                 onPress={() => handleOrdenacao('data', ordenacaoDirecao)}
               >
-                <MaterialIcons 
+                <MaterialIcons
                   name="schedule" 
                   size={20} 
-                  color={ordenacaoTipo === 'data' ? '#007AFF' : '#8E8E93'} 
+                  color={ordenacaoTipo === 'data' ? colors.primary : colors.textSecondary} 
                 />
                 <Text style={[
                   styles.opcaoTexto,
-                  { color: isDarkMode ? '#fff' : '#1C1C1E' },
+                  { color: colors.text },
+                  typography.subtitle,
                   ordenacaoTipo === 'data' && styles.opcaoTextoSelecionada
                 ]}>
                   Data de Criação
@@ -604,10 +616,10 @@ export default function ListasScreen() {
                 ]}
                 onPress={() => handleOrdenacao('categoria', ordenacaoDirecao)}
               >
-                <MaterialIcons 
+                                <MaterialIcons
                   name="category" 
                   size={20} 
-                  color={ordenacaoTipo === 'categoria' ? '#007AFF' : '#8E8E93'} 
+                  color={ordenacaoTipo === 'categoria' ? colors.primary : colors.textSecondary}
                 />
                 <Text style={[
                   styles.opcaoTexto,
@@ -770,7 +782,7 @@ export default function ListasScreen() {
                   style={[styles.btnAdicionarCategoria, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}
                   onPress={() => setModalCategoria(true)}
                 >
-                  <MaterialIcons name="add" size={20} color="#007AFF" />
+                  <MaterialIcons name="add" size={20} color={colors.primary} />
                   <Text style={[styles.btnAdicionarCategoriaTexto, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
                     Adicionar Categoria
                   </Text>
@@ -784,7 +796,7 @@ export default function ListasScreen() {
                   <Switch
                     value={editandoPermiteSelecaoAleatoria}
                     onValueChange={setEditandoPermiteSelecaoAleatoria}
-                    trackColor={{ false: '#E5E5EA', true: '#007AFF' }}
+                    trackColor={{ false: colors.border, true: colors.primary }}
                     thumbColor="#fff"
                   />
                 </View>
@@ -806,11 +818,12 @@ export default function ListasScreen() {
                       <MaterialIcons
                         name="casino"
                         size={24}
-                        color={editandoTipoAnimacao === 'roleta' ? '#007AFF' : '#8E8E93'}
+                        color={editandoTipoAnimacao === 'roleta' ? colors.primary : colors.textSecondary}
                       />
                       <Text style={[
                         styles.animacaoText,
-                        { color: isDarkMode ? '#fff' : '#1C1C1E' },
+                        { color: colors.text },
+                        typography.body,
                         editandoTipoAnimacao === 'roleta' && styles.animacaoTextSelecionada,
                       ]}>
                         Roleta
@@ -820,7 +833,7 @@ export default function ListasScreen() {
                     <TouchableOpacity
                       style={[
                         styles.animacaoOption,
-                        { backgroundColor: isDarkMode ? '#38383A' : '#fff', borderColor: isDarkMode ? '#5856D6' : '#e5e5ea' },
+                        { backgroundColor: colors.accent, borderColor: colors.border },
                         editandoTipoAnimacao === 'cubo' && styles.animacaoSelecionada,
                       ]}
                       onPress={() => setEditandoTipoAnimacao('cubo')}
@@ -828,14 +841,153 @@ export default function ListasScreen() {
                       <MaterialIcons
                         name="view-in-ar"
                         size={24}
-                        color={editandoTipoAnimacao === 'cubo' ? '#007AFF' : '#8E8E93'}
+                        color={editandoTipoAnimacao === 'cubo' ? colors.primary : colors.textSecondary}
                       />
                       <Text style={[
                         styles.animacaoText,
-                        { color: isDarkMode ? '#fff' : '#1C1C1E' },
+                        { color: colors.text },
+                        typography.body,
                         editandoTipoAnimacao === 'cubo' && styles.animacaoTextSelecionada,
                       ]}>
                         Cubo
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.animacaoOption,
+                        { backgroundColor: colors.accent, borderColor: colors.border },
+                        editandoTipoAnimacao === 'confete' && styles.animacaoSelecionada,
+                      ]}
+                      onPress={() => setEditandoTipoAnimacao('confete')}
+                    >
+                      <MaterialIcons
+                        name="celebration"
+                        size={24}
+                        color={editandoTipoAnimacao === 'confete' ? colors.primary : colors.textSecondary}
+                      />
+                      <Text style={[
+                        styles.animacaoText,
+                        { color: colors.text },
+                        typography.body,
+                        editandoTipoAnimacao === 'confete' && styles.animacaoTextSelecionada,
+                      ]}>
+                        Confete
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.animacaoOption,
+                        { backgroundColor: colors.accent, borderColor: colors.border },
+                        editandoTipoAnimacao === 'ondas' && styles.animacaoSelecionada,
+                      ]}
+                      onPress={() => setEditandoTipoAnimacao('ondas')}
+                    >
+                      <MaterialIcons
+                        name="waves"
+                        size={24}
+                        color={editandoTipoAnimacao === 'ondas' ? colors.primary : colors.textSecondary}
+                      />
+                      <Text style={[
+                        styles.animacaoText,
+                        { color: colors.text },
+                        typography.body,
+                        editandoTipoAnimacao === 'ondas' && styles.animacaoTextSelecionada,
+                      ]}>
+                        Ondas
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.animacaoOption,
+                        { backgroundColor: colors.accent, borderColor: colors.border },
+                        editandoTipoAnimacao === 'particulas' && styles.animacaoSelecionada,
+                      ]}
+                      onPress={() => setEditandoTipoAnimacao('particulas')}
+                    >
+                      <MaterialIcons
+                        name="blur-on"
+                        size={24}
+                        color={editandoTipoAnimacao === 'particulas' ? colors.primary : colors.textSecondary}
+                      />
+                      <Text style={[
+                        styles.animacaoText,
+                        { color: colors.text },
+                        typography.body,
+                        editandoTipoAnimacao === 'particulas' && styles.animacaoTextSelecionada,
+                      ]}>
+                        Partículas
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.animacaoOption,
+                        { backgroundColor: colors.accent, borderColor: colors.border },
+                        editandoTipoAnimacao === 'espiral' && styles.animacaoSelecionada,
+                      ]}
+                      onPress={() => setEditandoTipoAnimacao('espiral')}
+                    >
+                      <MaterialIcons
+                        name="rotate-right"
+                        size={24}
+                        color={editandoTipoAnimacao === 'espiral' ? colors.primary : colors.textSecondary}
+                      />
+                      <Text style={[
+                        styles.animacaoText,
+                        { color: colors.text },
+                        typography.body,
+                        editandoTipoAnimacao === 'espiral' && styles.animacaoTextSelecionada,
+                      ]}>
+                        Espiral
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.animacaoOption,
+                        { backgroundColor: colors.accent, borderColor: colors.border },
+                        editandoTipoAnimacao === 'pulsar' && styles.animacaoSelecionada,
+                      ]}
+                      onPress={() => setEditandoTipoAnimacao('pulsar')}
+                    >
+                      <MaterialIcons
+                        name="radio-button-checked"
+                        size={24}
+                        color={editandoTipoAnimacao === 'pulsar' ? colors.primary : colors.textSecondary}
+                      />
+                      <Text style={[
+                        styles.animacaoText,
+                        { color: colors.text },
+                        typography.body,
+                        editandoTipoAnimacao === 'pulsar' && styles.animacaoTextSelecionada,
+                      ]}>
+                        Pulsar
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.animacaoOption,
+                        { backgroundColor: colors.accent, borderColor: colors.border },
+                        editandoTipoAnimacao === 'deslizar' && styles.animacaoSelecionada,
+                      ]}
+                      onPress={() => setEditandoTipoAnimacao('deslizar')}
+                    >
+                      <MaterialIcons
+                        name="swap-horiz"
+                        size={24}
+                        color={editandoTipoAnimacao === 'deslizar' ? colors.primary : colors.textSecondary}
+                      />
+                      <Text style={[
+                        styles.animacaoText,
+                        { color: colors.text },
+                        typography.body,
+                        editandoTipoAnimacao === 'deslizar' && styles.animacaoTextSelecionada,
+                      ]}>
+                        Deslizar
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -870,28 +1022,28 @@ export default function ListasScreen() {
         onRequestClose={() => setModalCategoria(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
-            <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }, typography.titleMedium]}>
               Adicionar Categoria
             </Text>
             
-            <Text style={[styles.editarLabel, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+            <Text style={[styles.editarLabel, { color: colors.text }, typography.subtitleBold]}>
               Nome da Categoria
             </Text>
             <TextInput
               style={[styles.editarInput, { 
-                backgroundColor: isDarkMode ? '#38383A' : '#fff',
-                color: isDarkMode ? '#fff' : '#1C1C1E',
-                borderColor: isDarkMode ? '#5856D6' : '#e5e5ea'
+                backgroundColor: colors.accent,
+                color: colors.text,
+                borderColor: colors.border
               }]}
               placeholder="Digite o nome da categoria"
-              placeholderTextColor={isDarkMode ? '#8E8E93' : '#8E8E93'}
+              placeholderTextColor={colors.textSecondary}
               value={novaCategoriaNome}
               onChangeText={setNovaCategoriaNome}
               maxLength={30}
             />
 
-            <Text style={[styles.editarLabel, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+            <Text style={[styles.editarLabel, { color: colors.text }, typography.subtitleBold]}>
               Cor da Categoria
             </Text>
             <View style={styles.coresContainer}>
@@ -939,26 +1091,26 @@ export default function ListasScreen() {
       >
         <View style={styles.modalOverlay}>
           <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
-            <View style={[styles.modalEditarContent, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
-              <Text style={[styles.modalEditarTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+            <View style={[styles.modalEditarContent, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.modalEditarTitle, { color: colors.text }, typography.titleMedium]}>
                 Importar Lista
               </Text>
               
-              <Text style={[styles.modalSubtitle, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
+              <Text style={[styles.modalSubtitle, { color: colors.textSecondary }, typography.body]}>
                 Formatos suportados: TXT, JSON, DOCX, ODT, RTF, PDF
               </Text>
 
               {/* Seleção de Arquivo */}
               <View style={styles.editarGrupo}>
-                <Text style={[styles.editarLabel, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+                <Text style={[styles.editarLabel, { color: colors.text }, typography.subtitleBold]}>
                   Selecionar Arquivo
                 </Text>
                 <TouchableOpacity
-                  style={[styles.btnSelecionarArquivo, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}
+                  style={[styles.btnSelecionarArquivo, { backgroundColor: colors.accent }]}
                   onPress={selecionarArquivo}
                 >
-                  <MaterialIcons name="file-upload" size={24} color="#007AFF" />
-                  <Text style={[styles.btnSelecionarArquivoText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+                  <MaterialIcons name="file-upload" size={24} color={colors.primary} />
+                  <Text style={[styles.btnSelecionarArquivoText, { color: colors.text }, typography.body]}>
                     {arquivoImportado ? arquivoImportado.name : 'Escolher arquivo'}
                   </Text>
                 </TouchableOpacity>
@@ -968,37 +1120,37 @@ export default function ListasScreen() {
               {arquivoImportado && (
                 <>
                   <View style={styles.editarGrupo}>
-                    <Text style={[styles.editarLabel, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+                    <Text style={[styles.editarLabel, { color: colors.text }, typography.subtitleBold]}>
                       Nome da Lista *
                     </Text>
                     <TextInput
                       style={[styles.editarInput, { 
-                        backgroundColor: isDarkMode ? '#38383A' : '#fff',
-                        color: isDarkMode ? '#fff' : '#1C1C1E',
-                        borderColor: isDarkMode ? '#5856D6' : '#e5e5ea'
+                        backgroundColor: colors.accent,
+                        color: colors.text,
+                        borderColor: colors.border
                       }]}
                       value={nomeListaImportada}
                       onChangeText={setNomeListaImportada}
                       placeholder="Digite o nome da lista"
-                      placeholderTextColor={isDarkMode ? '#8E8E93' : '#8E8E93'}
+                      placeholderTextColor={colors.textSecondary}
                       maxLength={50}
                     />
                   </View>
 
                   <View style={styles.editarGrupo}>
-                    <Text style={[styles.editarLabel, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+                    <Text style={[styles.editarLabel, { color: colors.text }, typography.subtitleBold]}>
                       Descrição (opcional)
                     </Text>
                     <TextInput
                       style={[styles.editarInput, styles.editarTextArea, { 
-                        backgroundColor: isDarkMode ? '#38383A' : '#fff',
-                        color: isDarkMode ? '#fff' : '#1C1C1E',
-                        borderColor: isDarkMode ? '#5856D6' : '#e5e5ea'
+                        backgroundColor: colors.accent,
+                        color: colors.text,
+                        borderColor: colors.border
                       }]}
                       value={descricaoListaImportada}
                       onChangeText={setDescricaoListaImportada}
                       placeholder="Digite uma descrição para a lista"
-                      placeholderTextColor={isDarkMode ? '#8E8E93' : '#8E8E93'}
+                      placeholderTextColor={colors.textSecondary}
                       multiline
                       numberOfLines={3}
                       maxLength={200}
@@ -1006,7 +1158,7 @@ export default function ListasScreen() {
                   </View>
 
                   <View style={styles.editarGrupo}>
-                    <Text style={[styles.editarLabel, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+                    <Text style={[styles.editarLabel, { color: colors.text }, typography.subtitleBold]}>
                       Cor da Lista
                     </Text>
                     <View style={styles.coresContainer}>
@@ -1031,18 +1183,18 @@ export default function ListasScreen() {
                   {/* Preview dos Itens */}
                   {itensImportados.length > 0 && (
                     <View style={styles.editarGrupo}>
-                      <Text style={[styles.editarLabel, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+                      <Text style={[styles.editarLabel, { color: colors.text }, typography.subtitleBold]}>
                         Itens Encontrados ({itensImportados.length})
                       </Text>
-                      <View style={[styles.previewContainer, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}>
+                      <View style={[styles.previewContainer, { backgroundColor: colors.accent }]}>
                         <ScrollView style={styles.previewScroll} showsVerticalScrollIndicator={false}>
                           {itensImportados.slice(0, 10).map((item, index) => (
-                            <Text key={index} style={[styles.previewItem, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+                            <Text key={index} style={[styles.previewItem, { color: colors.text }, typography.body]}>
                               • {typeof item === 'string' ? item : item.texto}
                             </Text>
                           ))}
                           {itensImportados.length > 10 && (
-                            <Text style={[styles.previewMore, { color: isDarkMode ? '#8E8E93' : '#8E8E93' }]}>
+                            <Text style={[styles.previewMore, { color: colors.textSecondary }, typography.caption]}>
                               ... e mais {itensImportados.length - 10} itens
                             </Text>
                           )}
@@ -1090,8 +1242,12 @@ const styles = StyleSheet.create({
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  logo: {
+    height: 50,
+    width: 150,
   },
   headerTitle: {
     fontSize: 28,
@@ -1120,7 +1276,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
   },
   buscaInput: {
     flex: 1,
@@ -1171,16 +1326,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listaNome: {
-    fontSize: 18,
-    fontWeight: '600',
     marginBottom: 4,
   },
   listaDescricao: {
-    fontSize: 14,
     marginBottom: 4,
   },
   listaItens: {
-    fontSize: 12,
   },
   listaAcoes: {
     flexDirection: 'row',
@@ -1217,28 +1368,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
-    fontSize: 16,
     textAlign: 'center',
     marginBottom: 32,
   },
   btnCriarPrimeira: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#007AFF',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 25,
   },
   btnCriarPrimeiraText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
     marginLeft: 8,
   },
   loadingContainer: {
@@ -1247,7 +1391,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   loadingText: {
-    fontSize: 16,
     marginTop: 16,
   },
   // Estilos do Modal
@@ -1265,8 +1408,6 @@ const styles = StyleSheet.create({
     maxWidth: 400,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -1285,11 +1426,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F8FF',
   },
   opcaoTexto: {
-    fontSize: 16,
     marginLeft: 12,
   },
   opcaoTextoSelecionada: {
-    color: '#007AFF',
     fontWeight: '600',
   },
   direcaoContainer: {
@@ -1317,17 +1456,14 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
   },
   btnDirecaoTextoSelecionada: {
-    color: '#fff',
     fontWeight: '600',
   },
   btnFechar: {
-    backgroundColor: '#007AFF',
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
   btnFecharTexto: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -1451,29 +1587,29 @@ const styles = StyleSheet.create({
   },
   animacaoContainer: {
     flexDirection: 'row',
-    gap: 12,
+    flexWrap: 'wrap',
+    gap: 8,
   },
   animacaoOption: {
-    flex: 1,
+    width: '30%',
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 12,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#E5E5EA',
   },
   animacaoSelecionada: {
-    borderColor: '#007AFF',
-    backgroundColor: '#F0F8FF',
+    borderWidth: 2,
   },
   animacaoText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
-    color: '#8E8E93',
-    marginTop: 8,
+    marginTop: 6,
+    textAlign: 'center',
   },
   animacaoTextSelecionada: {
-    color: '#007AFF',
+    fontWeight: '600',
   },
   modalEditarBotoes: {
     flexDirection: 'row',
@@ -1492,11 +1628,9 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
     alignItems: 'center',
   },
   btnCancelarText: {
-    color: '#8E8E93',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -1504,11 +1638,9 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 12,
     borderRadius: 8,
-    backgroundColor: '#007AFF',
     alignItems: 'center',
   },
   btnSalvarText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },

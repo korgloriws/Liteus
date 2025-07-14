@@ -19,7 +19,7 @@ interface AuthGateProps {
 }
 
 export default function AuthGate({ children }: AuthGateProps) {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colors, typography } = useTheme();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showPinInput, setShowPinInput] = useState(false);
@@ -108,10 +108,10 @@ export default function AuthGate({ children }: AuthGateProps) {
 
   if (isLoading) {
     return (
-      <View style={[styles.container, { backgroundColor: isDarkMode ? '#000' : '#f2f2f7' }]}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.loadingContainer}>
-          <MaterialIcons name="security" size={64} color={isDarkMode ? '#fff' : '#1C1C1E'} />
-          <Text style={[styles.loadingText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+          <MaterialIcons name="security" size={64} color={colors.text} />
+          <Text style={[styles.loadingText, { color: colors.text }, typography.subtitle]}>
             Verificando segurança...
           </Text>
         </View>
@@ -124,25 +124,25 @@ export default function AuthGate({ children }: AuthGateProps) {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: isDarkMode ? '#000' : '#f2f2f7' }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.authContainer}>
-        <MaterialIcons name="lock" size={80} color={isDarkMode ? '#fff' : '#1C1C1E'} />
+        <MaterialIcons name="lock" size={80} color={colors.text} />
         
-        <Text style={[styles.title, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+        <Text style={[styles.title, { color: colors.text }, typography.titleLarge]}>
           Liteus Protegido
         </Text>
         
-        <Text style={[styles.subtitle, { color: isDarkMode ? '#8E8E93' : '#8E8E93' }]}>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }, typography.subtitle]}>
           Autentique-se para acessar suas listas
         </Text>
 
         {!showPinInput && (config?.method === 'biometric' || config?.method === 'both') && (
           <TouchableOpacity
-            style={[styles.biometricButton, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}
+            style={[styles.biometricButton, { backgroundColor: colors.surface }]}
             onPress={handleBiometricRetry}
           >
-            <MaterialIcons name="fingerprint" size={24} color={isDarkMode ? '#fff' : '#1C1C1E'} />
-            <Text style={[styles.biometricButtonText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+            <MaterialIcons name="fingerprint" size={24} color={colors.text} />
+            <Text style={[styles.biometricButtonText, { color: colors.text }, typography.button]}>
               Usar Biometria
             </Text>
           </TouchableOpacity>
@@ -150,20 +150,20 @@ export default function AuthGate({ children }: AuthGateProps) {
 
         {showPinInput && (
           <View style={styles.pinContainer}>
-            <Text style={[styles.pinLabel, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+            <Text style={[styles.pinLabel, { color: colors.text }, typography.subtitle]}>
               Digite seu PIN:
             </Text>
             
             <TextInput
               style={[styles.pinInput, { 
-                backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7',
-                color: isDarkMode ? '#fff' : '#1C1C1E',
-                borderColor: isDarkMode ? '#5856D6' : '#E5E5EA'
-              }]}
+                backgroundColor: colors.surface,
+                color: colors.text,
+                borderColor: colors.border
+              }, typography.body]}
               value={pin}
               onChangeText={setPin}
               placeholder="PIN"
-              placeholderTextColor={isDarkMode ? '#8E8E93' : '#8E8E93'}
+              placeholderTextColor={colors.textSecondary}
               secureTextEntry
               keyboardType="numeric"
               maxLength={6}
@@ -172,21 +172,21 @@ export default function AuthGate({ children }: AuthGateProps) {
             />
 
             <TouchableOpacity
-              style={[styles.submitButton, { backgroundColor: '#007AFF' }]}
+              style={[styles.submitButton, { backgroundColor: colors.primary }]}
               onPress={handlePinSubmit}
             >
-              <Text style={styles.submitButtonText}>Entrar</Text>
+              <Text style={[styles.submitButtonText, { color: colors.white }, typography.button]}>Entrar</Text>
             </TouchableOpacity>
           </View>
         )}
 
         {config?.method === 'both' && !showPinInput && (
           <TouchableOpacity
-            style={[styles.alternativeButton, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}
+            style={[styles.alternativeButton, { backgroundColor: colors.surface }]}
             onPress={() => setShowPinInput(true)}
           >
-            <MaterialIcons name="lock" size={20} color={isDarkMode ? '#fff' : '#1C1C1E'} />
-            <Text style={[styles.alternativeButtonText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+            <MaterialIcons name="lock" size={20} color={colors.text} />
+            <Text style={[styles.alternativeButtonText, { color: colors.text }, typography.bodyBold]}>
               Usar PIN
             </Text>
           </TouchableOpacity>
@@ -206,7 +206,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: 18,
     marginTop: 16,
   },
   authContainer: {
@@ -216,13 +215,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
     marginTop: 24,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
     textAlign: 'center',
     marginBottom: 40,
   },
@@ -235,8 +231,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   biometricButtonText: {
-    fontSize: 18,
-    fontWeight: '500',
     marginLeft: 12,
   },
   alternativeButton: {
@@ -247,8 +241,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   alternativeButtonText: {
-    fontSize: 16,
-    fontWeight: '500',
     marginLeft: 8,
   },
   pinContainer: {
@@ -256,7 +248,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pinLabel: {
-    fontSize: 16,
     marginBottom: 16,
   },
   pinInput: {
@@ -265,7 +256,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    fontSize: 18,
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -275,8 +265,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   submitButtonText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#fff',
+    textAlign: 'center',
   },
 }); 

@@ -19,7 +19,7 @@ import { useTheme } from '../services/ThemeContext';
 const { width } = Dimensions.get('window');
 
 export default function SegurancaScreen() {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colors, typography } = useTheme();
   const [config, setConfig] = useState<SecurityConfig>({
     isEnabled: false,
     method: 'biometric',
@@ -173,8 +173,8 @@ export default function SegurancaScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: isDarkMode ? '#000' : '#f2f2f7' }]}>
-        <Text style={[styles.loadingText, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Text style={[styles.loadingText, { color: colors.text }, typography.subtitle]}>
           Carregando...
         </Text>
       </View>
@@ -182,16 +182,16 @@ export default function SegurancaScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: isDarkMode ? '#000' : '#f2f2f7' }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface }]}>
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => router.back()}
         >
-          <MaterialIcons name="arrow-back" size={24} color={isDarkMode ? '#fff' : '#1C1C1E'} />
+          <MaterialIcons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }, typography.titleMedium]}>
           Segurança
         </Text>
         <View style={styles.headerSpacer} />
@@ -415,25 +415,25 @@ export default function SegurancaScreen() {
         onRequestClose={() => setModalPIN(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
-            <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }, typography.titleMedium]}>
               {isSettingPIN ? 'Definir PIN' : 'Alterar PIN'}
             </Text>
             
-            <Text style={[styles.modalSubtitle, { color: isDarkMode ? '#8E8E93' : '#8E8E93' }]}>
+            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }, typography.body]}>
               Digite um PIN de pelo menos 4 dígitos
             </Text>
 
             <TextInput
               style={[styles.pinInput, { 
-                backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7',
-                color: isDarkMode ? '#fff' : '#1C1C1E',
-                borderColor: isDarkMode ? '#5856D6' : '#E5E5EA'
+                backgroundColor: colors.accent,
+                color: colors.text,
+                borderColor: colors.border
               }]}
               value={pin}
               onChangeText={setPin}
               placeholder="PIN"
-              placeholderTextColor={isDarkMode ? '#8E8E93' : '#8E8E93'}
+              placeholderTextColor={colors.textSecondary}
               secureTextEntry
               keyboardType="numeric"
               maxLength={6}
@@ -441,14 +441,14 @@ export default function SegurancaScreen() {
 
             <TextInput
               style={[styles.pinInput, { 
-                backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7',
-                color: isDarkMode ? '#fff' : '#1C1C1E',
-                borderColor: isDarkMode ? '#5856D6' : '#E5E5EA'
+                backgroundColor: colors.accent,
+                color: colors.text,
+                borderColor: colors.border
               }]}
               value={confirmPin}
               onChangeText={setConfirmPin}
               placeholder="Confirmar PIN"
-              placeholderTextColor={isDarkMode ? '#8E8E93' : '#8E8E93'}
+              placeholderTextColor={colors.textSecondary}
               secureTextEntry
               keyboardType="numeric"
               maxLength={6}

@@ -38,7 +38,7 @@ export interface Lista {
   itens: Item[];
   categorias: Categoria[];
   permiteSelecaoAleatoria: boolean;
-  tipoAnimacao?: 'roleta' | 'cubo';
+  tipoAnimacao?: 'roleta' | 'cubo' | 'confete' | 'ondas' | 'particulas' | 'espiral' | 'pulsar' | 'deslizar';
   createdAt: string;
   updatedAt: string;
 }
