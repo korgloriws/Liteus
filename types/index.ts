@@ -33,14 +33,14 @@ export interface Lista {
   id: string;
   nome: string;
   descricao?: string;
-  cor?: string;
-  icone?: string;
+  cor: string;
+  icone: string;
+  dataCriacao: number;
+  dataModificacao: number;
   itens: Item[];
   categorias: Categoria[];
-  permiteSelecaoAleatoria: boolean;
-  tipoAnimacao?: 'roleta' | 'cubo' | 'confete' | 'ondas' | 'particulas' | 'espiral' | 'pulsar' | 'deslizar';
-  createdAt: string;
-  updatedAt: string;
+  permiteSelecaoAleatoria?: boolean;
+  tipoAnimacao?: 'simples';
 }
 
 export type OrdenacaoTipo = 'alfabetica' | 'data' | 'prioridade' | 'categoria';

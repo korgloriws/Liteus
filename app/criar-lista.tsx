@@ -3,36 +3,32 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
+  TextInput,
   ScrollView,
   Alert,
-  Switch,
   Modal,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { Lista, Categoria } from '../types';
 import { StorageService } from '../services/storage';
-import { Categoria } from '../types';
+import { UtilsService } from '../services/utils';
 import { useTheme } from '../services/ThemeContext';
+
+const CORES = [
+  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+  '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
+  '#F8C471', '#82E0AA', '#F1948A', '#D7BDE2', '#FF9F43'
+];
 
 export default function CriarListaScreen() {
   const { isDarkMode, colors, typography } = useTheme();
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
-  const [cor, setCor] = useState('#007AFF');
-  const [permiteSelecaoAleatoria, setPermiteSelecaoAleatoria] = useState(true);
-  const [tipoAnimacao, setTipoAnimacao] = useState<'roleta' | 'cubo' | 'confete' | 'ondas' | 'particulas' | 'espiral' | 'pulsar' | 'deslizar'>('roleta');
-  const [loading, setLoading] = useState(false);
-  const [categorias, setCategorias] = useState<Categoria[]>([]);
-  const [modalCategoria, setModalCategoria] = useState(false);
-  const [novaCategoriaNome, setNovaCategoriaNome] = useState('');
-  const [novaCategoriaCor, setNovaCategoriaCor] = useState('#007AFF');
-
-  const cores = [
-    '#007AFF', '#34C759', '#FF9500', '#FF3B30', '#AF52DE',
-    '#5856D6', '#FF2D92', '#5AC8FA', '#FFCC02', '#FF6B35'
-  ];
+  const [corSelecionada, setCorSelecionada] = useState(CORES[0]);
+  const [permiteSelecaoAleatoria, setPermiteSelecaoAleatoria] = useState(false);
+  const [modalCores, setModalCores] = useState(false);
 
   const criarLista = async () => {
     if (!nome.trim()) {
@@ -41,493 +37,190 @@ export default function CriarListaScreen() {
     }
 
     try {
-      setLoading(true);
-      await StorageService.adicionarLista({
+      const novaLista: Omit<Lista, 'id'> = {
         nome: nome.trim(),
         descricao: descricao.trim() || undefined,
-        cor,
-        permiteSelecaoAleatoria,
-        tipoAnimacao: permiteSelecaoAleatoria ? tipoAnimacao : undefined,
+        cor: corSelecionada,
+        icone: 'list',
+        dataCriacao: Date.now(),
+        dataModificacao: Date.now(),
         itens: [],
-        categorias,
-      });
+        categorias: [],
+        permiteSelecaoAleatoria: permiteSelecaoAleatoria,
+      };
 
-      Alert.alert(
-        'Sucesso',
-        'Lista criada com sucesso!',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Volta para a tela inicial e força atualização
-              router.replace('/');
-            },
-          },
-        ]
-      );
+      const novaListaCriada = await StorageService.adicionarLista(novaLista);
+      router.back();
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível criar a lista');
-    } finally {
-      setLoading(false);
     }
-  };
-
-  const adicionarCategoria = () => {
-    if (!novaCategoriaNome.trim()) {
-      Alert.alert('Erro', 'O nome da categoria é obrigatório');
-      return;
-    }
-
-    const novaCategoria: Categoria = {
-      id: Date.now().toString(),
-      nome: novaCategoriaNome.trim(),
-      cor: novaCategoriaCor,
-      createdAt: new Date().toISOString(),
-    };
-
-    setCategorias([...categorias, novaCategoria]);
-    setNovaCategoriaNome('');
-    setNovaCategoriaCor('#007AFF');
-    setModalCategoria(false);
-  };
-
-  const removerCategoria = (id: string) => {
-    setCategorias(categorias.filter(cat => cat.id !== id));
   };
 
   return (
-    <View style={{ flex: 1 }}>
-      {/* Cabeçalho Customizado */}
-      <View style={[styles.header, { backgroundColor: colors.surface }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => router.back()}
         >
-          <MaterialIcons name="arrow-back" size={24} color={colors.primary} />
+          <MaterialIcons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }, typography.titleMedium]}>Criar Lista</Text>
-        <View style={styles.headerSpacer} />
+        <Text style={[styles.headerTitle, typography.titleLarge]}>
+          Nova Lista
+        </Text>
+        <TouchableOpacity
+          style={[styles.headerButton, { backgroundColor: colors.primary }]}
+          onPress={criarLista}
+        >
+          <MaterialIcons name="check" size={24} color="#fff" />
+        </TouchableOpacity>
       </View>
 
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
-      
-
-      <View style={styles.content}>
-        <View style={styles.introSection}>
-         
-        </View>
-
-        {/* Nome da Lista */}
-        <View style={styles.inputGroup}>
-          <View style={styles.sectionHeader}>
-            <MaterialIcons name="edit" size={20} color={colors.primary} />
-            <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>Informações Básicas</Text>
-          </View>
-          <Text style={[styles.label, { color: colors.text }, typography.body]}>Nome da Lista *</Text>
-          <TextInput
-            style={[styles.input, { 
-              backgroundColor: colors.surface,
-              color: colors.text,
-              borderColor: colors.border
-            }, typography.body]}
-            value={nome}
-            onChangeText={setNome}
-            placeholder="Digite o nome da lista"
-            placeholderTextColor={colors.textSecondary}
-            maxLength={50}
-          />
-        </View>
-
-        {/* Descrição */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.text }, typography.body]}>Descrição (opcional)</Text>
-          <TextInput
-            style={[styles.input, styles.textArea, { 
-              backgroundColor: colors.surface,
-              color: colors.text,
-              borderColor: colors.border
-            }, typography.body]}
-            value={descricao}
-            onChangeText={setDescricao}
-            placeholder="Digite uma descrição para a lista"
-            placeholderTextColor={colors.textSecondary}
-            multiline
-            numberOfLines={3}
-            maxLength={200}
-          />
-        </View>
-
-        {/* Cor */}
-        <View style={styles.inputGroup}>
-          <View style={styles.sectionHeader}>
-            <MaterialIcons name="palette" size={20} color={colors.primary} />
-            <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>Personalização</Text>
-          </View>
-          <Text style={[styles.label, { color: colors.text }, typography.body]}>Cor da Lista</Text>
-          <View style={styles.coresContainer}>
-            {cores.map((corItem) => (
-              <TouchableOpacity
-                key={corItem}
-                style={[
-                  styles.corItem,
-                  { backgroundColor: corItem },
-                  cor === corItem && styles.corSelecionada,
-                ]}
-                onPress={() => setCor(corItem)}
-              >
-                {cor === corItem && (
-                  <MaterialIcons name="check" size={16} color="#fff" />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Categorias */}
-        <View style={styles.inputGroup}>
-          <View style={styles.sectionHeader}>
-            <MaterialIcons name="category" size={20} color={colors.primary} />
-            <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>Categorias (Opcional)</Text>
-          </View>
-          <Text style={[styles.label, { color: colors.text }, typography.body]}>
-            Crie categorias para organizar os itens da sua lista
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>
+            Informações Básicas
           </Text>
           
-          {categorias.length > 0 && (
-            <View style={styles.categoriasContainer}>
-              {categorias.map((categoria) => (
-                <View key={categoria.id} style={styles.categoriaItem}>
-                  <View style={[styles.categoriaCor, { backgroundColor: categoria.cor }]} />
-                  <Text style={[styles.categoriaNome, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
-                    {categoria.nome}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.btnRemoverCategoria}
-                    onPress={() => removerCategoria(categoria.id)}
-                  >
-                    <MaterialIcons name="close" size={16} color="#FF3B30" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          )}
-          
-          <TouchableOpacity
-            style={[styles.btnAdicionarCategoria, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}
-            onPress={() => setModalCategoria(true)}
-          >
-            <MaterialIcons name="add" size={20} color="#007AFF" />
-            <Text style={[styles.btnAdicionarCategoriaTexto, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
-              Adicionar Categoria
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Seleção Aleatória */}
-        <View style={styles.inputGroup}>
-          <View style={styles.sectionHeader}>
-            <MaterialIcons name="casino" size={20} color="#007AFF" />
-            <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Recursos Avançados</Text>
-          </View>
-          <View style={styles.switchContainer}>
-            <Text style={[styles.label, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Permitir Seleção Aleatória</Text>
-            <Switch
-              value={permiteSelecaoAleatoria}
-              onValueChange={setPermiteSelecaoAleatoria}
-              trackColor={{ false: '#E5E5EA', true: '#007AFF' }}
-              thumbColor="#fff"
-            />
-          </View>
-        </View>
-
-        {/* Tipo de Animação */}
-        {permiteSelecaoAleatoria && (
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Tipo de Animação</Text>
-            <View style={styles.animacaoContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.animacaoOption,
-                  { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff', borderColor: isDarkMode ? '#38383A' : '#E5E5EA' },
-                  tipoAnimacao === 'roleta' && styles.animacaoSelecionada,
-                ]}
-                onPress={() => setTipoAnimacao('roleta')}
-              >
-                <MaterialIcons
-                  name="casino"
-                  size={24}
-                  color={tipoAnimacao === 'roleta' ? '#007AFF' : '#8E8E93'}
-                />
-                <Text
-                  style={[
-                    styles.animacaoText,
-                    { color: isDarkMode ? '#fff' : '#1C1C1E' },
-                    tipoAnimacao === 'roleta' && styles.animacaoTextSelecionada,
-                  ]}
-                >
-                  Roleta
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.animacaoOption,
-                  { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff', borderColor: isDarkMode ? '#38383A' : '#E5E5EA' },
-                  tipoAnimacao === 'cubo' && styles.animacaoSelecionada,
-                ]}
-                onPress={() => setTipoAnimacao('cubo')}
-              >
-                <MaterialIcons
-                  name="view-in-ar"
-                  size={24}
-                  color={tipoAnimacao === 'cubo' ? '#007AFF' : '#8E8E93'}
-                />
-                <Text
-                  style={[
-                    styles.animacaoText,
-                    { color: isDarkMode ? '#fff' : '#1C1C1E' },
-                    tipoAnimacao === 'cubo' && styles.animacaoTextSelecionada,
-                  ]}
-                >
-                  Cubo
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.animacaoOption,
-                  { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff', borderColor: isDarkMode ? '#38383A' : '#E5E5EA' },
-                  tipoAnimacao === 'confete' && styles.animacaoSelecionada,
-                ]}
-                onPress={() => setTipoAnimacao('confete')}
-              >
-                <MaterialIcons
-                  name="celebration"
-                  size={24}
-                  color={tipoAnimacao === 'confete' ? '#007AFF' : '#8E8E93'}
-                />
-                <Text
-                  style={[
-                    styles.animacaoText,
-                    { color: isDarkMode ? '#fff' : '#1C1C1E' },
-                    tipoAnimacao === 'confete' && styles.animacaoTextSelecionada,
-                  ]}
-                >
-                  Confete
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.animacaoOption,
-                  { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff', borderColor: isDarkMode ? '#38383A' : '#E5E5EA' },
-                  tipoAnimacao === 'ondas' && styles.animacaoSelecionada,
-                ]}
-                onPress={() => setTipoAnimacao('ondas')}
-              >
-                <MaterialIcons
-                  name="waves"
-                  size={24}
-                  color={tipoAnimacao === 'ondas' ? '#007AFF' : '#8E8E93'}
-                />
-                <Text
-                  style={[
-                    styles.animacaoText,
-                    { color: isDarkMode ? '#fff' : '#1C1C1E' },
-                    tipoAnimacao === 'ondas' && styles.animacaoTextSelecionada,
-                  ]}
-                >
-                  Ondas
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.animacaoOption,
-                  { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff', borderColor: isDarkMode ? '#38383A' : '#E5E5EA' },
-                  tipoAnimacao === 'particulas' && styles.animacaoSelecionada,
-                ]}
-                onPress={() => setTipoAnimacao('particulas')}
-              >
-                <MaterialIcons
-                  name="blur-on"
-                  size={24}
-                  color={tipoAnimacao === 'particulas' ? '#007AFF' : '#8E8E93'}
-                />
-                <Text
-                  style={[
-                    styles.animacaoText,
-                    { color: isDarkMode ? '#fff' : '#1C1C1E' },
-                    tipoAnimacao === 'particulas' && styles.animacaoTextSelecionada,
-                  ]}
-                >
-                  Partículas
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.animacaoOption,
-                  { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff', borderColor: isDarkMode ? '#38383A' : '#E5E5EA' },
-                  tipoAnimacao === 'espiral' && styles.animacaoSelecionada,
-                ]}
-                onPress={() => setTipoAnimacao('espiral')}
-              >
-                <MaterialIcons
-                  name="rotate-right"
-                  size={24}
-                  color={tipoAnimacao === 'espiral' ? '#007AFF' : '#8E8E93'}
-                />
-                <Text
-                  style={[
-                    styles.animacaoText,
-                    { color: isDarkMode ? '#fff' : '#1C1C1E' },
-                    tipoAnimacao === 'espiral' && styles.animacaoTextSelecionada,
-                  ]}
-                >
-                  Espiral
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.animacaoOption,
-                  { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff', borderColor: isDarkMode ? '#38383A' : '#E5E5EA' },
-                  tipoAnimacao === 'pulsar' && styles.animacaoSelecionada,
-                ]}
-                onPress={() => setTipoAnimacao('pulsar')}
-              >
-                <MaterialIcons
-                  name="radio-button-checked"
-                  size={24}
-                  color={tipoAnimacao === 'pulsar' ? '#007AFF' : '#8E8E93'}
-                />
-                <Text
-                  style={[
-                    styles.animacaoText,
-                    { color: isDarkMode ? '#fff' : '#1C1C1E' },
-                    tipoAnimacao === 'pulsar' && styles.animacaoTextSelecionada,
-                  ]}
-                >
-                  Pulsar
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.animacaoOption,
-                  { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff', borderColor: isDarkMode ? '#38383A' : '#E5E5EA' },
-                  tipoAnimacao === 'deslizar' && styles.animacaoSelecionada,
-                ]}
-                onPress={() => setTipoAnimacao('deslizar')}
-              >
-                <MaterialIcons
-                  name="swap-horiz"
-                  size={24}
-                  color={tipoAnimacao === 'deslizar' ? '#007AFF' : '#8E8E93'}
-                />
-                <Text
-                  style={[
-                    styles.animacaoText,
-                    { color: isDarkMode ? '#fff' : '#1C1C1E' },
-                    tipoAnimacao === 'deslizar' && styles.animacaoTextSelecionada,
-                  ]}
-                >
-                  Deslizar
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* Botão Criar */}
-        <View style={styles.buttonSection}>
-          <TouchableOpacity
-            style={[styles.btnCriar, loading && styles.btnCriarDisabled]}
-            onPress={criarLista}
-            disabled={loading}
-          >
-            <MaterialIcons name="add-circle" size={24} color="#fff" />
-            <Text style={styles.btnCriarText}>
-              {loading ? 'Criando...' : 'Criar Lista'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          <MaterialIcons name="info" size={16} color={isDarkMode ? '#8E8E93' : '#8E8E93'} />
-          <Text style={[styles.footerText, { color: isDarkMode ? '#8E8E93' : '#8E8E93' }]}>
-            Sua lista será salva automaticamente
-          </Text>
-        </View>
-      </View>
-    </ScrollView>
-
-      {/* Modal para Adicionar Categoria */}
-      <Modal
-        visible={modalCategoria}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setModalCategoria(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }, typography.titleMedium]}>
-              Adicionar Categoria
-            </Text>
-            
-            <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
-              Nome da Categoria
+            <Text style={[styles.label, { color: colors.text }, typography.body]}>
+              Nome da Lista *
             </Text>
             <TextInput
               style={[styles.input, { 
-                backgroundColor: colors.accent,
+                backgroundColor: colors.surface, 
                 color: colors.text,
-                borderColor: colors.border
-              }]}
-              placeholder="Digite o nome da categoria"
+                borderColor: colors.border 
+              }, typography.body]}
+              value={nome}
+              onChangeText={setNome}
+              placeholder="Digite o nome da lista"
               placeholderTextColor={colors.textSecondary}
-              value={novaCategoriaNome}
-              onChangeText={setNovaCategoriaNome}
-              maxLength={30}
             />
+          </View>
 
-            <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
-              Cor da Categoria
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: colors.text }, typography.body]}>
+              Descrição (opcional)
             </Text>
-            <View style={styles.coresContainer}>
-              {cores.map((corItem) => (
+            <TextInput
+              style={[styles.input, { 
+                backgroundColor: colors.surface, 
+                color: colors.text,
+                borderColor: colors.border 
+              }, typography.body]}
+              value={descricao}
+              onChangeText={setDescricao}
+              placeholder="Digite uma descrição"
+              placeholderTextColor={colors.textSecondary}
+              multiline
+              numberOfLines={3}
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>
+            Personalização
+          </Text>
+          
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: colors.text }, typography.body]}>
+              Cor da Lista
+            </Text>
+            <TouchableOpacity
+              style={[styles.colorPicker, { borderColor: colors.border }]}
+              onPress={() => setModalCores(true)}
+            >
+              <View style={[styles.colorPreview, { backgroundColor: corSelecionada }]} />
+              <Text style={[styles.colorText, { color: colors.text }, typography.body]}>
+                {corSelecionada}
+              </Text>
+              <MaterialIcons name="arrow-drop-down" size={24} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>
+            Funcionalidades
+          </Text>
+          
+          <TouchableOpacity
+            style={[styles.optionRow, { borderColor: colors.border }]}
+            onPress={() => setPermiteSelecaoAleatoria(!permiteSelecaoAleatoria)}
+          >
+            <View style={styles.optionInfo}>
+              <MaterialIcons 
+                name="casino" 
+                size={24} 
+                color={permiteSelecaoAleatoria ? colors.primary : colors.textSecondary} 
+              />
+              <View style={styles.optionText}>
+                <Text style={[styles.optionTitle, { color: colors.text }, typography.body]}>
+                  Seleção Aleatória
+                </Text>
+                <Text style={[styles.optionDescription, { color: colors.textSecondary }, typography.caption]}>
+                  Permite selecionar itens aleatoriamente da lista
+                </Text>
+              </View>
+            </View>
+            <View style={[
+              styles.switch, 
+              { backgroundColor: permiteSelecaoAleatoria ? colors.primary : colors.border }
+            ]}>
+              <View style={[
+                styles.switchThumb, 
+                { 
+                  backgroundColor: '#fff',
+                  transform: [{ translateX: permiteSelecaoAleatoria ? 20 : 0 }]
+                }
+              ]} />
+            </View>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+
+      {/* Modal de Cores */}
+      <Modal
+        visible={modalCores}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setModalCores(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }, typography.titleLarge]}>
+              Escolher Cor
+            </Text>
+            
+            <View style={styles.colorsGrid}>
+              {CORES.map((cor) => (
                 <TouchableOpacity
-                  key={corItem}
+                  key={cor}
                   style={[
-                    styles.corItem,
-                    { backgroundColor: corItem },
-                    novaCategoriaCor === corItem && styles.corSelecionada,
+                    styles.colorOption,
+                    { backgroundColor: cor },
+                    corSelecionada === cor && styles.colorOptionSelecionada
                   ]}
-                  onPress={() => setNovaCategoriaCor(corItem)}
+                  onPress={() => {
+                    setCorSelecionada(cor);
+                    setModalCores(false);
+                  }}
                 >
-                  {novaCategoriaCor === corItem && (
-                    <MaterialIcons name="check" size={16} color="#fff" />
+                  {corSelecionada === cor && (
+                    <MaterialIcons name="check" size={20} color="#fff" />
                   )}
                 </TouchableOpacity>
               ))}
             </View>
 
-            <View style={styles.modalBotoes}>
-              <TouchableOpacity
-                style={styles.btnCancelar}
-                onPress={() => setModalCategoria(false)}
-              >
-                <Text style={styles.btnCancelarText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.btnSalvar}
-                onPress={adicionarCategoria}
-              >
-                <Text style={styles.btnSalvarText}>Adicionar</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.btnCancelar}
+              onPress={() => setModalCores(false)}
+            >
+              <Text style={styles.btnCancelarText}>Cancelar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -538,246 +231,110 @@ export default function CriarListaScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: '#2f4366',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
     paddingTop: 50,
     paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-  },
-  btnVoltar: {
-    padding: 8,
   },
   headerButton: {
     padding: 8,
-  },
-  headerContent: {
-    flex: 1,
-    flexDirection: 'row',
+    borderRadius: 8,
+    minWidth: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-  },
-  headerSpacer: {
-    width: 40,
+    color: '#fff',
   },
   content: {
-    padding: 20,
+    flex: 1,
+    padding: 16,
   },
-  introSection: {
-    alignItems: 'center',
-    marginBottom: 32,
-    paddingVertical: 20,
-  },
-  introTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 16,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  introSubtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1C1C1E',
+  section: {
     marginBottom: 24,
-  },
-  inputGroup: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    gap: 8,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  inputGroup: {
+    marginBottom: 16,
   },
   label: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1C1C1E',
+    fontWeight: '500',
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 18,
-    fontSize: 16,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  coresContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  corItem: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  corSelecionada: {
-    borderColor: '#1C1C1E',
-  },
-  switchContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  animacaoContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  animacaoOption: {
-    width: '30%',
-    backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 12,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#E5E5EA',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
   },
-  animacaoSelecionada: {
-    borderColor: '#007AFF',
-    backgroundColor: '#F0F8FF',
-  },
-  animacaoText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#8E8E93',
-    marginTop: 6,
-    textAlign: 'center',
-  },
-  animacaoTextSelecionada: {
-    color: '#007AFF',
-  },
-  btnCriar: {
-    backgroundColor: '#007AFF',
-    borderRadius: 16,
-    padding: 18,
+  colorPicker: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    shadowColor: '#007AFF',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  btnCriarDisabled: {
-    backgroundColor: '#C7C7CC',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  btnCriarText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  buttonSection: {
-    marginTop: 32,
-    marginBottom: 24,
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
-  },
-  footerText: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  // Estilos para Categorias
-  categoriasContainer: {
-    marginTop: 12,
-    marginBottom: 16,
-  },
-  categoriaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F2F2F7',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-  },
-  categoriaCor: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+  colorPreview: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     marginRight: 12,
   },
-  categoriaNome: {
+  colorText: {
     flex: 1,
     fontSize: 16,
-    fontWeight: '500',
   },
-  btnRemoverCategoria: {
-    padding: 4,
-  },
-  btnAdicionarCategoria: {
+  optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
+    justifyContent: 'space-between',
+    paddingVertical: 16,
     paddingHorizontal: 16,
-    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderStyle: 'dashed',
+    borderRadius: 12,
   },
-  btnAdicionarCategoriaTexto: {
+  optionInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  optionText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  optionTitle: {
     fontSize: 16,
     fontWeight: '500',
-    marginLeft: 8,
   },
-  // Estilos do Modal
+  optionDescription: {
+    fontSize: 14,
+    marginTop: 2,
+  },
+  switch: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    padding: 2,
+  },
+  switchThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -785,45 +342,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
     width: '90%',
-    maxWidth: 400,
+    maxHeight: '80%',
+    borderRadius: 16,
+    padding: 20,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 20,
     textAlign: 'center',
   },
-  modalBotoes: {
+  colorsGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 12,
-    marginTop: 20,
+    marginBottom: 20,
+  },
+  colorOption: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    margin: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  colorOptionSelecionada: {
+    borderWidth: 3,
+    borderColor: '#fff',
   },
   btnCancelar: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
+    backgroundColor: '#FF3B30',
+    borderRadius: 12,
+    paddingVertical: 12,
     alignItems: 'center',
   },
   btnCancelarText: {
-    color: '#8E8E93',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  btnSalvar: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#007AFF',
-    alignItems: 'center',
-  },
-  btnSalvarText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',

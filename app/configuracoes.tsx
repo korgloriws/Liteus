@@ -23,7 +23,7 @@ import { useTheme } from '../services/ThemeContext';
 
 export default function ConfiguracoesScreen() {
   const { isDarkMode, setDarkMode, colors, typography } = useTheme();
-  const [versao] = useState('1.0.4');
+  const [versao] = useState('1.0.5');
   const [listas, setListas] = useState<Lista[]>([]);
   const [modalSincronizacao, setModalSincronizacao] = useState(false);
   const [dadosSincronizacao, setDadosSincronizacao] = useState('');
@@ -129,15 +129,18 @@ export default function ConfiguracoesScreen() {
       if (resultado.nome && resultado.itens.length > 0) {
         console.log('Lista detectada:', resultado.nome, 'com', resultado.itens.length, 'itens');
         
-        // Criar lista a partir do resultado
+
         const novaLista = await StorageService.adicionarLista({
           nome: resultado.nome,
           descricao: resultado.descricao,
-          cor: resultado.cor,
+          cor: resultado.cor || '#007AFF',
+          icone: 'list',
+          dataCriacao: Date.now(),
+          dataModificacao: Date.now(),
           permiteSelecaoAleatoria: resultado.permiteSelecaoAleatoria,
           tipoAnimacao: resultado.tipoAnimacao,
           itens: [],
-          categorias: resultado.categorias.map((nome, index) => ({
+          categorias: (resultado.categorias ?? []).map((nome: string, index: number) => ({
             id: `cat_${Date.now()}_${index}`,
             nome,
             cor: '#007AFF',
@@ -145,10 +148,10 @@ export default function ConfiguracoesScreen() {
           })),
         });
 
-        // Adicionar itens
+
         for (const item of resultado.itens) {
           if (typeof item === 'string') {
-            // Item simples como string
+
             await StorageService.adicionarItem(novaLista.id, {
               texto: item.trim(),
               descricao: undefined,

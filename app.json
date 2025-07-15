@@ -2,26 +2,27 @@
   "expo": {
     "name": "Liteus",
     "slug": "liteus",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "orientation": "portrait",
-    "icon": "./assets/logo_horizontal_azul.png",
-    "userInterfaceStyle": "automatic",
+    "icon": "./assets/icone.png",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "scheme": "liteus",
     "splash": {
-      "image": "./assets/logo_horizontal_azul.png",
+      "image": "./assets/icone.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#2f4366"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "userInterfaceStyle": "light"
     },
     "android": {
       "package": "com.liteus.app",
       "versionCode": 1,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo_vertical_azul.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/icone.png",
+        "backgroundColor": "#2f4366"
       },
       "edgeToEdgeEnabled": true,
       "permissions": [

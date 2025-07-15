@@ -40,7 +40,7 @@ export default function ListasScreen() {
   const [editandoDescricao, setEditandoDescricao] = useState('');
   const [editandoCor, setEditandoCor] = useState('#007AFF');
   const [editandoPermiteSelecaoAleatoria, setEditandoPermiteSelecaoAleatoria] = useState(true);
-  const [editandoTipoAnimacao, setEditandoTipoAnimacao] = useState<'roleta' | 'cubo' | 'confete' | 'ondas' | 'particulas' | 'espiral' | 'pulsar' | 'deslizar'>('roleta');
+
   const [editandoCategorias, setEditandoCategorias] = useState<any[]>([]);
   const [modalCategoria, setModalCategoria] = useState(false);
   const [novaCategoriaNome, setNovaCategoriaNome] = useState('');
@@ -150,12 +150,7 @@ export default function ListasScreen() {
     setEditandoNome(lista.nome);
     setEditandoDescricao(lista.descricao || '');
     setEditandoCor(lista.cor || '#007AFF');
-    setEditandoPermiteSelecaoAleatoria(lista.permiteSelecaoAleatoria);
-    setEditandoTipoAnimacao(
-      lista.tipoAnimacao === 'roleta' || lista.tipoAnimacao === 'cubo'
-        ? lista.tipoAnimacao
-        : 'roleta'
-    );
+    setEditandoPermiteSelecaoAleatoria(lista.permiteSelecaoAleatoria || false);
     setEditandoCategorias(lista.categorias || []);
     setModalEditarLista(true);
   };
@@ -172,7 +167,6 @@ export default function ListasScreen() {
         descricao: editandoDescricao.trim() || undefined,
         cor: editandoCor,
         permiteSelecaoAleatoria: editandoPermiteSelecaoAleatoria,
-        tipoAnimacao: editandoPermiteSelecaoAleatoria ? editandoTipoAnimacao : undefined,
         categorias: editandoCategorias,
       });
 
@@ -328,9 +322,11 @@ export default function ListasScreen() {
       const novaLista = await StorageService.adicionarLista({
         nome: nomeListaImportada.trim(),
         descricao: descricaoListaImportada.trim() || undefined,
-        cor: corListaImportada,
+                cor: corListaImportada,
+        icone: 'list',
+        dataCriacao: Date.now(),
+        dataModificacao: Date.now(),
         permiteSelecaoAleatoria: true,
-        tipoAnimacao: 'roleta',
         itens: [],
         categorias: [],
       });
@@ -457,7 +453,7 @@ export default function ListasScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {}
+      {/* Header fixo */}
       <View style={[styles.header, { 
         backgroundColor: colors.surface,
         borderBottomColor: colors.border
@@ -472,11 +468,14 @@ export default function ListasScreen() {
             resizeMode="contain"
           />
         </View>
-
       </View>
 
-      {/* Conteúdo */}
-      <View style={styles.content}>
+      {/* Conteúdo com scroll */}
+      <ScrollView 
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {listas.length === 0 ? (
           <View style={styles.emptyContainer}>
             <MaterialIcons name="list" size={64} color={colors.textSecondary} />
@@ -525,7 +524,7 @@ export default function ListasScreen() {
               <Text style={[styles.contentTitle, { color: colors.text }, typography.titleMedium]}>
                 Suas Listas ({listasFiltradas.length})
               </Text>
-                            <View style={styles.headerAcoes}>
+              <View style={styles.headerAcoes}>
                 <TouchableOpacity
                   style={[styles.btnImportar, { backgroundColor: colors.accent }]}
                   onPress={() => setModalImportacao(true)}
@@ -540,16 +539,18 @@ export default function ListasScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-            <FlatList
-              data={listasFiltradas}
-              renderItem={renderItem}
-              keyExtractor={(item) => item.id}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.listContainer}
-            />
+
+            {/* Lista de itens */}
+            <View style={styles.listContainer}>
+              {listasFiltradas.map((item) => (
+                <View key={item.id}>
+                  {renderItem({ item })}
+                </View>
+              ))}
+            </View>
           </>
         )}
-      </View>
+      </ScrollView>
 
       {/* Modal de Ordenação */}
       <Modal
@@ -803,196 +804,7 @@ export default function ListasScreen() {
               </View>
 
               {/* Tipo de Animação */}
-              {editandoPermiteSelecaoAleatoria && (
-                <View style={styles.editarGrupo}>
-                  <Text style={[styles.editarLabel, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Tipo de Animação</Text>
-                  <View style={styles.animacaoContainer}>
-                    <TouchableOpacity
-                      style={[
-                        styles.animacaoOption,
-                        { backgroundColor: isDarkMode ? '#38383A' : '#fff', borderColor: isDarkMode ? '#5856D6' : '#e5e5ea' },
-                        editandoTipoAnimacao === 'roleta' && styles.animacaoSelecionada,
-                      ]}
-                      onPress={() => setEditandoTipoAnimacao('roleta')}
-                    >
-                      <MaterialIcons
-                        name="casino"
-                        size={24}
-                        color={editandoTipoAnimacao === 'roleta' ? colors.primary : colors.textSecondary}
-                      />
-                      <Text style={[
-                        styles.animacaoText,
-                        { color: colors.text },
-                        typography.body,
-                        editandoTipoAnimacao === 'roleta' && styles.animacaoTextSelecionada,
-                      ]}>
-                        Roleta
-                      </Text>
-                    </TouchableOpacity>
 
-                    <TouchableOpacity
-                      style={[
-                        styles.animacaoOption,
-                        { backgroundColor: colors.accent, borderColor: colors.border },
-                        editandoTipoAnimacao === 'cubo' && styles.animacaoSelecionada,
-                      ]}
-                      onPress={() => setEditandoTipoAnimacao('cubo')}
-                    >
-                      <MaterialIcons
-                        name="view-in-ar"
-                        size={24}
-                        color={editandoTipoAnimacao === 'cubo' ? colors.primary : colors.textSecondary}
-                      />
-                      <Text style={[
-                        styles.animacaoText,
-                        { color: colors.text },
-                        typography.body,
-                        editandoTipoAnimacao === 'cubo' && styles.animacaoTextSelecionada,
-                      ]}>
-                        Cubo
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.animacaoOption,
-                        { backgroundColor: colors.accent, borderColor: colors.border },
-                        editandoTipoAnimacao === 'confete' && styles.animacaoSelecionada,
-                      ]}
-                      onPress={() => setEditandoTipoAnimacao('confete')}
-                    >
-                      <MaterialIcons
-                        name="celebration"
-                        size={24}
-                        color={editandoTipoAnimacao === 'confete' ? colors.primary : colors.textSecondary}
-                      />
-                      <Text style={[
-                        styles.animacaoText,
-                        { color: colors.text },
-                        typography.body,
-                        editandoTipoAnimacao === 'confete' && styles.animacaoTextSelecionada,
-                      ]}>
-                        Confete
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.animacaoOption,
-                        { backgroundColor: colors.accent, borderColor: colors.border },
-                        editandoTipoAnimacao === 'ondas' && styles.animacaoSelecionada,
-                      ]}
-                      onPress={() => setEditandoTipoAnimacao('ondas')}
-                    >
-                      <MaterialIcons
-                        name="waves"
-                        size={24}
-                        color={editandoTipoAnimacao === 'ondas' ? colors.primary : colors.textSecondary}
-                      />
-                      <Text style={[
-                        styles.animacaoText,
-                        { color: colors.text },
-                        typography.body,
-                        editandoTipoAnimacao === 'ondas' && styles.animacaoTextSelecionada,
-                      ]}>
-                        Ondas
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.animacaoOption,
-                        { backgroundColor: colors.accent, borderColor: colors.border },
-                        editandoTipoAnimacao === 'particulas' && styles.animacaoSelecionada,
-                      ]}
-                      onPress={() => setEditandoTipoAnimacao('particulas')}
-                    >
-                      <MaterialIcons
-                        name="blur-on"
-                        size={24}
-                        color={editandoTipoAnimacao === 'particulas' ? colors.primary : colors.textSecondary}
-                      />
-                      <Text style={[
-                        styles.animacaoText,
-                        { color: colors.text },
-                        typography.body,
-                        editandoTipoAnimacao === 'particulas' && styles.animacaoTextSelecionada,
-                      ]}>
-                        Partículas
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.animacaoOption,
-                        { backgroundColor: colors.accent, borderColor: colors.border },
-                        editandoTipoAnimacao === 'espiral' && styles.animacaoSelecionada,
-                      ]}
-                      onPress={() => setEditandoTipoAnimacao('espiral')}
-                    >
-                      <MaterialIcons
-                        name="rotate-right"
-                        size={24}
-                        color={editandoTipoAnimacao === 'espiral' ? colors.primary : colors.textSecondary}
-                      />
-                      <Text style={[
-                        styles.animacaoText,
-                        { color: colors.text },
-                        typography.body,
-                        editandoTipoAnimacao === 'espiral' && styles.animacaoTextSelecionada,
-                      ]}>
-                        Espiral
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.animacaoOption,
-                        { backgroundColor: colors.accent, borderColor: colors.border },
-                        editandoTipoAnimacao === 'pulsar' && styles.animacaoSelecionada,
-                      ]}
-                      onPress={() => setEditandoTipoAnimacao('pulsar')}
-                    >
-                      <MaterialIcons
-                        name="radio-button-checked"
-                        size={24}
-                        color={editandoTipoAnimacao === 'pulsar' ? colors.primary : colors.textSecondary}
-                      />
-                      <Text style={[
-                        styles.animacaoText,
-                        { color: colors.text },
-                        typography.body,
-                        editandoTipoAnimacao === 'pulsar' && styles.animacaoTextSelecionada,
-                      ]}>
-                        Pulsar
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.animacaoOption,
-                        { backgroundColor: colors.accent, borderColor: colors.border },
-                        editandoTipoAnimacao === 'deslizar' && styles.animacaoSelecionada,
-                      ]}
-                      onPress={() => setEditandoTipoAnimacao('deslizar')}
-                    >
-                      <MaterialIcons
-                        name="swap-horiz"
-                        size={24}
-                        color={editandoTipoAnimacao === 'deslizar' ? colors.primary : colors.textSecondary}
-                      />
-                      <Text style={[
-                        styles.animacaoText,
-                        { color: colors.text },
-                        typography.body,
-                        editandoTipoAnimacao === 'deslizar' && styles.animacaoTextSelecionada,
-                      ]}>
-                        Deslizar
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
 
               {/* Botões */}
               <View style={styles.modalEditarBotoes}>
@@ -1261,6 +1073,13 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 20,
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40,
   },
   buscaContainer: {
     flexDirection: 'row',
@@ -1690,4 +1509,5 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: 8,
   },
+
 }); 

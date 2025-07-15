@@ -129,7 +129,7 @@ export class SyncService {
     cor?: string;
     categorias: string[];
     permiteSelecaoAleatoria: boolean;
-    tipoAnimacao: 'roleta' | 'cubo';
+    tipoAnimacao: 'simples';
   }> {
     console.log('Processando arquivo:', tipoArquivo);
     
@@ -193,7 +193,7 @@ export class SyncService {
           cor: lista.cor,
           categorias: lista.categorias?.map((cat: any) => cat.nome) || [],
           permiteSelecaoAleatoria: lista.permiteSelecaoAleatoria || true,
-          tipoAnimacao: lista.tipoAnimacao || 'roleta',
+          tipoAnimacao: lista.tipoAnimacao || 'simples',
         };
       }
       throw new Error('Formato JSON inválido');
@@ -299,7 +299,7 @@ export class SyncService {
       cor,
       categorias,
       permiteSelecaoAleatoria: true,
-      tipoAnimacao: 'roleta',
+      tipoAnimacao: 'simples',
     };
   }
 
@@ -501,7 +501,7 @@ Descrição: Lista com diferentes tipos de marcadores
     template += `- Categorias: ${lista.categorias.map(c => c.nome).join(', ')}\n`;
     template += `- Seleção Aleatória: ${lista.permiteSelecaoAleatoria ? 'Sim' : 'Não'}\n`;
     template += `- Tipo de Animação: ${lista.tipoAnimacao || 'roleta'}\n`;
-    template += `- Criada em: ${new Date(lista.createdAt).toLocaleDateString('pt-BR')}\n`;
+          template += `- Criada em: ${new Date(lista.dataCriacao).toLocaleDateString('pt-BR')}\n`;
 
     return template;
   }
@@ -522,7 +522,7 @@ Descrição: Lista com diferentes tipos de marcadores
     cor?: string;
     categorias: string[];
     permiteSelecaoAleatoria: boolean;
-    tipoAnimacao: 'roleta' | 'cubo';
+    tipoAnimacao: 'simples';
   } {
     const linhas = conteudo.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     
@@ -614,7 +614,7 @@ Descrição: Lista com diferentes tipos de marcadores
       cor,
       categorias,
       permiteSelecaoAleatoria,
-      tipoAnimacao,
+      tipoAnimacao: tipoAnimacao as "simples",
     };
   }
 
@@ -648,7 +648,7 @@ Descrição: Lista com diferentes tipos de marcadores
         listas[index] = {
           ...listaAtualizada,
           id,
-          updatedAt: new Date().toISOString(),
+          dataModificacao: Date.now(),
         };
         
         await AsyncStorage.setItem(LISTAS_KEY, JSON.stringify(listas));
@@ -665,8 +665,8 @@ Descrição: Lista com diferentes tipos de marcadores
       const novaLista = {
         ...lista,
         id: Date.now().toString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        dataCriacao: Date.now(),
+        dataModificacao: Date.now(),
       };
       
       listas.push(novaLista);

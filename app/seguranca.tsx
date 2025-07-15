@@ -415,25 +415,25 @@ export default function SegurancaScreen() {
         onRequestClose={() => setModalPIN(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }, typography.titleMedium]}>
+          <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1C1C1E' : '#fff' }]}>
+            <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
               {isSettingPIN ? 'Definir PIN' : 'Alterar PIN'}
             </Text>
             
-            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }, typography.body]}>
+            <Text style={[styles.modalSubtitle, { color: isDarkMode ? '#8E8E93' : '#8E8E93' }]}>
               Digite um PIN de pelo menos 4 dígitos
             </Text>
 
             <TextInput
               style={[styles.pinInput, { 
-                backgroundColor: colors.accent,
-                color: colors.text,
-                borderColor: colors.border
+                backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7',
+                color: isDarkMode ? '#fff' : '#1C1C1E',
+                borderColor: isDarkMode ? '#5856D6' : '#E5E5EA'
               }]}
               value={pin}
               onChangeText={setPin}
               placeholder="PIN"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={isDarkMode ? '#8E8E93' : '#8E8E93'}
               secureTextEntry
               keyboardType="numeric"
               maxLength={6}
@@ -441,14 +441,14 @@ export default function SegurancaScreen() {
 
             <TextInput
               style={[styles.pinInput, { 
-                backgroundColor: colors.accent,
-                color: colors.text,
-                borderColor: colors.border
+                backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7',
+                color: isDarkMode ? '#fff' : '#1C1C1E',
+                borderColor: isDarkMode ? '#5856D6' : '#E5E5EA'
               }]}
               value={confirmPin}
               onChangeText={setConfirmPin}
               placeholder="Confirmar PIN"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={isDarkMode ? '#8E8E93' : '#8E8E93'}
               secureTextEntry
               keyboardType="numeric"
               maxLength={6}

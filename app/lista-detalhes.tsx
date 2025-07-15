@@ -427,7 +427,7 @@ export default function ListaDetalhesScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
+      {/* Header fixo */}
       <View style={[styles.header, { backgroundColor: lista.cor || '#007AFF' }]}>
         <TouchableOpacity
           style={styles.headerButton}
@@ -463,8 +463,12 @@ export default function ListaDetalhesScreen() {
         </View>
       </View>
 
-      {/* Conteúdo */}
-      <View style={styles.content}>
+      {/* Conteúdo com scroll */}
+      <ScrollView 
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Estatísticas */}
         <View style={[styles.statsContainer, { backgroundColor: colors.surface }]}>
           <View style={styles.statItem}>
@@ -629,30 +633,31 @@ export default function ListaDetalhesScreen() {
         )}
 
         {/* Lista de Itens */}
-        <FlatList
-          data={itensOrdenados}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listaContainer}
-          ListEmptyComponent={
+        <View style={styles.listaContainer}>
+          {itensOrdenados.length > 0 ? (
+            itensOrdenados.map((item) => (
+              <View key={item.id}>
+                {renderItem({ item })}
+              </View>
+            ))
+          ) : (
             <View style={styles.emptyContainer}>
               <MaterialIcons name="inbox" size={48} color={isDarkMode ? '#8e8e93' : '#8e8e93'} />
               <Text style={[styles.emptyText, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>
                 {textoBusca || filtroCategoria ? 'Nenhum item encontrado' : 'Nenhum item na lista'}
               </Text>
             </View>
-          }
-        />
+          )}
+        </View>
+      </ScrollView>
 
-        {/* Botão Adicionar */}
-        <TouchableOpacity
-          style={[styles.btnAdicionar, { backgroundColor: lista.cor || '#007AFF' }]}
-          onPress={abrirModalAdicionar}
-        >
-          <MaterialIcons name="add" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      {/* Botão Adicionar */}
+      <TouchableOpacity
+        style={[styles.btnAdicionar, { backgroundColor: lista.cor || '#007AFF' }]}
+        onPress={abrirModalAdicionar}
+      >
+        <MaterialIcons name="add" size={24} color="#fff" />
+      </TouchableOpacity>
 
       {/* Modal Adicionar Item */}
       <Modal
@@ -959,6 +964,13 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 100, // Espaço para o botão fixo
+  },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -989,7 +1001,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listaContainer: {
-    paddingBottom: 80, // Adiciona padding para o botão de adicionar
+    paddingBottom: 80, 
   },
   itemContainer: {
     backgroundColor: '#fff',
@@ -1369,4 +1381,5 @@ const styles = StyleSheet.create({
   itemSelecionadoCategoriaText: {
     fontWeight: '500',
   },
+
 }); 
