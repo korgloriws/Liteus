@@ -13,17 +13,28 @@ import { Lista, Item } from '../types';
 import { StorageService } from '../services/storage';
 import { useTheme } from '../services/ThemeContext';
 
+interface ListaComProdutividade extends Lista {
+  percentualConclusao: number;
+}
+
 interface EstatisticasGerais {
   totalListas: number;
   totalItens: number;
+  itensConcluidos: number;
+  itensPendentes: number;
   listasComCategorias: number;
   listasComSelecaoAleatoria: number;
+  mediaItensPorLista: number;
+  percentualConclusao: number;
+  listaMaisProdutiva: ListaComProdutividade | null;
+  listaMenosProdutiva: ListaComProdutividade | null;
+  categoriaMaisUsada: { nome: string; quantidade: number } | null;
   itemMaisLongo: Item | null;
   itemMaisCurto: Item | null;
-  categoriaMaisUsada: { nome: string; quantidade: number } | null;
-  listaMaisAntiga: Lista | null;
-  listaMaisRecente: Lista | null;
-  mediaItensPorLista: number;
+  tempoMedioUso: string;
+  frequenciaCriacao: string;
+  conquistas: string[];
+  insights: string[];
 }
 
 export default function EstatisticasScreen() {
@@ -44,7 +55,7 @@ export default function EstatisticasScreen() {
       const todasListas = await StorageService.buscarTodasListas();
       setListas(todasListas);
       
-      // Calcular estatísticas
+
       const stats = calcularEstatisticas(todasListas);
       setEstatisticas(stats);
     } catch (error) {
@@ -59,23 +70,36 @@ export default function EstatisticasScreen() {
       return {
         totalListas: 0,
         totalItens: 0,
+        itensConcluidos: 0,
+        itensPendentes: 0,
         listasComCategorias: 0,
         listasComSelecaoAleatoria: 0,
+        mediaItensPorLista: 0,
+        percentualConclusao: 0,
+        listaMaisProdutiva: null,
+        listaMenosProdutiva: null,
+        categoriaMaisUsada: null,
         itemMaisLongo: null,
         itemMaisCurto: null,
-        categoriaMaisUsada: null,
-        listaMaisAntiga: null,
-        listaMaisRecente: null,
-        mediaItensPorLista: 0,
+        tempoMedioUso: '0 dias',
+        frequenciaCriacao: 'N/A',
+        conquistas: [],
+        insights: [],
       };
     }
 
-    // Calcular totais
+
     const totalItens = listas.reduce((acc, lista) => acc + lista.itens.length, 0);
+    const itensConcluidos = listas.reduce((acc, lista) => 
+      acc + lista.itens.filter(item => item.concluido).length, 0
+    );
+    const itensPendentes = totalItens - itensConcluidos;
+    const percentualConclusao = totalItens > 0 ? Math.round((itensConcluidos / totalItens) * 100) : 0;
+    
     const listasComCategorias = listas.filter(lista => lista.categorias.length > 0).length;
     const listasComSelecaoAleatoria = listas.filter(lista => lista.permiteSelecaoAleatoria).length;
 
-    // Encontrar item mais longo e mais curto
+
     let itemMaisLongo: Item | null = null;
     let itemMaisCurto: Item | null = null;
     let maxLength = 0;
@@ -94,7 +118,7 @@ export default function EstatisticasScreen() {
       });
     });
 
-    // Encontrar categoria mais usada
+
     const categoriasCount: { [key: string]: number } = {};
     listas.forEach(lista => {
       lista.itens.forEach(item => {
@@ -116,24 +140,72 @@ export default function EstatisticasScreen() {
       }
     });
 
-    // Encontrar lista mais antiga e mais recente
-    const listasOrdenadas = [...listas].sort((a, b) => 
-      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+
+    const listasComProdutividade = listas.map(lista => ({
+      ...lista,
+      percentualConclusao: lista.itens.length > 0 
+        ? (lista.itens.filter(item => item.concluido).length / lista.itens.length) * 100 
+        : 0
+    }));
+
+    const listaMaisProdutiva = listasComProdutividade.reduce((max, lista) => 
+      lista.percentualConclusao > max.percentualConclusao ? lista : max
     );
-    const listaMaisAntiga = listasOrdenadas[0];
-    const listaMaisRecente = listasOrdenadas[listasOrdenadas.length - 1];
+    
+    const listaMenosProdutiva = listasComProdutividade.reduce((min, lista) => 
+      lista.percentualConclusao < min.percentualConclusao ? lista : min
+    );
+
+
+    const datasCriacao = listas.map(lista => lista.dataCriacao);
+    const dataMaisAntiga = Math.min(...datasCriacao);
+    const dataMaisRecente = Math.max(...datasCriacao);
+    const diasUso = Math.ceil((dataMaisRecente - dataMaisAntiga) / (1000 * 60 * 60 * 24));
+    const tempoMedioUso = diasUso > 0 ? `${diasUso} dias` : 'Hoje';
+
+
+    const frequenciaCriacao = listas.length > 1 
+      ? `${Math.round(listas.length / Math.max(diasUso, 1) * 10) / 10} listas/dia`
+      : 'Primeira lista';
+
+
+    const mediaItensPorLista = listas.length > 0 ? Math.round(totalItens / listas.length * 10) / 10 : 0;
+
+
+    const conquistas: string[] = [];
+    if (listas.length >= 5) conquistas.push('Criador de Listas');
+    if (totalItens >= 50) conquistas.push('Produtor de Conteúdo');
+    if (percentualConclusao >= 80) conquistas.push('Concluidor');
+    if (listasComCategorias >= 3) conquistas.push('Organizador');
+    if (itensConcluidos >= 20) conquistas.push('Produtivo');
+    if (listas.length >= 10) conquistas.push('Mestre das Listas');
+
+  
+    const insights: string[] = [];
+    if (percentualConclusao < 30) insights.push('Considere criar listas menores para aumentar a conclusão');
+    if (listasComCategorias < listas.length * 0.5) insights.push('Usar categorias pode ajudar na organização');
+    if (mediaItensPorLista > 20) insights.push('Listas menores tendem a ser mais produtivas');
+    if (itensConcluidos === 0) insights.push('Comece marcando alguns itens como concluídos');
+    if (listas.length === 1) insights.push('Experimente criar diferentes tipos de listas');
 
     return {
       totalListas: listas.length,
       totalItens,
+      itensConcluidos,
+      itensPendentes,
       listasComCategorias,
       listasComSelecaoAleatoria,
+      mediaItensPorLista,
+      percentualConclusao,
+      listaMaisProdutiva: listaMaisProdutiva.percentualConclusao > 0 ? listaMaisProdutiva : null,
+      listaMenosProdutiva: listaMenosProdutiva.percentualConclusao < 100 ? listaMenosProdutiva : null,
+      categoriaMaisUsada,
       itemMaisLongo,
       itemMaisCurto,
-      categoriaMaisUsada,
-      listaMaisAntiga,
-      listaMaisRecente,
-      mediaItensPorLista: Math.round(totalItens / listas.length * 10) / 10,
+      tempoMedioUso,
+      frequenciaCriacao,
+      conquistas,
+      insights,
     };
   };
 
@@ -203,7 +275,7 @@ export default function EstatisticasScreen() {
             Estatísticas
           </Text>
           <Text style={[styles.headerSubtitle, { color: colors.textSecondary }, typography.subtitle]}>
-            Visão geral das suas listas
+            Sua produtividade em números
           </Text>
         </View>
       </View>
@@ -230,171 +302,181 @@ export default function EstatisticasScreen() {
             <View style={[styles.statCard, { backgroundColor: colors.accent }]}>
               <MaterialIcons name="check-circle" size={24} color="#34C759" />
               <Text style={[styles.statNumber, { color: colors.text }, typography.titleMedium]}>
-                {estatisticas.totalItens}
+                {estatisticas.itensConcluidos}
               </Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }, typography.caption]}>
-                Itens
+                Concluídos
               </Text>
             </View>
 
             <View style={[styles.statCard, { backgroundColor: colors.accent }]}>
-              <MaterialIcons name="category" size={24} color="#AF52DE" />
+              <MaterialIcons name="pending" size={24} color="#FF9500" />
               <Text style={[styles.statNumber, { color: colors.text }, typography.titleMedium]}>
-                {estatisticas.listasComCategorias}
+                {estatisticas.itensPendentes}
               </Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }, typography.caption]}>
-                Com Categorias
+                Pendentes
               </Text>
             </View>
 
             <View style={[styles.statCard, { backgroundColor: colors.accent }]}>
-              <MaterialIcons name="casino" size={24} color="#FF9500" />
+              <MaterialIcons name="trending-up" size={24} color="#5856D6" />
               <Text style={[styles.statNumber, { color: colors.text }, typography.titleMedium]}>
-                {estatisticas.listasComSelecaoAleatoria}
+                {estatisticas.percentualConclusao}%
               </Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }, typography.caption]}>
-                Com Seleção Aleatória
+                Taxa de Conclusão
               </Text>
             </View>
           </View>
+        </View>
 
-          <View style={[styles.statCard, { backgroundColor: colors.accent }]}>
-            <MaterialIcons name="analytics" size={24} color="#5856D6" />
-            <Text style={[styles.statNumber, { color: colors.text }, typography.titleMedium]}>
-              {estatisticas.mediaItensPorLista}
-            </Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }, typography.caption]}>
-              Média de Itens por Lista
-            </Text>
+        {/* Produtividade */}
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>
+            Produtividade
+          </Text>
+
+          <View style={styles.produtividadeGrid}>
+            <View style={[styles.produtividadeCard, { backgroundColor: colors.accent }]}>
+              <MaterialIcons name="schedule" size={20} color={colors.primary} />
+              <View style={styles.produtividadeInfo}>
+                <Text style={[styles.produtividadeTitle, { color: colors.text }, typography.subtitleBold]}>
+                  Tempo de Uso
+                </Text>
+                <Text style={[styles.produtividadeValue, { color: colors.textSecondary }, typography.body]}>
+                  {estatisticas.tempoMedioUso}
+                </Text>
+              </View>
+            </View>
+
+            <View style={[styles.produtividadeCard, { backgroundColor: colors.accent }]}>
+              <MaterialIcons name="add-circle" size={20} color="#34C759" />
+              <View style={styles.produtividadeInfo}>
+                <Text style={[styles.produtividadeTitle, { color: colors.text }, typography.subtitleBold]}>
+                  Frequência
+                </Text>
+                <Text style={[styles.produtividadeValue, { color: colors.textSecondary }, typography.body]}>
+                  {estatisticas.frequenciaCriacao}
+                </Text>
+              </View>
+            </View>
+
+            <View style={[styles.produtividadeCard, { backgroundColor: colors.accent }]}>
+              <MaterialIcons name="analytics" size={20} color="#AF52DE" />
+              <View style={styles.produtividadeInfo}>
+                <Text style={[styles.produtividadeTitle, { color: colors.text }, typography.subtitleBold]}>
+                  Média por Lista
+                </Text>
+                <Text style={[styles.produtividadeValue, { color: colors.textSecondary }, typography.body]}>
+                  {estatisticas.mediaItensPorLista} itens
+                </Text>
+              </View>
+            </View>
+
+            <View style={[styles.produtividadeCard, { backgroundColor: colors.accent }]}>
+              <MaterialIcons name="category" size={20} color="#FF9500" />
+              <View style={styles.produtividadeInfo}>
+                <Text style={[styles.produtividadeTitle, { color: colors.text }, typography.subtitleBold]}>
+                  Com Categorias
+                </Text>
+                <Text style={[styles.produtividadeValue, { color: colors.textSecondary }, typography.body]}>
+                  {estatisticas.listasComCategorias} listas
+                </Text>
+              </View>
+            </View>
           </View>
         </View>
 
-        {/* Estatísticas Detalhadas */}
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>
-            Estatísticas Detalhadas
-          </Text>
+        {/* Conquistas */}
+        {estatisticas.conquistas.length > 0 && (
+          <View style={[styles.section, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>
+              🏆 Conquistas
+            </Text>
+            
+            <View style={styles.conquistasGrid}>
+              {estatisticas.conquistas.map((conquista, index) => (
+                <View key={index} style={[styles.conquistaCard, { backgroundColor: colors.accent }]}>
+                  <MaterialIcons name="emoji-events" size={20} color="#FFD700" />
+                  <Text style={[styles.conquistaText, { color: colors.text }, typography.body]}>
+                    {conquista}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
-          {/* Lista Mais Antiga */}
-          {estatisticas.listaMaisAntiga && (
-            <View style={[styles.detailCard, { backgroundColor: colors.accent }]}>
-              <MaterialIcons name="schedule" size={20} color="#FF3B30" />
-              <View style={styles.detailInfo}>
-                <Text style={[styles.detailTitle, { color: colors.text }, typography.subtitleBold]}>
-                  Lista Mais Antiga
-                </Text>
-                <Text style={[styles.detailValue, { color: colors.textSecondary }, typography.body]}>
-                  {estatisticas.listaMaisAntiga.nome}
-                </Text>
-                <Text style={[styles.detailSubtitle, { color: colors.textSecondary }, typography.caption]}>
-                  Criada em {formatarData(estatisticas.listaMaisAntiga.createdAt)} 
-                  ({formatarTempoDecorrido(estatisticas.listaMaisAntiga.createdAt)})
+        {/* Insights */}
+        {estatisticas.insights.length > 0 && (
+          <View style={[styles.section, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>
+              💡 Insights
+            </Text>
+            
+            {estatisticas.insights.map((insight, index) => (
+              <View key={index} style={[styles.insightCard, { backgroundColor: colors.accent }]}>
+                <MaterialIcons name="lightbulb" size={16} color="#FF9500" />
+                <Text style={[styles.insightText, { color: colors.textSecondary }, typography.body]}>
+                  {insight}
                 </Text>
               </View>
-            </View>
-          )}
+            ))}
+          </View>
+        )}
 
-          {/* Lista Mais Recente */}
-          {estatisticas.listaMaisRecente && (
-            <View style={[styles.detailCard, { backgroundColor: colors.accent }]}>
-              <MaterialIcons name="new-releases" size={20} color="#34C759" />
-              <View style={styles.detailInfo}>
-                <Text style={[styles.detailTitle, { color: colors.text }, typography.subtitleBold]}>
-                  Lista Mais Recente
-                </Text>
-                <Text style={[styles.detailValue, { color: colors.textSecondary }, typography.body]}>
-                  {estatisticas.listaMaisRecente.nome}
-                </Text>
-                <Text style={[styles.detailSubtitle, { color: colors.textSecondary }, typography.caption]}>
-                  Criada em {formatarData(estatisticas.listaMaisRecente.createdAt)} 
-                  ({formatarTempoDecorrido(estatisticas.listaMaisRecente.createdAt)})
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {/* Item Mais Longo */}
-          {estatisticas.itemMaisLongo && (
-            <View style={[styles.detailCard, { backgroundColor: colors.accent }]}>
-              <MaterialIcons name="text-fields" size={20} color={colors.primary} />
-              <View style={styles.detailInfo}>
-                <Text style={[styles.detailTitle, { color: colors.text }, typography.subtitleBold]}>
-                  Item Mais Longo
-                </Text>
-                <Text style={[styles.detailValue, { color: colors.textSecondary }, typography.body]}>
-                  {estatisticas.itemMaisLongo.texto}
-                </Text>
-                <Text style={[styles.detailSubtitle, { color: colors.textSecondary }, typography.caption]}>
-                  {estatisticas.itemMaisLongo.texto.length} caracteres
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {/* Item Mais Curto */}
-          {estatisticas.itemMaisCurto && (
-            <View style={[styles.detailCard, { backgroundColor: colors.accent }]}>
-              <MaterialIcons name="text-fields" size={20} color="#FF9500" />
-              <View style={styles.detailInfo}>
-                <Text style={[styles.detailTitle, { color: colors.text }, typography.subtitleBold]}>
-                  Item Mais Curto
-                </Text>
-                <Text style={[styles.detailValue, { color: colors.textSecondary }, typography.body]}>
-                  {estatisticas.itemMaisCurto.texto}
-                </Text>
-                <Text style={[styles.detailSubtitle, { color: colors.textSecondary }, typography.caption]}>
-                  {estatisticas.itemMaisCurto.texto.length} caracteres
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {/* Categoria Mais Usada */}
-          {estatisticas.categoriaMaisUsada && (
-            <View style={[styles.detailCard, { backgroundColor: colors.accent }]}>
-              <MaterialIcons name="category" size={20} color="#AF52DE" />
-              <View style={styles.detailInfo}>
-                <Text style={[styles.detailTitle, { color: colors.text }, typography.subtitleBold]}>
-                  Categoria Mais Usada
-                </Text>
-                <Text style={[styles.detailValue, { color: colors.textSecondary }, typography.body]}>
-                  {estatisticas.categoriaMaisUsada.nome}
-                </Text>
-                <Text style={[styles.detailSubtitle, { color: colors.textSecondary }, typography.caption]}>
-                  {estatisticas.categoriaMaisUsada.quantidade} itens
-                </Text>
-              </View>
-            </View>
-          )}
-        </View>
-
-        {/* Lista de Todas as Listas */}
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>
-            Todas as Listas
-          </Text>
-          
-          {listas.map((lista) => (
+        {/* Lista Mais Produtiva */}
+        {estatisticas.listaMaisProdutiva && (
+          <View style={[styles.section, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>
+              🎯 Lista Mais Produtiva
+            </Text>
+            
             <TouchableOpacity
-              key={lista.id}
-              style={[styles.listaCard, { backgroundColor: colors.accent }]}
+              style={[styles.listaProdutivaCard, { backgroundColor: colors.accent }]}
               onPress={() => router.push({
                 pathname: '/lista-detalhes',
-                params: { id: lista.id }
+                params: { id: estatisticas.listaMaisProdutiva!.id }
               })}
             >
-              <View style={styles.listaInfo}>
-                <Text style={[styles.listaNome, { color: colors.text }, typography.subtitleBold]}>
-                  {lista.nome}
+              <MaterialIcons name="star" size={24} color="#FFD700" />
+              <View style={styles.listaProdutivaInfo}>
+                <Text style={[styles.listaProdutivaTitle, { color: colors.text }, typography.subtitleBold]}>
+                  {estatisticas.listaMaisProdutiva.nome}
                 </Text>
-                <Text style={[styles.listaStats, { color: colors.textSecondary }, typography.caption]}>
-                  {lista.itens.length} itens • Criada {formatarTempoDecorrido(lista.createdAt)}
+                <Text style={[styles.listaProdutivaStats, { color: colors.textSecondary }, typography.caption]}>
+                  {estatisticas.listaMaisProdutiva.itens.filter(item => item.concluido).length} de {estatisticas.listaMaisProdutiva.itens.length} itens concluídos
+                </Text>
+                <Text style={[styles.listaProdutivaPercentual, { color: colors.primary }, typography.body]}>
+                  {Math.round(estatisticas.listaMaisProdutiva.percentualConclusao)}% de conclusão
                 </Text>
               </View>
               <MaterialIcons name="chevron-right" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
-          ))}
-        </View>
+          </View>
+        )}
+
+        {/* Categoria Mais Usada */}
+        {estatisticas.categoriaMaisUsada && (
+          <View style={[styles.section, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>
+              📊 Categoria Mais Usada
+            </Text>
+            
+            <View style={[styles.categoriaCard, { backgroundColor: colors.accent }]}>
+              <MaterialIcons name="category" size={24} color="#AF52DE" />
+              <View style={styles.categoriaInfo}>
+                <Text style={[styles.categoriaTitle, { color: colors.text }, typography.subtitleBold]}>
+                  {estatisticas.categoriaMaisUsada.nome}
+                </Text>
+                <Text style={[styles.categoriaStats, { color: colors.textSecondary }, typography.caption]}>
+                  {estatisticas.categoriaMaisUsada.quantidade} itens utilizados
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -470,45 +552,95 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
   },
-  detailCard: {
+  produtividadeGrid: {
+    gap: 12,
+  },
+  produtividadeCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderRadius: 12,
-    marginBottom: 12,
     gap: 12,
   },
-  detailInfo: {
+  produtividadeInfo: {
     flex: 1,
   },
-  detailTitle: {
+  produtividadeTitle: {
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 4,
   },
-  detailValue: {
+  produtividadeValue: {
     fontSize: 16,
-    marginBottom: 2,
   },
-  detailSubtitle: {
-    fontSize: 12,
+  conquistasGrid: {
+    gap: 8,
   },
-  listaCard: {
+  conquistaCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  conquistaText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  insightsGrid: {
+    gap: 8,
+  },
+  insightCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  insightText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  listaProdutivaCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderRadius: 12,
-    marginBottom: 8,
+    gap: 12,
   },
-  listaInfo: {
+  listaProdutivaInfo: {
     flex: 1,
   },
-  listaNome: {
+  listaProdutivaTitle: {
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
   },
-  listaStats: {
+  listaProdutivaStats: {
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  listaProdutivaPercentual: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  categoriaCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
+  },
+  categoriaInfo: {
+    flex: 1,
+  },
+  categoriaTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  categoriaStats: {
     fontSize: 14,
   },
   loadingContainer: {

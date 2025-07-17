@@ -2,10 +2,12 @@ import { Tabs } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { ThemeProvider, useTheme } from '../services/ThemeContext';
 import AuthGate from '../components/AuthGate';
+import SplashScreen from '../components/SplashScreen';
 import { useFonts } from 'expo-font';
 import { Righteous_400Regular } from '@expo-google-fonts/righteous';
 import { NotoSans_400Regular, NotoSans_700Bold } from '@expo-google-fonts/noto-sans';
 import { View } from 'react-native';
+import { useState } from 'react';
 
 function TabLayoutContent() {
   const { isDarkMode, colors } = useTheme();
@@ -87,9 +89,16 @@ export default function TabLayout() {
     NotoSans_400Regular,
     NotoSans_700Bold,
   });
+  const [showSplash, setShowSplash] = useState(true);
 
   if (!fontsLoaded) {
     return <View />;
+  }
+
+  if (showSplash) {
+    return (
+      <SplashScreen onFinish={() => setShowSplash(false)} />
+    );
   }
 
   return (

@@ -200,24 +200,36 @@ export default function ListaDetalhesScreen() {
       return;
     }
 
-    // Filtrar itens baseado nos filtros ativos
+
     let itensFiltrados = lista.itens;
+    let filtrosAtivos = [];
     
     if (textoBusca) {
       itensFiltrados = itensFiltrados.filter(item => 
         item.texto.toLowerCase().includes(textoBusca.toLowerCase())
       );
+      filtrosAtivos.push(`Busca: "${textoBusca}"`);
     }
     
     if (filtroCategoria) {
+      const categoriaSelecionada = lista.categorias.find(cat => cat.id === filtroCategoria);
       itensFiltrados = itensFiltrados.filter(item => 
         item.categoria === filtroCategoria
       );
+      if (categoriaSelecionada) {
+        filtrosAtivos.push(`Categoria: ${categoriaSelecionada.nome}`);
+      }
     }
 
     if (itensFiltrados.length === 0) {
       Alert.alert('Aviso', 'Nenhum item encontrado com os filtros ativos');
       return;
+    }
+
+    // Mostrar informação sobre filtros aplicados
+    let mensagemFiltros = '';
+    if (filtrosAtivos.length > 0) {
+      mensagemFiltros = `\n\nFiltros aplicados:\n${filtrosAtivos.join('\n')}\n\nItens disponíveis: ${itensFiltrados.length}`;
     }
 
     setAnimandoSelecao(true);
@@ -858,6 +870,31 @@ export default function ListaDetalhesScreen() {
               {animandoSelecao ? 'Selecionando...' : 'Item Selecionado!'}
             </Text>
             
+            {/* Informações sobre filtros aplicados */}
+            {(textoBusca || filtroCategoria) && !animandoSelecao && (
+              <View style={[styles.filtrosInfoContainer, { backgroundColor: colors.accent }]}>
+                <MaterialIcons name="filter-list" size={16} color={colors.primary} />
+                <View style={styles.filtrosInfoContent}>
+                  <Text style={[styles.filtrosInfoText, { color: colors.textSecondary }, typography.caption]}>
+                    Filtros aplicados:
+                  </Text>
+                  {textoBusca && (
+                    <Text style={[styles.filtrosInfoText, { color: colors.textSecondary }, typography.caption]}>
+                      • Busca: "{textoBusca}"
+                    </Text>
+                  )}
+                  {filtroCategoria && (
+                    <Text style={[styles.filtrosInfoText, { color: colors.textSecondary }, typography.caption]}>
+                      • Categoria: {lista?.categorias.find(cat => cat.id === filtroCategoria)?.nome || filtroCategoria}
+                    </Text>
+                  )}
+                  <Text style={[styles.filtrosInfoText, { color: colors.textSecondary }, typography.caption]}>
+                    • Itens disponíveis: {itensFiltrados.length}
+                  </Text>
+                </View>
+              </View>
+            )}
+            
             {itemSelecionado && (
               <View style={[styles.itemSelecionadoContainer, { backgroundColor: colors.accent }]}>
                 <View style={styles.itemSelecionadoHeader}>
@@ -1379,6 +1416,21 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   itemSelecionadoCategoriaText: {
+    fontWeight: '500',
+  },
+  filtrosInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
+  },
+  filtrosInfoContent: {
+    flex: 1,
+  },
+  filtrosInfoText: {
+    fontSize: 12,
     fontWeight: '500',
   },
 
