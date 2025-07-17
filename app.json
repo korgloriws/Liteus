@@ -22,11 +22,11 @@
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/logoCaneca.png",
-        "backgroundColor": "#2f4366",
-        "foregroundImageScale": 0.7
+        "backgroundColor": "#2f4366"
       },
       "icon": "./assets/logoCaneca.png",
       "edgeToEdgeEnabled": true,
+      "roundIcon": "./assets/logoCaneca.png",
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
