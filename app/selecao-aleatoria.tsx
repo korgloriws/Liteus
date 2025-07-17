@@ -66,8 +66,8 @@ export default function SelecaoAleatoriaScreen() {
       if (contador >= maxIteracoes) {
         clearInterval(intervalo);
         setAnimandoSelecao(false);
-        setSelecionando(false);
-        setMostrarResultado(true);
+    setSelecionando(false);
+    setMostrarResultado(true);
       }
     }, 100);
   };
@@ -146,17 +146,17 @@ export default function SelecaoAleatoriaScreen() {
           <MaterialIcons name="casino" size={48} color={colors.primary} />
           <Text style={[styles.infoTitle, { color: colors.text }, typography.titleLarge]}>
             {lista.nome}
-          </Text>
+              </Text>
           <Text style={[styles.infoSubtitle, { color: colors.textSecondary }, typography.body]}>
             {lista.itens.length} itens disponíveis
-          </Text>
-        </View>
+              </Text>
+            </View>
 
-        <TouchableOpacity
+              <TouchableOpacity
           style={[styles.btnSelecionar, { backgroundColor: colors.primary }]}
-          onPress={selecionarItemAleatorio}
-          disabled={selecionando}
-        >
+                onPress={selecionarItemAleatorio}
+                disabled={selecionando}
+              >
           <MaterialIcons 
             name="casino" 
             size={24} 
@@ -165,7 +165,7 @@ export default function SelecaoAleatoriaScreen() {
           <Text style={[styles.btnSelecionarText, typography.body]}>
             {selecionando ? 'Selecionando...' : 'Selecionar Item'}
           </Text>
-        </TouchableOpacity>
+              </TouchableOpacity>
 
         {mostrarResultado && itemSelecionado && (
           <View style={[styles.resultadoContainer, { backgroundColor: colors.surface }]}>
@@ -199,14 +199,14 @@ export default function SelecaoAleatoriaScreen() {
               )}
             </View>
 
-            <TouchableOpacity
+              <TouchableOpacity
               style={[styles.btnNovaSelecao, { backgroundColor: colors.primary }]}
-              onPress={reiniciarSelecao}
-            >
+                onPress={reiniciarSelecao}
+              >
               <Text style={[styles.btnNovaSelecaoText, typography.body]}>
                 Nova Seleção
               </Text>
-            </TouchableOpacity>
+              </TouchableOpacity>
           </View>
         )}
       </View>
@@ -271,7 +271,7 @@ export default function SelecaoAleatoriaScreen() {
               )}
             </View>
           </View>
-        </View>
+      </View>
       </Modal>
     </View>
   );
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     shadowOffset: {
       width: 0,
       height: 2,
-    },
+  },
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,

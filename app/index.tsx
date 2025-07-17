@@ -322,7 +322,7 @@ export default function ListasScreen() {
       const novaLista = await StorageService.adicionarLista({
         nome: nomeListaImportada.trim(),
         descricao: descricaoListaImportada.trim() || undefined,
-                cor: corListaImportada,
+        cor: corListaImportada,
         icone: 'list',
         dataCriacao: Date.now(),
         dataModificacao: Date.now(),
@@ -524,7 +524,7 @@ export default function ListasScreen() {
               <Text style={[styles.contentTitle, { color: colors.text }, typography.titleMedium]}>
                 Suas Listas ({listasFiltradas.length})
               </Text>
-              <View style={styles.headerAcoes}>
+                            <View style={styles.headerAcoes}>
                 <TouchableOpacity
                   style={[styles.btnImportar, { backgroundColor: colors.accent }]}
                   onPress={() => setModalImportacao(true)}
@@ -595,7 +595,7 @@ export default function ListasScreen() {
                 ]}
                 onPress={() => handleOrdenacao('data', ordenacaoDirecao)}
               >
-                <MaterialIcons
+                <MaterialIcons 
                   name="schedule" 
                   size={20} 
                   color={ordenacaoTipo === 'data' ? colors.primary : colors.textSecondary} 
@@ -617,7 +617,7 @@ export default function ListasScreen() {
                 ]}
                 onPress={() => handleOrdenacao('categoria', ordenacaoDirecao)}
               >
-                                <MaterialIcons
+                <MaterialIcons 
                   name="category" 
                   size={20} 
                   color={ordenacaoTipo === 'categoria' ? colors.primary : colors.textSecondary}

@@ -2,10 +2,11 @@
   "expo": {
     "name": "Liteus",
     "slug": "liteus",
-    "version": "1.0.8",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/logoCaneca.png",
     "userInterfaceStyle": "light",
+    "newArchEnabled": true,
     "scheme": "liteus",
     "splash": {
       "image": "./assets/logo_vertical_amarelo.png",
@@ -18,13 +19,13 @@
     },
     "android": {
       "package": "com.liteus.app",
-      "versionCode": 3,
-      "minSdkVersion": 24,
-      "targetSdkVersion": 33,
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/logoCaneca.png",
         "backgroundColor": "#2f4366"
       },
+      "icon": "./assets/logoCaneca.png",
+      "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
