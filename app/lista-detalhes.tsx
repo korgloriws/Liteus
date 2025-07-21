@@ -21,6 +21,7 @@ import { FormattedText } from '../services/FormattedText';
 import { RichTextEditor } from '../services/RichTextEditor';
 import { SyncService } from '../services/syncService';
 import { useTheme } from '../services/ThemeContext';
+import { getPlaceholderColor } from '../services/theme';
 
 export default function ListaDetalhesScreen() {
   const { isDarkMode, colors, typography } = useTheme();
@@ -516,7 +517,7 @@ export default function ListaDetalhesScreen() {
             <TextInput
               style={[styles.buscaTextInput, { color: colors.text }, typography.body]}
               placeholder="Buscar itens..."
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={getPlaceholderColor(isDarkMode)}
               value={textoBusca}
               onChangeText={setTextoBusca}
             />
@@ -710,7 +711,7 @@ export default function ListaDetalhesScreen() {
               value={novaDescricao}
               onChangeText={setNovaDescricao}
               placeholder="Descrição do item..."
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={getPlaceholderColor(isDarkMode)}
             />
 
             <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
@@ -803,7 +804,7 @@ export default function ListaDetalhesScreen() {
               value={novaDescricao}
               onChangeText={setNovaDescricao}
               placeholder="Descrição do item..."
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={getPlaceholderColor(isDarkMode)}
             />
 
             <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>

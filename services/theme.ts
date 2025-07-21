@@ -121,3 +121,7 @@ export const salvarConfiguracoes = async (modoEscuro: boolean) => {
 export const isDarkModeActive = (modoEscuro: boolean) => {
   return modoEscuro;
 }; 
+
+export function getPlaceholderColor(isDarkMode: boolean) {
+  return isDarkMode ? '#E5E5EA' : '#8E8E93';
+} 

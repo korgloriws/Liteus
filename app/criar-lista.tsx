@@ -15,6 +15,7 @@ import { Lista, Categoria } from '../types';
 import { StorageService } from '../services/storage';
 import { UtilsService } from '../services/utils';
 import { useTheme } from '../services/ThemeContext';
+import { getPlaceholderColor } from '../services/theme';
 
 const CORES = [
   '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
@@ -95,7 +96,7 @@ export default function CriarListaScreen() {
               value={nome}
               onChangeText={setNome}
               placeholder="Digite o nome da lista"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={getPlaceholderColor(isDarkMode)}
             />
           </View>
 
@@ -112,7 +113,7 @@ export default function CriarListaScreen() {
               value={descricao}
               onChangeText={setDescricao}
               placeholder="Digite uma descrição"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={getPlaceholderColor(isDarkMode)}
               multiline
               numberOfLines={3}
             />

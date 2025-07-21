@@ -20,6 +20,7 @@ import { Lista } from '../types';
 import { StorageService } from '../services/storage';
 import { SyncService } from '../services/syncService';
 import { useTheme } from '../services/ThemeContext';
+import { getPlaceholderColor } from '../services/theme';
 
 export default function ConfiguracoesScreen() {
   const { isDarkMode, setDarkMode, colors, typography } = useTheme();
@@ -628,7 +629,7 @@ export default function ConfiguracoesScreen() {
               multiline
               numberOfLines={15}
               placeholder="Cole o conteúdo aqui..."
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={getPlaceholderColor(isDarkMode)}
             />
 
           <View style={styles.modalButtons}>
@@ -678,7 +679,7 @@ export default function ConfiguracoesScreen() {
             multiline
             numberOfLines={15}
             placeholder="Cole os dados JSON aqui..."
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={getPlaceholderColor(isDarkMode)}
           />
 
           <View style={styles.modalButtons}>

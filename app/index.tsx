@@ -22,6 +22,7 @@ import { UtilsService } from '../services/utils';
 import { DocumentProcessor } from '../services/documentProcessor';
 import { useTheme } from '../services/ThemeContext';
 import { SyncService } from '../services/syncService';
+import { getPlaceholderColor } from '../services/theme';
 
 export default function ListasScreen() {
   const { isDarkMode, colors, typography } = useTheme();
@@ -502,7 +503,7 @@ export default function ListasScreen() {
                     color: colors.text
                   }, typography.body]}
                   placeholder="Buscar listas..."
-                  placeholderTextColor={colors.background}
+                  placeholderTextColor={getPlaceholderColor(isDarkMode)}
                   value={textoBusca}
                   onChangeText={handleBusca}
                 />
@@ -712,7 +713,7 @@ export default function ListasScreen() {
                   value={editandoNome}
                   onChangeText={setEditandoNome}
                   placeholder="Digite o nome da lista"
-                  placeholderTextColor={isDarkMode ? '#8E8E93' : '#8E8E93'}
+                  placeholderTextColor={getPlaceholderColor(isDarkMode)}
                   maxLength={50}
                 />
               </View>
@@ -729,7 +730,7 @@ export default function ListasScreen() {
                   value={editandoDescricao}
                   onChangeText={setEditandoDescricao}
                   placeholder="Digite uma descrição para a lista"
-                  placeholderTextColor={isDarkMode ? '#8E8E93' : '#8E8E93'}
+                  placeholderTextColor={getPlaceholderColor(isDarkMode)}
                   multiline
                   numberOfLines={3}
                   maxLength={200}
@@ -849,7 +850,7 @@ export default function ListasScreen() {
                 borderColor: colors.border
               }]}
               placeholder="Digite o nome da categoria"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={getPlaceholderColor(isDarkMode)}
               value={novaCategoriaNome}
               onChangeText={setNovaCategoriaNome}
               maxLength={30}
@@ -944,7 +945,7 @@ export default function ListasScreen() {
                       value={nomeListaImportada}
                       onChangeText={setNomeListaImportada}
                       placeholder="Digite o nome da lista"
-                      placeholderTextColor={colors.textSecondary}
+                      placeholderTextColor={getPlaceholderColor(isDarkMode)}
                       maxLength={50}
                     />
                   </View>
@@ -962,7 +963,7 @@ export default function ListasScreen() {
                       value={descricaoListaImportada}
                       onChangeText={setDescricaoListaImportada}
                       placeholder="Digite uma descrição para a lista"
-                      placeholderTextColor={colors.textSecondary}
+                      placeholderTextColor={getPlaceholderColor(isDarkMode)}
                       multiline
                       numberOfLines={3}
                       maxLength={200}

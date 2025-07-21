@@ -15,6 +15,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { AuthService, SecurityConfig } from '../services/authService';
 import { useTheme } from '../services/ThemeContext';
+import { getPlaceholderColor } from '../services/theme';
 
 const { width } = Dimensions.get('window');
 
@@ -433,7 +434,7 @@ export default function SegurancaScreen() {
               value={pin}
               onChangeText={setPin}
               placeholder="PIN"
-              placeholderTextColor={isDarkMode ? '#8E8E93' : '#8E8E93'}
+              placeholderTextColor={getPlaceholderColor(isDarkMode)}
               secureTextEntry
               keyboardType="numeric"
               maxLength={6}
@@ -448,7 +449,7 @@ export default function SegurancaScreen() {
               value={confirmPin}
               onChangeText={setConfirmPin}
               placeholder="Confirmar PIN"
-              placeholderTextColor={isDarkMode ? '#8E8E93' : '#8E8E93'}
+              placeholderTextColor={getPlaceholderColor(isDarkMode)}
               secureTextEntry
               keyboardType="numeric"
               maxLength={6}

@@ -18,7 +18,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     carregarConfiguracoes().then(setModoEscuro);
   }, []);
 
-  // Agora o modo escuro é controlado apenas pelo usuário
+
   const isDarkMode = modoEscuro;
 
   const toggleTheme = async () => {
