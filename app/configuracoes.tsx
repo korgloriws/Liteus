@@ -14,17 +14,34 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import { Lista } from '../types';
 import { StorageService } from '../services/storage';
 import { SyncService } from '../services/syncService';
 import { useTheme } from '../services/ThemeContext';
 import { getPlaceholderColor } from '../services/theme';
+import Constants from 'expo-constants';
+import * as WebBrowser from 'expo-web-browser';
+import { useAuthRequest } from 'expo-auth-session/providers/google';
+import { makeRedirectUri } from 'expo-auth-session';
+import { googleDriveService } from '../services/googleDriveService';
+
+WebBrowser.maybeCompleteAuthSession();
+
+
+const isExpoGo = Constants.appOwnership === 'expo';
+const isDevelopment = __DEV__;
+
+
+const GOOGLE_CLIENT_ID_WEB = '427785870854-qgvtds2hs528fo3899iale1eukbh1et3.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID_ANDROID = '427785870854-mlldubftlqtcbvvpb03o87h88r5a97i0.apps.googleusercontent.com';
+
+
+const GOOGLE_CLIENT_ID = isExpoGo ? GOOGLE_CLIENT_ID_WEB : GOOGLE_CLIENT_ID_ANDROID;
+const GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 
 export default function ConfiguracoesScreen() {
   const { isDarkMode, setDarkMode, colors, typography } = useTheme();
-  const [versao] = useState('1.0.6');
+  const [versao] = useState('1.0.7');
   const [listas, setListas] = useState<Lista[]>([]);
   const [modalSincronizacao, setModalSincronizacao] = useState(false);
   const [dadosSincronizacao, setDadosSincronizacao] = useState('');
@@ -33,10 +50,175 @@ export default function ConfiguracoesScreen() {
   const [conteudoGoogleDocs, setConteudoGoogleDocs] = useState('');
   const [dadosJSON, setDadosJSON] = useState('');
   const [tipoArquivoSelecionado, setTipoArquivoSelecionado] = useState('auto');
+  const [googleUser, setGoogleUser] = useState<any>(null);
+  const [syncStatus, setSyncStatus] = useState<{ lastSync: string | null; hasData: boolean } | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+
+  const [request, response, promptAsync] = useAuthRequest({
+    clientId: GOOGLE_CLIENT_ID,
+    scopes: ['profile', 'email', GOOGLE_DRIVE_SCOPE],
+    redirectUri: makeRedirectUri(),
+
+    responseType: 'token',
+    extraParams: {
+      access_type: 'offline',
+      prompt: 'consent',
+    },
+  });
 
   useEffect(() => {
-    carregarListas();
+    // Tenta restaurar sessão Google ao abrir configurações
+    AsyncStorage.getItem('googleUser').then(user => {
+      if (user) {
+        try {
+          const parsedUser = JSON.parse(user);
+          setGoogleUser(parsedUser);
+          // Inicializar Google Drive Service se usuário está logado
+          if (parsedUser.accessToken) {
+            initializeGoogleDrive(parsedUser.accessToken);
+          }
+        } catch (error) {
+          console.log('Erro ao restaurar sessão Google:', error);
+          AsyncStorage.removeItem('googleUser');
+        }
+      }
+    });
   }, []);
+
+  const initializeGoogleDrive = async (accessToken: string) => {
+    try {
+      await googleDriveService.initialize(accessToken);
+      await checkSyncStatus();
+    } catch (error) {
+      console.error('Erro ao inicializar Google Drive:', error);
+      setSyncError('Falha ao conectar com Google Drive');
+    }
+  };
+
+  const checkSyncStatus = async () => {
+    try {
+      const status = await googleDriveService.getSyncStatus();
+      setSyncStatus(status);
+    } catch (error) {
+      console.error('Erro ao verificar status de sync:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (response?.type === 'success' && response.authentication && typeof response.authentication.accessToken === 'string') {
+      setIsSyncing(true);
+      setLoginError(null);
+      const accessToken = response.authentication.accessToken;
+      
+      fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+        .then(res => {
+          if (!res.ok) throw new Error('Falha ao buscar dados do usuário');
+          return res.json();
+        })
+        .then(async (userInfo) => {
+          const user = { 
+            ...userInfo, 
+            accessToken,
+            loginMethod: isExpoGo ? 'web' : 'native',
+            loginTime: new Date().toISOString()
+          };
+          setGoogleUser(user);
+          await AsyncStorage.setItem('googleUser', JSON.stringify(user));
+          
+          // Inicializar Google Drive após login bem-sucedido
+          await initializeGoogleDrive(accessToken);
+          
+          Alert.alert('Sucesso', 'Login Google realizado!');
+        })
+        .catch((error) => {
+          console.error('Erro no login Google:', error);
+          setLoginError('Falha ao autenticar com Google. Tente novamente.');
+          Alert.alert('Erro', 'Falha ao autenticar com Google. Verifique sua conexão e tente novamente.');
+        })
+        .finally(() => setIsSyncing(false));
+    } else if (response?.type === 'error') {
+      setLoginError('Login cancelado ou falhou. Tente novamente.');
+      setIsSyncing(false);
+    }
+  }, [response]);
+
+  const handleLoginGoogle = async () => {
+    if (!request) {
+      Alert.alert('Erro', 'Sistema de login não está pronto. Tente novamente.');
+      return;
+    }
+
+    setIsSyncing(true);
+    setLoginError(null);
+    
+    try {
+      await promptAsync();
+    } catch (error) {
+      console.error('Erro ao iniciar login Google:', error);
+      setLoginError('Erro ao iniciar login. Tente novamente.');
+      Alert.alert('Erro', 'Não foi possível iniciar o login Google.');
+      setIsSyncing(false);
+    }
+  };
+
+  const handleSyncData = async () => {
+    if (!googleUser?.accessToken) {
+      Alert.alert('Erro', 'Você precisa estar logado para sincronizar.');
+      return;
+    }
+
+    setIsSyncing(true);
+    setSyncError(null);
+
+    try {
+      const result = await googleDriveService.syncData();
+      await checkSyncStatus();
+      
+      let message = 'Sincronização concluída!';
+      if (result.uploaded && result.downloaded) {
+        message += ' Dados enviados e recebidos do Google Drive.';
+      } else if (result.uploaded) {
+        message += ' Dados enviados para o Google Drive.';
+      }
+      
+      Alert.alert('Sucesso', message);
+    } catch (error) {
+      console.error('Erro na sincronização:', error);
+      setSyncError('Falha na sincronização. Tente novamente.');
+      Alert.alert('Erro', 'Falha na sincronização. Verifique sua conexão e tente novamente.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleClearDriveData = async () => {
+    Alert.alert(
+      'Limpar Dados do Drive',
+      'Tem certeza que deseja remover todos os dados do Google Drive? Esta ação não pode ser desfeita.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Limpar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await googleDriveService.clearDriveData();
+              await checkSyncStatus();
+              Alert.alert('Sucesso', 'Dados do Google Drive removidos.');
+            } catch (error) {
+              console.error('Erro ao limpar dados do Drive:', error);
+              Alert.alert('Erro', 'Falha ao limpar dados do Google Drive.');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const carregarListas = async () => {
     try {
@@ -49,174 +231,6 @@ export default function ConfiguracoesScreen() {
 
   const handleModoEscuroChange = async (novoModoEscuro: boolean) => {
     await setDarkMode(novoModoEscuro);
-  };
-
-  const exportarTodasListas = async () => {
-    if (listas.length === 0) {
-      Alert.alert('Aviso', 'Não há listas para exportar');
-      return;
-    }
-
-    try {
-      const dadosJson = await SyncService.exportarTodasListas();
-      setDadosSincronizacao(dadosJson);
-      setModalSincronizacao(true);
-    } catch (error) {
-      Alert.alert('Erro', 'Não foi possível exportar as listas');
-    }
-  };
-
-  const exportarParaGoogleDocs = async () => {
-    if (listas.length === 0) {
-      Alert.alert('Aviso', 'Não há listas para exportar');
-      return;
-    }
-
-    try {
-      let templateCompleto = '# Listas Liteus\n\n';
-      
-      for (const lista of listas) {
-        templateCompleto += SyncService.gerarTemplateGoogleDocs(lista);
-        templateCompleto += '\n---\n\n';
-      }
-
-      // Salvar como arquivo temporário e compartilhar
-      const fileName = `listas_liteus_${new Date().toISOString().split('T')[0]}.txt`;
-      
-      if (await Sharing.isAvailableAsync()) {
-        // Criar arquivo temporário
-        const fileName = `listas_liteus_${new Date().toISOString().split('T')[0]}.txt`;
-        const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-        
-        await FileSystem.writeAsStringAsync(fileUri, templateCompleto, {
-          encoding: FileSystem.EncodingType.UTF8,
-        });
-        
-        await Sharing.shareAsync(fileUri, {
-          mimeType: 'text/plain',
-          dialogTitle: 'Exportar para Google Docs',
-          UTI: 'public.plain-text',
-        });
-      } else {
-        Alert.alert(
-          'Dados para Google Docs',
-          'Copie o conteúdo abaixo e cole no Google Docs:',
-          [{ text: 'OK' }]
-        );
-        console.log('Template para Google Docs:', templateCompleto);
-      }
-    } catch (error) {
-      Alert.alert('Erro', 'Não foi possível exportar para Google Docs');
-    }
-  };
-
-  const importarDoGoogleDocs = async () => {
-    setConteudoGoogleDocs('');
-    setModalImportacaoGoogleDocs(true);
-  };
-
-  const processarImportacaoGoogleDocs = async () => {
-    if (!conteudoGoogleDocs || conteudoGoogleDocs.trim().length === 0) {
-      Alert.alert('Erro', 'Conteúdo vazio');
-      return;
-    }
-
-    try {
-      console.log('Processando importação do Google Docs...');
-      
-      // Tentar detectar e processar automaticamente
-      const resultado = await SyncService.processarArquivo(conteudoGoogleDocs, tipoArquivoSelecionado);
-      
-      if (resultado.nome && resultado.itens.length > 0) {
-        console.log('Lista detectada:', resultado.nome, 'com', resultado.itens.length, 'itens');
-        
-
-        const novaLista = await StorageService.adicionarLista({
-          nome: resultado.nome,
-          descricao: resultado.descricao,
-          cor: resultado.cor || '#007AFF',
-          icone: 'list',
-          dataCriacao: Date.now(),
-          dataModificacao: Date.now(),
-          permiteSelecaoAleatoria: resultado.permiteSelecaoAleatoria,
-          tipoAnimacao: resultado.tipoAnimacao,
-          itens: [],
-          categorias: (resultado.categorias ?? []).map((nome: string, index: number) => ({
-            id: `cat_${Date.now()}_${index}`,
-            nome,
-            cor: '#007AFF',
-            createdAt: new Date().toISOString(),
-          })),
-        });
-
-
-        for (const item of resultado.itens) {
-          if (typeof item === 'string') {
-
-            await StorageService.adicionarItem(novaLista.id, {
-              texto: item.trim(),
-              descricao: undefined,
-              categoria: undefined,
-            });
-          } else {
-            // Item estruturado com descrição e categoria
-            await StorageService.adicionarItem(novaLista.id, {
-              texto: item.texto.trim(),
-              descricao: item.descricao,
-              categoria: item.categoria,
-              categorias: item.categorias,
-              tags: item.tags,
-              prioridade: item.prioridade,
-              data: item.data,
-              concluido: item.concluido,
-              textoFormatado: item.textoFormatado,
-            });
-          }
-        }
-
-        await carregarListas();
-        setModalImportacaoGoogleDocs(false);
-        setConteudoGoogleDocs('');
-        Alert.alert('Sucesso', `Lista "${resultado.nome}" importada com ${resultado.itens.length} itens!`);
-      } else {
-        Alert.alert('Erro', 'Formato inválido. Verifique se o conteúdo está no formato correto.');
-      }
-    } catch (error) {
-      console.error('Erro na importação:', error);
-      Alert.alert('Erro', 'Não foi possível importar do Google Docs. Verifique o formato do conteúdo.');
-    }
-  };
-
-  const importarDadosEstruturados = async () => {
-    setDadosJSON('');
-    setModalImportacaoJSON(true);
-  };
-
-  const processarImportacaoJSON = async () => {
-    if (!dadosJSON || dadosJSON.trim().length === 0) {
-      Alert.alert('Erro', 'Dados vazios');
-      return;
-    }
-
-    try {
-      const resultado = await SyncService.importarDados(dadosJSON);
-      
-      await carregarListas();
-      
-      let mensagem = `Importação concluída!\n`;
-      mensagem += `- Listas importadas: ${resultado.listasImportadas}\n`;
-      mensagem += `- Itens importados: ${resultado.itensImportados}\n`;
-      
-      if (resultado.conflitos.length > 0) {
-        mensagem += `\nConflitos:\n${resultado.conflitos.join('\n')}`;
-      }
-      
-      setModalImportacaoJSON(false);
-      setDadosJSON('');
-      Alert.alert('Sucesso', mensagem);
-    } catch (error) {
-      Alert.alert('Erro', 'Não foi possível importar os dados');
-    }
   };
 
   const limparDados = async () => {
@@ -240,6 +254,17 @@ export default function ConfiguracoesScreen() {
         },
       ]
     );
+  };
+
+  const logoutGoogle = async () => {
+    try {
+      setGoogleUser(null);
+      await AsyncStorage.removeItem('googleUser');
+      Alert.alert('Logout', 'Você saiu da conta Google.');
+    } catch (error) {
+      console.error('Erro no logout:', error);
+      Alert.alert('Erro', 'Erro ao fazer logout.');
+    }
   };
 
   return (
@@ -318,71 +343,84 @@ export default function ConfiguracoesScreen() {
         }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>Sincronização</Text>
           
-          <TouchableOpacity 
-            style={styles.optionItem} 
-            onPress={exportarParaGoogleDocs}
-          >
-            <View style={styles.optionInfo}>
-              <MaterialIcons name="cloud-upload" size={24} color={colors.primary} />
-              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>Exportar para Google Docs</Text>
+          {/* Status do ambiente */}
+          {isDevelopment && (
+            <Text style={[styles.modalSubtitle, { color: colors.textSecondary, fontSize: 12, marginBottom: 10 }, typography.caption]}>
+              Ambiente: {isExpoGo ? 'Expo Go (Web)' : 'Build Nativa (Nativo)'}
+            </Text>
+          )}
+          
+          {/* Botão de Login com Google */}
+          {!googleUser && (
+            <TouchableOpacity style={styles.optionItem} onPress={handleLoginGoogle} disabled={isSyncing || !request}>
+              <MaterialIcons name="login" size={24} color="#4285F4" />
+              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>
+                {isSyncing ? 'Conectando...' : 'Login com Google'}
+              </Text>
+            </TouchableOpacity>
+          )}
+          
+          {/* Exibe status e botão de logout se logado */}
+          {googleUser && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+              <Image source={{ uri: googleUser.picture }} style={{ width: 32, height: 32, borderRadius: 16, marginRight: 8 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.text }}>Logado como {googleUser.name || googleUser.email}</Text>
+                {isDevelopment && (
+                  <Text style={{ color: colors.textSecondary, fontSize: 10 }}>
+                    Método: {googleUser.loginMethod || 'web'}
+                  </Text>
+                )}
+              </View>
+              <TouchableOpacity style={[styles.optionItem, { backgroundColor: '#eee' }]} onPress={logoutGoogle}>
+                <MaterialIcons name="logout" size={20} color={colors.primary} />
+                <Text style={{ color: colors.primary, marginLeft: 4 }}>Logout</Text>
+              </TouchableOpacity>
             </View>
-            <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.optionItem} 
-            onPress={importarDoGoogleDocs}
-          >
-            <View style={styles.optionInfo}>
-              <MaterialIcons name="cloud-download" size={24} color="#34C759" />
-              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>Importar do Google Docs</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.optionItem} 
-            onPress={() => {
-              const exemplo = SyncService.gerarExemploTemplate();
-              Alert.alert(
-                'Exemplo de Template Google Docs',
-                'Copie este conteúdo e cole no Google Docs para testar a importação:',
-                [
-                  { text: 'Copiar', onPress: () => console.log('Exemplo:', exemplo) },
-                  { text: 'OK' }
-                ]
-              );
-              console.log('Exemplo de template:', exemplo);
-            }}
-          >
-            <View style={styles.optionInfo}>
-              <MaterialIcons name="help" size={24} color="#FF9500" />
-              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>Ver Exemplo de Template</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.optionItem} 
-            onPress={exportarTodasListas}
-          >
-            <View style={styles.optionInfo}>
-              <MaterialIcons name="file-download" size={24} color="#FF9500" />
-              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>Exportar Dados Estruturados</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.optionItem} 
-            onPress={importarDadosEstruturados}
-          >
-            <View style={styles.optionInfo}>
-              <MaterialIcons name="file-upload" size={24} color="#AF52DE" />
-              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>Importar Dados Estruturados</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
-          </TouchableOpacity>
+          )}
+          
+          {/* Botões de sincronização (apenas se logado) */}
+          {googleUser && (
+            <>
+              <TouchableOpacity style={styles.optionItem} onPress={handleSyncData} disabled={isSyncing}>
+                <MaterialIcons name="sync" size={24} color="#34C759" />
+                <Text style={[styles.optionText, { color: colors.text }, typography.body]}>
+                  {isSyncing ? 'Sincronizando...' : 'Sincronizar com Google Drive'}
+                </Text>
+              </TouchableOpacity>
+              
+              {syncStatus && (
+                <View style={{ marginTop: 5, paddingHorizontal: 15 }}>
+                  <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+                    Última sincronização: {syncStatus.lastSync ? new Date(syncStatus.lastSync).toLocaleString() : 'Nunca'}
+                  </Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+                    Status: {syncStatus.hasData ? 'Dados encontrados no Drive' : 'Nenhum dado no Drive'}
+                  </Text>
+                </View>
+              )}
+              
+              <TouchableOpacity style={styles.optionItem} onPress={handleClearDriveData}>
+                <MaterialIcons name="delete" size={24} color="#FF3B30" />
+                <Text style={[styles.optionText, { color: colors.text }, typography.body]}>
+                  Limpar dados do Drive
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+          
+          {/* Mensagens de erro */}
+          {loginError && (
+            <Text style={{ color: '#FF3B30', fontSize: 12, marginTop: 5 }}>
+              {loginError}
+            </Text>
+          )}
+          
+          {syncError && (
+            <Text style={{ color: '#FF3B30', fontSize: 12, marginTop: 5 }}>
+              {syncError}
+            </Text>
+          )}
         </View>
 
         {/* Seção de Dados */}
@@ -458,7 +496,7 @@ export default function ConfiguracoesScreen() {
           
           <View style={styles.featureItem}>
             <MaterialIcons name="cloud-sync" size={20} color="#34C759" />
-            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Sincronização com Google Docs</Text>
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Sincronização com Google Drive</Text>
           </View>
           
           <View style={styles.featureItem}>
@@ -618,19 +656,19 @@ export default function ConfiguracoesScreen() {
             </TouchableOpacity>
           </View>
 
-                      <TextInput
-              style={[styles.modalTextInput, { 
+          <TextInput
+            style={[styles.modalTextInput, { 
                 backgroundColor: colors.accent,
                 color: colors.text,
                 borderColor: colors.border
               }, typography.body]}
-              value={conteudoGoogleDocs}
-              onChangeText={setConteudoGoogleDocs}
-              multiline
-              numberOfLines={15}
-              placeholder="Cole o conteúdo aqui..."
+            value={conteudoGoogleDocs}
+            onChangeText={setConteudoGoogleDocs}
+            multiline
+            numberOfLines={15}
+            placeholder="Cole o conteúdo aqui..."
               placeholderTextColor={getPlaceholderColor(isDarkMode)}
-            />
+          />
 
           <View style={styles.modalButtons}>
             <TouchableOpacity
@@ -642,7 +680,7 @@ export default function ConfiguracoesScreen() {
             
             <TouchableOpacity
               style={styles.btnCopiar}
-              onPress={processarImportacaoGoogleDocs}
+           
             >
               <Text style={styles.btnCopiarText}>Importar</Text>
             </TouchableOpacity>
@@ -691,8 +729,7 @@ export default function ConfiguracoesScreen() {
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={styles.btnCopiar}
-              onPress={processarImportacaoJSON}
+
             >
               <Text style={styles.btnCopiarText}>Importar</Text>
             </TouchableOpacity>

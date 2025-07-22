@@ -34,12 +34,12 @@ export default function ListaDetalhesScreen() {
   const [novoTexto, setNovoTexto] = useState('');
   const [novoTextoFormatado, setNovoTextoFormatado] = useState<FormatoTexto[]>([]);
   const [novaDescricao, setNovaDescricao] = useState('');
-  const [novaCategoria, setNovaCategoria] = useState('');
+  const [novasCategorias, setNovasCategorias] = useState<string[]>([]);
   const [textoBusca, setTextoBusca] = useState('');
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [filtroCategoria, setFiltroCategoria] = useState<string>('');
-  const [ordenacaoTipo, setOrdenacaoTipo] = useState<OrdenacaoTipo>('alfabetica');
-  const [ordenacaoDirecao, setOrdenacaoDirecao] = useState<OrdenacaoDirecao>('asc');
+  const [ordenacaoTipo, setOrdenacaoTipo] = useState<OrdenacaoTipo>('ultimoModificado');
+  const [ordenacaoDirecao, setOrdenacaoDirecao] = useState<OrdenacaoDirecao>('desc');
   const [modalSelecaoAleatoria, setModalSelecaoAleatoria] = useState(false);
   const [itemSelecionado, setItemSelecionado] = useState<Item | null>(null);
   const [animandoSelecao, setAnimandoSelecao] = useState(false);
@@ -73,18 +73,24 @@ export default function ListaDetalhesScreen() {
         texto: novoTexto.trim(),
         textoFormatado: novoTextoFormatado,
         descricao: novaDescricao.trim() || undefined,
-        categoria: novaCategoria || undefined,
+        categorias: novasCategorias.length > 0 ? novasCategorias : undefined,
       });
 
-      setNovoTexto('');
-      setNovoTextoFormatado([]);
-      setNovaDescricao('');
-      setNovaCategoria('');
+
+      limparFormularioItem();
+      
       setModalAdicionar(false);
       await carregarLista();
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível adicionar o item');
     }
+  };
+
+  const limparFormularioItem = () => {
+    setNovoTexto('');
+    setNovoTextoFormatado([]);
+    setNovaDescricao('');
+    setNovasCategorias([]);
   };
 
   const editarItem = async () => {
@@ -93,18 +99,17 @@ export default function ListaDetalhesScreen() {
       return;
     }
 
-          try {
-        await StorageService.atualizarItem(id, itemEditando.id, {
-          texto: novoTexto.trim(),
-          textoFormatado: novoTextoFormatado,
-          descricao: novaDescricao.trim() || undefined,
-          categoria: novaCategoria || undefined,
-        });
+    try {
+      await StorageService.atualizarItem(id, itemEditando.id, {
+        texto: novoTexto.trim(),
+        textoFormatado: novoTextoFormatado,
+        descricao: novaDescricao.trim() || undefined,
+        categorias: novasCategorias.length > 0 ? novasCategorias : undefined,
+      });
 
-      setNovoTexto('');
-      setNovoTextoFormatado([]);
-      setNovaDescricao('');
-      setNovaCategoria('');
+      // Limpar formulário após editar item
+      limparFormularioItem();
+      
       setItemEditando(null);
       setModalEditar(false);
       await carregarLista();
@@ -172,7 +177,7 @@ export default function ListaDetalhesScreen() {
     setNovoTexto(item.texto);
     setNovoTextoFormatado(item.textoFormatado || []);
     setNovaDescricao(item.descricao || '');
-    setNovaCategoria(item.categoria || '');
+    setNovasCategorias(item.categorias || (item.categoria ? [item.categoria] : []));
     setModalEditar(true);
   };
 
@@ -180,7 +185,7 @@ export default function ListaDetalhesScreen() {
     setNovoTexto('');
     setNovoTextoFormatado([]);
     setNovaDescricao('');
-    setNovaCategoria('');
+    setNovasCategorias([]);
     setModalAdicionar(true);
   };
 
@@ -252,94 +257,13 @@ export default function ListaDetalhesScreen() {
     }, 100);
   };
 
-  const exportarLista = async () => {
-    if (!lista) return;
-
-    try {
-      // Usar o novo sistema de sincronização
-      const dadosJson = await SyncService.exportarLista(lista.id);
-      
-      // Criar nome do arquivo
-      const nomeArquivo = `${lista.nome.replace(/[^a-zA-Z0-9]/g, '_')}.json`;
-      
-      // Criar caminho do arquivo temporário
-      const fileUri = `${FileSystem.documentDirectory}${nomeArquivo}`;
-      
-      // Escrever o arquivo
-      await FileSystem.writeAsStringAsync(fileUri, dadosJson, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
-
-      // Verificar se o compartilhamento está disponível
-      const isAvailable = await Sharing.isAvailableAsync();
-      
-      if (isAvailable) {
-        // Compartilhar o arquivo
-        await Sharing.shareAsync(fileUri, {
-          mimeType: 'application/json',
-          dialogTitle: `Exportar ${lista.nome}`,
-          UTI: 'public.json',
-        });
-      } else {
-        // Fallback para mostrar dados
-        Alert.alert(
-          'Dados para Exportação',
-          'Copie os dados abaixo e salve em um arquivo .json:',
-          [{ text: 'OK' }]
-        );
-        console.log('Dados para exportação:', dadosJson);
-      }
-
-    } catch (error) {
-      console.error('Erro na exportação:', error);
-      Alert.alert('Erro', 'Não foi possível exportar a lista');
-    }
+  const reiniciarSelecaoAleatoria = () => {
+    setItemSelecionado(null);
+    setModalSelecaoAleatoria(false);
+    setAnimandoSelecao(false);
   };
 
-  const exportarParaGoogleDocs = async () => {
-    if (!lista) return;
 
-    try {
-      const template = SyncService.gerarTemplateGoogleDocs(lista);
-      
-      // Criar nome do arquivo
-      const nomeArquivo = `${lista.nome.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
-      
-      // Criar caminho do arquivo temporário
-      const fileUri = `${FileSystem.documentDirectory}${nomeArquivo}`;
-      
-      // Escrever o arquivo
-      await FileSystem.writeAsStringAsync(fileUri, template, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
-
-      // Verificar se o compartilhamento está disponível
-      const isAvailable = await Sharing.isAvailableAsync();
-      
-      if (isAvailable) {
-        // Compartilhar o arquivo
-        await Sharing.shareAsync(fileUri, {
-          mimeType: 'text/plain',
-          dialogTitle: `Exportar ${lista.nome} para Google Docs`,
-          UTI: 'public.plain-text',
-        });
-      } else {
-        // Fallback para mostrar dados
-        Alert.alert(
-          'Template para Google Docs',
-          'Copie o conteúdo abaixo e cole no Google Docs:',
-          [{ text: 'OK' }]
-        );
-        console.log('Template para Google Docs:', template);
-      }
-
-    } catch (error) {
-      console.error('Erro na exportação:', error);
-      Alert.alert('Erro', 'Não foi possível exportar a lista');
-    }
-  };
-
-  // Filtrar e ordenar itens
   const itensFiltrados = lista ? UtilsService.buscarItens(lista.itens, {
     texto: textoBusca,
     categoria: filtroCategoria,
@@ -380,17 +304,24 @@ export default function ListaDetalhesScreen() {
                 style={styles.itemTexto}
                 isDarkMode={isDarkMode}
               />
-              {categoriasSelecionadas.length > 0 && (
-                <View style={styles.categoriasContainer}>
-                  {categoriasSelecionadas.map((categoria) => (
-                    <View key={categoria.id} style={[styles.categoriaTag, { backgroundColor: categoria.cor || '#007AFF' }]}>
-                      <Text style={styles.categoriaTagText}>{categoria.nome}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
             </View>
           </View>
+          
+          {/* Espaço reservado para categorias - sempre visível */}
+          <View style={styles.categoriasReservado}>
+            {categoriasSelecionadas.length > 0 ? (
+              <View style={styles.categoriasContainer}>
+                {categoriasSelecionadas.map((categoria) => (
+                  <View key={categoria.id} style={[styles.categoriaTag, { backgroundColor: categoria.cor || '#007AFF' }]}>
+                    <Text style={styles.categoriaTagText}>{categoria.nome}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.categoriasPlaceholder} />
+            )}
+          </View>
+          
           {item.descricao && (
             <Text style={[styles.itemDescricao, { color: isDarkMode ? '#8e8e93' : '#8e8e93' }]}>{item.descricao}</Text>
           )}
@@ -460,18 +391,6 @@ export default function ListaDetalhesScreen() {
             onPress={selecionarAleatoriamente}
           >
             <MaterialIcons name="casino" size={24} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.btnExportar}
-            onPress={exportarLista}
-          >
-            <MaterialIcons name="file-download" size={24} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.btnExportar}
-            onPress={exportarParaGoogleDocs}
-          >
-            <MaterialIcons name="cloud-upload" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>
@@ -620,6 +539,18 @@ export default function ListaDetalhesScreen() {
                     Categoria
                   </Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.ordenacaoOption,
+                    { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' },
+                    ordenacaoTipo === 'ultimoModificado' && styles.ordenacaoOptionAtivo
+                  ]}
+                  onPress={() => setOrdenacaoTipo('ultimoModificado')}
+                >
+                  <Text style={[styles.ordenacaoOptionText, { color: isDarkMode ? '#fff' : '#1c1c1e' }]}>
+                    Último Modificado
+                  </Text>
+                </TouchableOpacity>
               </View>
               <TouchableOpacity
                 style={[styles.btnOrdenacao, { backgroundColor: isDarkMode ? '#38383A' : '#F2F2F7' }]}
@@ -664,20 +595,23 @@ export default function ListaDetalhesScreen() {
         </View>
       </ScrollView>
 
-      {/* Botão Adicionar */}
-      <TouchableOpacity
-        style={[styles.btnAdicionar, { backgroundColor: lista.cor || '#007AFF' }]}
-        onPress={abrirModalAdicionar}
-      >
-        <MaterialIcons name="add" size={24} color="#fff" />
-      </TouchableOpacity>
+        {/* Botão Adicionar */}
+        <TouchableOpacity
+          style={[styles.btnAdicionar, { backgroundColor: lista.cor || '#007AFF' }]}
+          onPress={abrirModalAdicionar}
+        >
+          <MaterialIcons name="add" size={24} color="#fff" />
+        </TouchableOpacity>
 
       {/* Modal Adicionar Item */}
       <Modal
         visible={modalAdicionar}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setModalAdicionar(false)}
+        onRequestClose={() => {
+          setModalAdicionar(false);
+          limparFormularioItem();
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
@@ -715,42 +649,42 @@ export default function ListaDetalhesScreen() {
             />
 
             <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
-              Categoria (opcional)
+              Categorias (opcional)
             </Text>
             <View style={styles.categoriaContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.categoriaOption,
-                  { backgroundColor: colors.accent, borderColor: colors.border },
-                  novaCategoria === '' && styles.categoriaOptionSelecionada
-                ]}
-                onPress={() => setNovaCategoria('')}
-              >
-                <Text style={[styles.categoriaOptionText, { color: colors.text }, typography.body]}>
-                  Sem categoria
-                </Text>
-              </TouchableOpacity>
-              {lista.categorias.map((categoria) => (
-                <TouchableOpacity
-                  key={categoria.id}
-                  style={[
-                    styles.categoriaOption,
-                    { backgroundColor: colors.accent, borderColor: colors.border },
-                    novaCategoria === categoria.id && styles.categoriaOptionSelecionada
-                  ]}
-                  onPress={() => setNovaCategoria(categoria.id)}
-                >
-                  <Text style={[styles.categoriaOptionText, { color: colors.text }, typography.body]}>
-                    {categoria.nome}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {lista.categorias.map((categoria) => {
+                const selecionada = novasCategorias.includes(categoria.id);
+                return (
+                  <TouchableOpacity
+                    key={categoria.id}
+                    style={[
+                      styles.categoriaOption,
+                      { backgroundColor: selecionada ? colors.primary : colors.accent, borderColor: colors.border },
+                      selecionada && styles.categoriaOptionSelecionada
+                    ]}
+                    onPress={() => {
+                      if (selecionada) {
+                        setNovasCategorias(novasCategorias.filter(id => id !== categoria.id));
+                      } else {
+                        setNovasCategorias([...novasCategorias, categoria.id]);
+                      }
+                    }}
+                  >
+                    <Text style={[styles.categoriaOptionText, { color: selecionada ? '#fff' : colors.text }, typography.body]}>
+                      {categoria.nome}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             <View style={styles.modalBotoes}>
               <TouchableOpacity
                 style={styles.btnCancelar}
-                onPress={() => setModalAdicionar(false)}
+                onPress={() => {
+                  setModalAdicionar(false);
+                  limparFormularioItem();
+                }}
               >
                 <Text style={styles.btnCancelarText}>Cancelar</Text>
               </TouchableOpacity>
@@ -770,7 +704,10 @@ export default function ListaDetalhesScreen() {
         visible={modalEditar}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setModalEditar(false)}
+        onRequestClose={() => {
+          setModalEditar(false);
+          limparFormularioItem();
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
@@ -808,42 +745,42 @@ export default function ListaDetalhesScreen() {
             />
 
             <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
-              Categoria (opcional)
+              Categorias (opcional)
             </Text>
             <View style={styles.categoriaContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.categoriaOption,
-                  { backgroundColor: colors.accent, borderColor: colors.border },
-                  novaCategoria === '' && styles.categoriaOptionSelecionada
-                ]}
-                onPress={() => setNovaCategoria('')}
-              >
-                <Text style={[styles.categoriaOptionText, { color: colors.text }, typography.body]}>
-                  Sem categoria
-                </Text>
-              </TouchableOpacity>
-              {lista.categorias.map((categoria) => (
-                <TouchableOpacity
-                  key={categoria.id}
-                  style={[
-                    styles.categoriaOption,
-                    { backgroundColor: colors.accent, borderColor: colors.border },
-                    novaCategoria === categoria.id && styles.categoriaOptionSelecionada
-                  ]}
-                  onPress={() => setNovaCategoria(categoria.id)}
-                >
-                  <Text style={[styles.categoriaOptionText, { color: colors.text }, typography.body]}>
-                    {categoria.nome}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {lista.categorias.map((categoria) => {
+                const selecionada = novasCategorias.includes(categoria.id);
+                return (
+                  <TouchableOpacity
+                    key={categoria.id}
+                    style={[
+                      styles.categoriaOption,
+                      { backgroundColor: selecionada ? colors.primary : colors.accent, borderColor: colors.border },
+                      selecionada && styles.categoriaOptionSelecionada
+                    ]}
+                    onPress={() => {
+                      if (selecionada) {
+                        setNovasCategorias(novasCategorias.filter(id => id !== categoria.id));
+                      } else {
+                        setNovasCategorias([...novasCategorias, categoria.id]);
+                      }
+                    }}
+                  >
+                    <Text style={[styles.categoriaOptionText, { color: selecionada ? '#fff' : colors.text }, typography.body]}>
+                      {categoria.nome}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             <View style={styles.modalBotoes}>
               <TouchableOpacity
                 style={styles.btnCancelar}
-                onPress={() => setModalEditar(false)}
+                onPress={() => {
+                  setModalEditar(false);
+                  limparFormularioItem();
+                }}
               >
                 <Text style={styles.btnCancelarText}>Cancelar</Text>
               </TouchableOpacity>
@@ -863,7 +800,10 @@ export default function ListaDetalhesScreen() {
         visible={modalSelecaoAleatoria}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setModalSelecaoAleatoria(false)}
+        onRequestClose={() => {
+          setModalSelecaoAleatoria(false);
+          reiniciarSelecaoAleatoria();
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
@@ -928,10 +868,22 @@ export default function ListaDetalhesScreen() {
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.btnCancelar}
-                onPress={() => setModalSelecaoAleatoria(false)}
+                onPress={() => {
+                  setModalSelecaoAleatoria(false);
+                  reiniciarSelecaoAleatoria();
+                }}
               >
                 <Text style={styles.btnCancelarText}>Fechar</Text>
               </TouchableOpacity>
+              
+              {!animandoSelecao && itemSelecionado && (
+                <TouchableOpacity
+                  style={styles.btnLimpar}
+                  onPress={reiniciarSelecaoAleatoria}
+                >
+                  <Text style={styles.btnLimparText}>Limpar</Text>
+                </TouchableOpacity>
+              )}
               
               {!animandoSelecao && (
                 <TouchableOpacity
@@ -1070,9 +1022,6 @@ const styles = StyleSheet.create({
   },
   itemTextContainer: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
   },
   itemTexto: {
     fontSize: 16,
@@ -1189,6 +1138,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+
   btnSalvar: {
     flex: 1,
     padding: 12,
@@ -1235,7 +1185,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    marginLeft: 8,
   },
   categoriaTagText: {
     color: '#fff',
@@ -1389,7 +1338,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 4,
-    marginTop: 4,
   },
   // Estilos para seleção aleatória
   itemSelecionadoContainer: {
@@ -1433,6 +1381,26 @@ const styles = StyleSheet.create({
   filtrosInfoText: {
     fontSize: 12,
     fontWeight: '500',
+  },
+  btnLimpar: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#FF3B30',
+    alignItems: 'center',
+  },
+  btnLimparText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  categoriasReservado: {
+    minHeight: 24, // Altura mínima reservada para as categorias
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  categoriasPlaceholder: {
+    height: 0, // Altura zero quando não há categorias
   },
 
 }); 

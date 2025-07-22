@@ -51,10 +51,21 @@ export default function CriarListaScreen() {
       };
 
       const novaListaCriada = await StorageService.adicionarLista(novaLista);
+      
+      // Limpar formulário após sucesso
+      limparFormulario();
+      
       router.back();
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível criar a lista');
     }
+  };
+
+  const limparFormulario = () => {
+    setNome('');
+    setDescricao('');
+    setCorSelecionada(CORES[0]);
+    setPermiteSelecaoAleatoria(false);
   };
 
   return (
@@ -82,40 +93,40 @@ export default function CriarListaScreen() {
           <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>
             Informações Básicas
           </Text>
-          
-          <View style={styles.inputGroup}>
+
+        <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.text }, typography.body]}>
               Nome da Lista *
             </Text>
-            <TextInput
-              style={[styles.input, { 
+          <TextInput
+            style={[styles.input, { 
                 backgroundColor: colors.surface, 
                 color: colors.text,
                 borderColor: colors.border 
               }, typography.body]}
-              value={nome}
-              onChangeText={setNome}
-              placeholder="Digite o nome da lista"
+            value={nome}
+            onChangeText={setNome}
+            placeholder="Digite o nome da lista"
               placeholderTextColor={getPlaceholderColor(isDarkMode)}
-            />
-          </View>
+          />
+        </View>
 
-          <View style={styles.inputGroup}>
+        <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.text }, typography.body]}>
               Descrição (opcional)
             </Text>
-            <TextInput
+          <TextInput
               style={[styles.input, { 
                 backgroundColor: colors.surface, 
                 color: colors.text,
                 borderColor: colors.border 
               }, typography.body]}
-              value={descricao}
-              onChangeText={setDescricao}
+            value={descricao}
+            onChangeText={setDescricao}
               placeholder="Digite uma descrição"
               placeholderTextColor={getPlaceholderColor(isDarkMode)}
-              multiline
-              numberOfLines={3}
+            multiline
+            numberOfLines={3}
             />
           </View>
         </View>
@@ -128,8 +139,8 @@ export default function CriarListaScreen() {
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.text }, typography.body]}>
               Cor da Lista
-            </Text>
-            <TouchableOpacity
+                  </Text>
+                  <TouchableOpacity
               style={[styles.colorPicker, { borderColor: colors.border }]}
               onPress={() => setModalCores(true)}
             >
@@ -138,9 +149,9 @@ export default function CriarListaScreen() {
                 {corSelecionada}
               </Text>
               <MaterialIcons name="arrow-drop-down" size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-        </View>
+                  </TouchableOpacity>
+                </View>
+            </View>
 
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>
@@ -152,11 +163,11 @@ export default function CriarListaScreen() {
             onPress={() => setPermiteSelecaoAleatoria(!permiteSelecaoAleatoria)}
           >
             <View style={styles.optionInfo}>
-              <MaterialIcons 
-                name="casino" 
-                size={24} 
+                <MaterialIcons
+                  name="casino"
+                  size={24}
                 color={permiteSelecaoAleatoria ? colors.primary : colors.textSecondary} 
-              />
+                />
               <View style={styles.optionText}>
                 <Text style={[styles.optionTitle, { color: colors.text }, typography.body]}>
                   Seleção Aleatória
@@ -177,10 +188,10 @@ export default function CriarListaScreen() {
                   transform: [{ translateX: permiteSelecaoAleatoria ? 20 : 0 }]
                 }
               ]} />
-            </View>
+          </View>
           </TouchableOpacity>
-        </View>
-      </ScrollView>
+      </View>
+    </ScrollView>
 
       {/* Modal de Cores */}
       <Modal
@@ -216,12 +227,12 @@ export default function CriarListaScreen() {
               ))}
             </View>
 
-            <TouchableOpacity
-              style={styles.btnCancelar}
+              <TouchableOpacity
+                style={styles.btnCancelar}
               onPress={() => setModalCores(false)}
-            >
-              <Text style={styles.btnCancelarText}>Cancelar</Text>
-            </TouchableOpacity>
+              >
+                <Text style={styles.btnCancelarText}>Cancelar</Text>
+              </TouchableOpacity>
           </View>
         </View>
       </Modal>

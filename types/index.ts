@@ -43,7 +43,7 @@ export interface Lista {
   tipoAnimacao?: 'simples';
 }
 
-export type OrdenacaoTipo = 'alfabetica' | 'data' | 'prioridade' | 'categoria';
+export type OrdenacaoTipo = 'alfabetica' | 'data' | 'prioridade' | 'categoria' | 'ultimoModificado';
 export type OrdenacaoDirecao = 'asc' | 'desc'; 
 
 export interface FiltroBusca {

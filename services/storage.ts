@@ -37,15 +37,15 @@ export class StorageService {
   }
 
   // Adicionar nova lista
-  static async adicionarLista(lista: Omit<Lista, 'id' | 'createdAt' | 'updatedAt'>): Promise<Lista> {
+  static async adicionarLista(lista: Omit<Lista, 'id'>): Promise<Lista> {
     try {
       const listas = await this.carregarListas();
       const novaLista: Lista = {
         ...lista,
         categorias: lista.categorias || [],
         id: Date.now().toString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        dataCriacao: Date.now(),
+        dataModificacao: Date.now(),
       };
       
       listas.push(novaLista);
@@ -68,7 +68,7 @@ export class StorageService {
       listas[index] = {
         ...listas[index],
         ...dados,
-        updatedAt: new Date().toISOString(),
+        dataModificacao: Date.now(),
       };
       
       await this.salvarListas(listas);
@@ -111,7 +111,7 @@ export class StorageService {
       };
       
       listas[listaIndex].itens.push(novoItem);
-      listas[listaIndex].updatedAt = new Date().toISOString();
+      listas[listaIndex].dataModificacao = Date.now();
       
       await this.salvarListas(listas);
       return novoItem;
@@ -138,7 +138,7 @@ export class StorageService {
         updatedAt: new Date().toISOString(),
       };
       
-      listas[listaIndex].updatedAt = new Date().toISOString();
+      listas[listaIndex].dataModificacao = Date.now();
       await this.salvarListas(listas);
       return listas[listaIndex].itens[itemIndex];
     } catch (error) {
@@ -159,7 +159,7 @@ export class StorageService {
       if (itemIndex === -1) return false;
       
       listas[listaIndex].itens.splice(itemIndex, 1);
-      listas[listaIndex].updatedAt = new Date().toISOString();
+      listas[listaIndex].dataModificacao = Date.now();
       
       await this.salvarListas(listas);
       return true;
@@ -199,8 +199,8 @@ export class StorageService {
         ...listaOriginal,
         id: Date.now().toString(),
         nome: listaOriginal.nome,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        dataCriacao: Date.now(),
+        dataModificacao: Date.now(),
         itens: listaOriginal.itens.map(item => ({
           ...item,
           id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
@@ -240,7 +240,7 @@ export class StorageService {
       };
       
       listas[listaIndex].itens.push(itemDuplicado);
-      listas[listaIndex].updatedAt = new Date().toISOString();
+      listas[listaIndex].dataModificacao = Date.now();
       
       await this.salvarListas(listas);
       return itemDuplicado;
@@ -265,7 +265,7 @@ export class StorageService {
       };
       
       listas[listaIndex].categorias.push(novaCategoria);
-      listas[listaIndex].updatedAt = new Date().toISOString();
+      listas[listaIndex].dataModificacao = Date.now();
       
       await this.salvarListas(listas);
       return novaCategoria;
@@ -287,7 +287,7 @@ export class StorageService {
       if (categoriaIndex === -1) return false;
       
       listas[listaIndex].categorias.splice(categoriaIndex, 1);
-      listas[listaIndex].updatedAt = new Date().toISOString();
+      listas[listaIndex].dataModificacao = Date.now();
       
       await this.salvarListas(listas);
       return true;

@@ -21,6 +21,14 @@ export class UtilsService {
         });
         break;
 
+      case 'ultimoModificado':
+        itensOrdenados.sort((a, b) => {
+          const dataA = new Date(a.updatedAt).getTime();
+          const dataB = new Date(b.updatedAt).getTime();
+          return direcao === 'asc' ? dataA - dataB : dataB - dataA;
+        });
+        break;
+
       case 'prioridade':
         itensOrdenados.sort((a, b) => {
           const prioridadeA = a.prioridade || 0;
@@ -57,8 +65,16 @@ export class UtilsService {
 
       case 'data':
         listasOrdenadas.sort((a, b) => {
-          const dataA = new Date(a.createdAt).getTime();
-          const dataB = new Date(b.createdAt).getTime();
+          const dataA = a.dataCriacao;
+          const dataB = b.dataCriacao;
+          return direcao === 'asc' ? dataA - dataB : dataB - dataA;
+        });
+        break;
+
+      case 'ultimoModificado':
+        listasOrdenadas.sort((a, b) => {
+          const dataA = a.dataModificacao;
+          const dataB = b.dataModificacao;
           return direcao === 'asc' ? dataA - dataB : dataB - dataA;
         });
         break;

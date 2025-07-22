@@ -30,8 +30,8 @@ export default function ListasScreen() {
   const [listasFiltradas, setListasFiltradas] = useState<Lista[]>([]);
   const [loading, setLoading] = useState(true);
   const [textoBusca, setTextoBusca] = useState('');
-  const [ordenacaoTipo, setOrdenacaoTipo] = useState<OrdenacaoTipo>('alfabetica');
-  const [ordenacaoDirecao, setOrdenacaoDirecao] = useState<OrdenacaoDirecao>('asc');
+  const [ordenacaoTipo, setOrdenacaoTipo] = useState<OrdenacaoTipo>('ultimoModificado');
+  const [ordenacaoDirecao, setOrdenacaoDirecao] = useState<OrdenacaoDirecao>('desc');
   const [modalOrdenacao, setModalOrdenacao] = useState(false);
   
 
@@ -47,23 +47,13 @@ export default function ListasScreen() {
   const [novaCategoriaNome, setNovaCategoriaNome] = useState('');
   const [novaCategoriaCor, setNovaCategoriaCor] = useState('#007AFF');
   
+  // Novo estado para edição de categoria
+  const [categoriaEditando, setCategoriaEditando] = useState<any | null>(null);
+  const [modalEditarCategoria, setModalEditarCategoria] = useState(false);
+  const [nomeCategoriaEditando, setNomeCategoriaEditando] = useState('');
+  const [corCategoriaEditando, setCorCategoriaEditando] = useState('#007AFF');
 
-  const [modalImportacao, setModalImportacao] = useState(false);
-  const [arquivoImportado, setArquivoImportado] = useState<any>(null);
-  const [itensImportados, setItensImportados] = useState<Array<string | {
-    texto: string;
-    descricao?: string;
-    categoria?: string;
-    categorias?: string[];
-    tags?: string[];
-    prioridade?: number;
-    data?: string;
-    concluido?: boolean;
-    textoFormatado?: any[];
-  }>>([]);
-  const [nomeListaImportada, setNomeListaImportada] = useState('');
-  const [descricaoListaImportada, setDescricaoListaImportada] = useState('');
-  const [corListaImportada, setCorListaImportada] = useState('#007AFF');
+
 
   useFocusEffect(
     React.useCallback(() => {
@@ -171,6 +161,9 @@ export default function ListasScreen() {
         categorias: editandoCategorias,
       });
 
+      // Limpar formulário de edição
+      limparFormularioEdicao();
+      
       setModalEditarLista(false);
       setListaEditando(null);
       await carregarListas();
@@ -178,6 +171,19 @@ export default function ListasScreen() {
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível atualizar a lista');
     }
+  };
+
+  const limparFormularioEdicao = () => {
+    setEditandoNome('');
+    setEditandoDescricao('');
+    setEditandoCor('#007AFF');
+    setEditandoPermiteSelecaoAleatoria(true);
+    setEditandoCategorias([]);
+  };
+
+  const limparFormularioCategoria = () => {
+    setNovaCategoriaNome('');
+    setNovaCategoriaCor('#007AFF');
   };
 
   const adicionarCategoria = () => {
@@ -194,8 +200,7 @@ export default function ListasScreen() {
     };
 
     setEditandoCategorias([...editandoCategorias, novaCategoria]);
-    setNovaCategoriaNome('');
-    setNovaCategoriaCor('#007AFF');
+    limparFormularioCategoria();
     setModalCategoria(false);
   };
 
@@ -203,188 +208,8 @@ export default function ListasScreen() {
     setEditandoCategorias(editandoCategorias.filter(cat => cat.id !== id));
   };
 
-  // Funções para importação
-  const selecionarArquivo = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: [
-          'text/plain',
-          'application/json',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          'application/vnd.oasis.opendocument.text',
-          'application/rtf',
-          'application/pdf',
-        ],
-        copyToCacheDirectory: true,
-        multiple: false,
-      });
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const arquivo = result.assets[0];
-        setArquivoImportado(arquivo);
-        
-        // Extrair nome do arquivo sem extensão
-        const nomeArquivo = arquivo.name.replace(/\.[^/.]+$/, ''); 
-        setNomeListaImportada(nomeArquivo);
-
-        await processarArquivo(arquivo);
-      }
-    } catch (error) {
-      console.error('Erro ao selecionar arquivo:', error);
-      Alert.alert('Erro', 'Não foi possível selecionar o arquivo. Verifique se o arquivo é válido.');
-    }
-  };
-
-  const processarArquivo = async (arquivo: any) => {
-    try {
-      // Verificar se o arquivo tem URI válida
-      if (!arquivo.uri) {
-        Alert.alert('Erro', 'Arquivo inválido');
-        return;
-      }
-
-      const conteudo = await FileSystem.readAsStringAsync(arquivo.uri, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
-      
-      if (!conteudo || conteudo.trim().length === 0) {
-        Alert.alert('Erro', 'O arquivo está vazio');
-        return;
-      }
-
-      // Determinar tipo do arquivo baseado na extensão
-      const extensao = arquivo.name.split('.').pop()?.toLowerCase() || 'txt';
-      
-      try {
-        // Usar o novo sistema de processamento de arquivos
-        const dadosProcessados = await SyncService.processarArquivo(conteudo, extensao);
-        
-        setItensImportados(dadosProcessados.itens);
-        setNomeListaImportada(dadosProcessados.nome || nomeListaImportada);
-        setDescricaoListaImportada(dadosProcessados.descricao || '');
-        setCorListaImportada(dadosProcessados.cor || '#007AFF');
-        
-        if (dadosProcessados.itens.length === 0) {
-          Alert.alert('Aviso', 'Nenhum item foi encontrado no arquivo. Verifique se o arquivo contém itens válidos.');
-        }
-      } catch (error) {
-        console.error('Erro ao processar arquivo:', error);
-        // Fallback para o método antigo
-        const itens = extrairItensDoTexto(conteudo);
-      setItensImportados(itens);
-      
-      if (itens.length === 0) {
-        Alert.alert('Aviso', 'Nenhum item foi encontrado no arquivo. Verifique se o arquivo contém itens válidos.');
-        }
-      }
-    } catch (error) {
-      console.error('Erro ao processar arquivo:', error);
-      Alert.alert('Erro', 'Não foi possível ler o arquivo. Verifique se o arquivo não está corrompido.');
-    }
-  };
-
-  const extrairItensDoTexto = (texto: string): string[] => {
-    // Normalizar quebras de linha
-    const textoNormalizado = texto.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    
-    // Dividir por linhas e filtrar linhas vazias
-    const linhas = textoNormalizado.split('\n')
-      .map(linha => linha.trim())
-      .filter(linha => linha.length > 0);
-
-    // Padrões comuns para identificar itens de lista
-    const itens: string[] = [];
-    
-    linhas.forEach(linha => {
-      // Remove marcadores comuns de lista
-      const itemLimpo = linha
-        .replace(/^[-•*]\s*/, '') // Remove hífen, bullet, asterisco
-        .replace(/^\d+\.\s*/, '') // Remove numeração
-        .replace(/^[a-zA-Z]\.\s*/, '') // Remove letras com ponto
-        .replace(/^[•▪▫◦‣⁃]\s*/, '') // Remove outros bullets Unicode
-        .trim();
-
-      if (itemLimpo.length > 0) {
-        itens.push(itemLimpo);
-      }
-    });
-
-    return itens;
-  };
-
-  const criarListaImportada = async () => {
-    if (!nomeListaImportada.trim() || itensImportados.length === 0) {
-      Alert.alert('Erro', 'Nome da lista e pelo menos um item são obrigatórios');
-      return;
-    }
-
-    try {
-      // Criar a lista primeiro
-      const novaLista = await StorageService.adicionarLista({
-        nome: nomeListaImportada.trim(),
-        descricao: descricaoListaImportada.trim() || undefined,
-        cor: corListaImportada,
-        icone: 'list',
-        dataCriacao: Date.now(),
-        dataModificacao: Date.now(),
-        permiteSelecaoAleatoria: true,
-        itens: [],
-        categorias: [],
-      });
-
-      // Adicionar os itens importados
-      for (const item of itensImportados) {
-        if (typeof item === 'string') {
-          // Item simples como string
-          const textoProcessado = DocumentProcessor.processarTextoComFormatacao(item.trim());
-        
-        await StorageService.adicionarItem(novaLista.id, {
-          texto: textoProcessado.texto,
-          textoFormatado: textoProcessado.formato,
-          descricao: undefined,
-          categoria: undefined,
-        });
-        } else {
-          // Item estruturado com descrição e categoria
-          const textoProcessado = DocumentProcessor.processarTextoComFormatacao(item.texto.trim());
-          
-          await StorageService.adicionarItem(novaLista.id, {
-            texto: textoProcessado.texto,
-            textoFormatado: textoProcessado.formato,
-            descricao: item.descricao,
-            categoria: item.categoria,
-            categorias: item.categorias,
-            tags: item.tags,
-            prioridade: item.prioridade,
-            data: item.data,
-            concluido: item.concluido,
-          });
-        }
-      }
-
-      // Limpar estados
-      setModalImportacao(false);
-      setArquivoImportado(null);
-      setItensImportados([]);
-      setNomeListaImportada('');
-      setDescricaoListaImportada('');
-      setCorListaImportada('#007AFF');
-
-      await carregarListas();
-      Alert.alert('Sucesso', `Lista "${nomeListaImportada}" criada com ${itensImportados.length} itens!`);
-    } catch (error) {
-      Alert.alert('Erro', 'Não foi possível criar a lista importada');
-    }
-  };
-
-  const limparImportacao = () => {
-    setModalImportacao(false);
-    setArquivoImportado(null);
-    setItensImportados([]);
-    setNomeListaImportada('');
-    setDescricaoListaImportada('');
-    setCorListaImportada('#007AFF');
-  };
+  // Remover funções e estados relacionados à importação de arquivos, seleção de arquivo, processamento de arquivo importado, e criação de lista importada.
+  // Remover botões e modais de importação/exportação de arquivos.
 
   const renderItem = ({ item }: { item: Lista }) => (
     <TouchableOpacity
@@ -526,18 +351,8 @@ export default function ListasScreen() {
                 Suas Listas ({listasFiltradas.length})
               </Text>
                             <View style={styles.headerAcoes}>
-                <TouchableOpacity
-                  style={[styles.btnImportar, { backgroundColor: colors.accent }]}
-                  onPress={() => setModalImportacao(true)}
-                >
-                  <MaterialIcons name="file-upload" size={20} color={colors.primary} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.btnAdicionar, { backgroundColor: colors.accent }]}
-                  onPress={() => router.push('/criar-lista')}
-                >
-                  <MaterialIcons name="add" size={24} color={colors.primary} />
-                </TouchableOpacity>
+                {/* Remover funções e estados relacionados à importação de arquivos, seleção de arquivo, processamento de arquivo importado, e criação de lista importada.
+                Remover botões e modais de importação/exportação de arquivos. */}
               </View>
             </View>
 
@@ -631,6 +446,28 @@ export default function ListasScreen() {
                   Quantidade de Itens
                 </Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.opcaoOrdenacao,
+                  ordenacaoTipo === 'ultimoModificado' && styles.opcaoSelecionada
+                ]}
+                onPress={() => handleOrdenacao('ultimoModificado', ordenacaoDirecao)}
+              >
+                <MaterialIcons 
+                  name="update" 
+                  size={20} 
+                  color={ordenacaoTipo === 'ultimoModificado' ? colors.primary : colors.textSecondary}
+                />
+                <Text style={[
+                  styles.opcaoTexto,
+                  { color: colors.text },
+                  typography.subtitle,
+                  ordenacaoTipo === 'ultimoModificado' && styles.opcaoTextoSelecionada
+                ]}>
+                  Último Modificado
+                </Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.direcaoContainer}>
@@ -692,7 +529,10 @@ export default function ListasScreen() {
         visible={modalEditarLista}
         transparent
         animationType="slide"
-        onRequestClose={() => setModalEditarLista(false)}
+        onRequestClose={() => {
+          setModalEditarLista(false);
+          limparFormularioEdicao();
+        }}
       >
         <View style={styles.modalOverlay}>
           <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
@@ -811,7 +651,10 @@ export default function ListasScreen() {
               <View style={styles.modalEditarBotoes}>
                 <TouchableOpacity
                   style={styles.btnCancelar}
-                  onPress={() => setModalEditarLista(false)}
+                  onPress={() => {
+                    setModalEditarLista(false);
+                    limparFormularioEdicao();
+                  }}
                 >
                   <Text style={styles.btnCancelarText}>Cancelar</Text>
                 </TouchableOpacity>
@@ -832,7 +675,10 @@ export default function ListasScreen() {
         visible={modalCategoria}
         transparent
         animationType="fade"
-        onRequestClose={() => setModalCategoria(false)}
+        onRequestClose={() => {
+          setModalCategoria(false);
+          limparFormularioCategoria();
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
@@ -880,7 +726,10 @@ export default function ListasScreen() {
             <View style={styles.modalBotoes}>
               <TouchableOpacity
                 style={styles.btnCancelar}
-                onPress={() => setModalCategoria(false)}
+                onPress={() => {
+                  setModalCategoria(false);
+                  limparFormularioCategoria();
+                }}
               >
                 <Text style={styles.btnCancelarText}>Cancelar</Text>
               </TouchableOpacity>
@@ -897,10 +746,10 @@ export default function ListasScreen() {
 
       {/* Modal de Importação */}
       <Modal
-        visible={modalImportacao}
+        visible={false} // Remover modal de importação
         transparent
         animationType="slide"
-        onRequestClose={limparImportacao}
+        onRequestClose={() => {}} // Remover função de limpar importação
       >
         <View style={styles.modalOverlay}>
           <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
@@ -920,122 +769,125 @@ export default function ListasScreen() {
                 </Text>
                 <TouchableOpacity
                   style={[styles.btnSelecionarArquivo, { backgroundColor: colors.accent }]}
-                  onPress={selecionarArquivo}
+                  onPress={() => {}} // Remover função de selecionar arquivo
                 >
                   <MaterialIcons name="file-upload" size={24} color={colors.primary} />
                   <Text style={[styles.btnSelecionarArquivoText, { color: colors.text }, typography.body]}>
-                    {arquivoImportado ? arquivoImportado.name : 'Escolher arquivo'}
+                    Escolher arquivo
                   </Text>
                 </TouchableOpacity>
               </View>
 
               {/* Informações da Lista */}
-              {arquivoImportado && (
-                <>
-                  <View style={styles.editarGrupo}>
-                    <Text style={[styles.editarLabel, { color: colors.text }, typography.subtitleBold]}>
-                      Nome da Lista *
-                    </Text>
-                    <TextInput
-                      style={[styles.editarInput, { 
-                        backgroundColor: colors.accent,
-                        color: colors.text,
-                        borderColor: colors.border
-                      }]}
-                      value={nomeListaImportada}
-                      onChangeText={setNomeListaImportada}
-                      placeholder="Digite o nome da lista"
-                      placeholderTextColor={getPlaceholderColor(isDarkMode)}
-                      maxLength={50}
-                    />
-                  </View>
-
-                  <View style={styles.editarGrupo}>
-                    <Text style={[styles.editarLabel, { color: colors.text }, typography.subtitleBold]}>
-                      Descrição (opcional)
-                    </Text>
-                    <TextInput
-                      style={[styles.editarInput, styles.editarTextArea, { 
-                        backgroundColor: colors.accent,
-                        color: colors.text,
-                        borderColor: colors.border
-                      }]}
-                      value={descricaoListaImportada}
-                      onChangeText={setDescricaoListaImportada}
-                      placeholder="Digite uma descrição para a lista"
-                      placeholderTextColor={getPlaceholderColor(isDarkMode)}
-                      multiline
-                      numberOfLines={3}
-                      maxLength={200}
-                    />
-                  </View>
-
-                  <View style={styles.editarGrupo}>
-                    <Text style={[styles.editarLabel, { color: colors.text }, typography.subtitleBold]}>
-                      Cor da Lista
-                    </Text>
-                    <View style={styles.coresContainer}>
-                      {['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#AF52DE', '#5856D6', '#FF2D92', '#5AC8FA', '#FFCC02', '#FF6B35'].map((cor) => (
-                        <TouchableOpacity
-                          key={cor}
-                          style={[
-                            styles.corItem,
-                            { backgroundColor: cor },
-                            corListaImportada === cor && styles.corSelecionada,
-                          ]}
-                          onPress={() => setCorListaImportada(cor)}
-                        >
-                          {corListaImportada === cor && (
-                            <MaterialIcons name="check" size={16} color="#fff" />
-                          )}
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-
-                  {/* Preview dos Itens */}
-                  {itensImportados.length > 0 && (
-                    <View style={styles.editarGrupo}>
-                      <Text style={[styles.editarLabel, { color: colors.text }, typography.subtitleBold]}>
-                        Itens Encontrados ({itensImportados.length})
-                      </Text>
-                      <View style={[styles.previewContainer, { backgroundColor: colors.accent }]}>
-                        <ScrollView style={styles.previewScroll} showsVerticalScrollIndicator={false}>
-                          {itensImportados.slice(0, 10).map((item, index) => (
-                            <Text key={index} style={[styles.previewItem, { color: colors.text }, typography.body]}>
-                              • {typeof item === 'string' ? item : item.texto}
-                            </Text>
-                          ))}
-                          {itensImportados.length > 10 && (
-                            <Text style={[styles.previewMore, { color: colors.textSecondary }, typography.caption]}>
-                              ... e mais {itensImportados.length - 10} itens
-                            </Text>
-                          )}
-                        </ScrollView>
-                      </View>
-                    </View>
-                  )}
-                </>
-              )}
+              {/* Remover estados e lógica de importação */}
+              {/* Remover botões e modais de importação/exportação de arquivos. */}
 
               {/* Botões */}
               <View style={styles.modalEditarBotoes}>
                 <TouchableOpacity
                   style={styles.btnCancelar}
-                  onPress={limparImportacao}
+                  onPress={() => {}} // Remover função de limpar importação
                 >
                   <Text style={styles.btnCancelarText}>Cancelar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.btnSalvar, { opacity: arquivoImportado && itensImportados.length > 0 ? 1 : 0.5 }]}
-                  onPress={criarListaImportada}
-                  disabled={!arquivoImportado || itensImportados.length === 0}
+                  style={[styles.btnSalvar, { opacity: 0.5 }]} // Remover botão de criar lista importada
+                  onPress={() => {}}
+                  disabled={true}
                 >
                   <Text style={styles.btnSalvarText}>Criar Lista</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Modal de edição de categoria */}
+      <Modal
+        visible={modalEditarCategoria}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalEditarCategoria(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}> 
+            <Text style={[styles.modalTitle, { color: colors.text }, typography.titleMedium]}>
+              Editar Categoria
+            </Text>
+            <Text style={[styles.editarLabel, { color: colors.text }, typography.subtitleBold]}>
+              Nome da Categoria
+            </Text>
+            <TextInput
+              style={[styles.editarInput, { backgroundColor: colors.accent, color: colors.text, borderColor: colors.border }]}
+              placeholder="Digite o nome da categoria"
+              placeholderTextColor={getPlaceholderColor(isDarkMode)}
+              value={nomeCategoriaEditando}
+              onChangeText={setNomeCategoriaEditando}
+              maxLength={30}
+            />
+            <Text style={[styles.editarLabel, { color: colors.text }, typography.subtitleBold]}>
+              Cor da Categoria
+            </Text>
+            <View style={styles.coresContainer}>
+              {['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#AF52DE', '#5856D6', '#FF2D92', '#5AC8FA', '#FFCC02', '#FF6B35'].map((cor) => (
+                <TouchableOpacity
+                  key={cor}
+                  style={[
+                    styles.corItem,
+                    { backgroundColor: cor },
+                    corCategoriaEditando === cor && styles.corSelecionada,
+                  ]}
+                  onPress={() => setCorCategoriaEditando(cor)}
+                >
+                  {corCategoriaEditando === cor && (
+                    <MaterialIcons name="check" size={16} color="#fff" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.modalBotoes}>
+              <TouchableOpacity
+                style={styles.btnCancelar}
+                onPress={() => setModalEditarCategoria(false)}
+              >
+                <Text style={styles.btnCancelarText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.btnSalvar}
+                onPress={() => {
+                  if (!nomeCategoriaEditando.trim()) return;
+                  // Atualizar categoria na lista
+                  setEditandoCategorias(editandoCategorias.map(cat =>
+                    cat.id === categoriaEditando.id
+                      ? { ...cat, nome: nomeCategoriaEditando.trim(), cor: corCategoriaEditando }
+                      : cat
+                  ));
+                  // Atualizar categoria nos itens da lista editando
+                  setListas(listasAntigas => listasAntigas.map(lista => {
+                    if (listaEditando && lista.id === listaEditando.id) {
+                      return {
+                        ...lista,
+                        categorias: lista.categorias.map(cat =>
+                          cat.id === categoriaEditando.id
+                            ? { ...cat, nome: nomeCategoriaEditando.trim(), cor: corCategoriaEditando }
+                            : cat
+                        ),
+                        itens: lista.itens.map(item => {
+                          // Se o item tem essa categoria, não precisa mudar nada pois só nome/cor mudam
+                          return { ...item };
+                        })
+                      };
+                    }
+                    return lista;
+                  }));
+                  setModalEditarCategoria(false);
+                }}
+              >
+                <Text style={styles.btnSalvarText}>Salvar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
     </View>
@@ -1509,6 +1361,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontStyle: 'italic',
     marginTop: 8,
+  },
+  // Estilo para botão de editar categoria
+  btnEditarCategoria: {
+    padding: 4,
+    marginRight: 4,
   },
 
 }); 

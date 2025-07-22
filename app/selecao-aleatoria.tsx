@@ -76,7 +76,24 @@ export default function SelecaoAleatoriaScreen() {
     setItemSelecionado(null);
     setMostrarResultado(false);
     setModalSelecaoAleatoria(false);
+    setSelecionando(false);
+    setAnimandoSelecao(false);
   };
+
+
+  function getNomesCategorias(item: Item): string | null {
+    if (!lista) return null;
+    if (item.categorias && Array.isArray(item.categorias) && item.categorias.length > 0) {
+      const nomes = item.categorias
+        .map(catId => lista.categorias.find(cat => cat.id === catId)?.nome)
+        .filter(Boolean);
+      return nomes.length > 0 ? nomes.join(', ') : null;
+    } else if (item.categoria) {
+      const cat = lista.categorias.find(cat => cat.id === item.categoria);
+      return cat ? cat.nome : null;
+    }
+    return null;
+  }
 
   if (loading) {
     return (
@@ -190,10 +207,10 @@ export default function SelecaoAleatoriaScreen() {
                 </Text>
               )}
               
-              {itemSelecionado.categoria && (
+              {getNomesCategorias(itemSelecionado) && (
                 <View style={styles.itemSelecionadoCategoria}>
                   <Text style={[styles.itemSelecionadoCategoriaText, { color: colors.textSecondary }, typography.caption]}>
-                    Categoria: {itemSelecionado.categoria}
+                    Categoria: {getNomesCategorias(itemSelecionado)}
                   </Text>
                 </View>
               )}
@@ -207,6 +224,15 @@ export default function SelecaoAleatoriaScreen() {
                 Nova Seleção
               </Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.btnLimparSelecao, { backgroundColor: colors.secondary }]}
+                onPress={reiniciarSelecao}
+              >
+                <Text style={[styles.btnLimparSelecaoText, typography.body]}>
+                  Limpar Seleção
+                </Text>
+              </TouchableOpacity>
           </View>
         )}
       </View>
@@ -216,7 +242,10 @@ export default function SelecaoAleatoriaScreen() {
         visible={modalSelecaoAleatoria}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setModalSelecaoAleatoria(false)}
+        onRequestClose={() => {
+          setModalSelecaoAleatoria(false);
+          reiniciarSelecao();
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
@@ -243,10 +272,10 @@ export default function SelecaoAleatoriaScreen() {
                   </Text>
                 )}
                 
-                {itemSelecionado.categoria && (
+                {getNomesCategorias(itemSelecionado) && (
                   <View style={styles.itemSelecionadoCategoria}>
                     <Text style={[styles.itemSelecionadoCategoriaText, { color: colors.textSecondary }, typography.caption]}>
-                      Categoria: {itemSelecionado.categoria}
+                      Categoria: {getNomesCategorias(itemSelecionado)}
                     </Text>
                   </View>
                 )}
@@ -256,10 +285,22 @@ export default function SelecaoAleatoriaScreen() {
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.btnCancelar}
-                onPress={() => setModalSelecaoAleatoria(false)}
+                onPress={() => {
+                  setModalSelecaoAleatoria(false);
+                  reiniciarSelecao();
+                }}
               >
                 <Text style={styles.btnCancelarText}>Fechar</Text>
               </TouchableOpacity>
+              
+              {!animandoSelecao && itemSelecionado && (
+                <TouchableOpacity
+                  style={styles.btnLimpar}
+                  onPress={reiniciarSelecao}
+                >
+                  <Text style={styles.btnLimparText}>Limpar</Text>
+                </TouchableOpacity>
+              )}
               
               {!animandoSelecao && (
                 <TouchableOpacity
@@ -426,6 +467,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  btnLimparSelecao: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  btnLimparSelecaoText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -458,6 +511,19 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   btnCancelarText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  btnLimpar: {
+    flex: 1,
+    backgroundColor: '#FF9500',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  btnLimparText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
