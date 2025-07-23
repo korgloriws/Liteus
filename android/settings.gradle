@@ -22,7 +22,7 @@ plugins {
   id("expo-autolinking-settings")
 }
 
-rootProject.name = 'liteus'
+rootProject.name = 'Liteus'
 
 extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
   if (System.getenv('EXPO_USE_COMMUNITY_AUTOLINKING') == '1') {

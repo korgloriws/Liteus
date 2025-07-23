@@ -23,6 +23,12 @@ import { DocumentProcessor } from '../services/documentProcessor';
 import { useTheme } from '../services/ThemeContext';
 import { SyncService } from '../services/syncService';
 import { getPlaceholderColor } from '../services/theme';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+
+GoogleSignin.configure({
+  webClientId: '427785870854-mlldubftlqtcbvvpb03o87h88r5a97i0.apps.googleusercontent.com', // Substitua pelo seu client_id do google-services.json se necessário
+  offlineAccess: true,
+});
 
 export default function ListasScreen() {
   const { isDarkMode, colors, typography } = useTheme();

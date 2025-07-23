@@ -20,12 +20,8 @@ import { SyncService } from '../services/syncService';
 import { useTheme } from '../services/ThemeContext';
 import { getPlaceholderColor } from '../services/theme';
 import Constants from 'expo-constants';
-import * as WebBrowser from 'expo-web-browser';
-import { useAuthRequest } from 'expo-auth-session/providers/google';
-import { makeRedirectUri } from 'expo-auth-session';
+import { GoogleSignin, User } from '@react-native-google-signin/google-signin';
 import { googleDriveService } from '../services/googleDriveService';
-
-WebBrowser.maybeCompleteAuthSession();
 
 
 const isExpoGo = Constants.appOwnership === 'expo';
@@ -39,9 +35,11 @@ const GOOGLE_CLIENT_ID_ANDROID = '427785870854-mlldubftlqtcbvvpb03o87h88r5a97i0.
 const GOOGLE_CLIENT_ID = isExpoGo ? GOOGLE_CLIENT_ID_WEB : GOOGLE_CLIENT_ID_ANDROID;
 const GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 
+const AUTH_MODE_KEY = '@liteus_auth_mode'; // 'google' | 'local'
+
 export default function ConfiguracoesScreen() {
   const { isDarkMode, setDarkMode, colors, typography } = useTheme();
-  const [versao] = useState('1.0.7');
+  const [versao] = useState('1.0.8');
   const [listas, setListas] = useState<Lista[]>([]);
   const [modalSincronizacao, setModalSincronizacao] = useState(false);
   const [dadosSincronizacao, setDadosSincronizacao] = useState('');
@@ -50,24 +48,31 @@ export default function ConfiguracoesScreen() {
   const [conteudoGoogleDocs, setConteudoGoogleDocs] = useState('');
   const [dadosJSON, setDadosJSON] = useState('');
   const [tipoArquivoSelecionado, setTipoArquivoSelecionado] = useState('auto');
-  const [googleUser, setGoogleUser] = useState<any>(null);
+  const [authMode, setAuthMode] = useState<'google' | 'local' | null>(null);
+  const [googleUser, setGoogleUser] = useState<User | null>(null);
   const [syncStatus, setSyncStatus] = useState<{ lastSync: string | null; hasData: boolean } | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
 
 
-  const [request, response, promptAsync] = useAuthRequest({
-    clientId: GOOGLE_CLIENT_ID,
-    scopes: ['profile', 'email', GOOGLE_DRIVE_SCOPE],
-    redirectUri: makeRedirectUri(),
-
-    responseType: 'token',
-    extraParams: {
-      access_type: 'offline',
-      prompt: 'consent',
-    },
-  });
+  useEffect(() => {
+    // Detecta modo de autenticação salvo
+    AsyncStorage.getItem(AUTH_MODE_KEY).then(mode => {
+      if (mode === 'google') {
+        setAuthMode('google');
+        const user = GoogleSignin.getCurrentUser();
+        setGoogleUser(user);
+        // Não inicializar Google Drive aqui, pois não temos accessToken
+      } else if (mode === 'local') {
+        setAuthMode('local');
+        setGoogleUser(null);
+      } else {
+        setAuthMode(null);
+        setGoogleUser(null);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     // Tenta restaurar sessão Google ao abrir configurações
@@ -88,6 +93,23 @@ export default function ConfiguracoesScreen() {
     });
   }, []);
 
+  // Após login Google nativo, obter accessToken e inicializar Google Drive
+  useEffect(() => {
+    if (authMode === 'google' && googleUser) {
+      (async () => {
+        try {
+          const tokens = await GoogleSignin.getTokens();
+          if (tokens.accessToken) {
+            await googleDriveService.initialize(tokens.accessToken);
+            await checkSyncStatus();
+          }
+        } catch (error) {
+          setSyncError('Falha ao inicializar Google Drive.');
+        }
+      })();
+    }
+  }, [authMode, googleUser]);
+
   const initializeGoogleDrive = async (accessToken: string) => {
     try {
       await googleDriveService.initialize(accessToken);
@@ -107,88 +129,47 @@ export default function ConfiguracoesScreen() {
     }
   };
 
-  useEffect(() => {
-    if (response?.type === 'success' && response.authentication && typeof response.authentication.accessToken === 'string') {
-      setIsSyncing(true);
-      setLoginError(null);
-      const accessToken = response.authentication.accessToken;
-      
-      fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      })
-        .then(res => {
-          if (!res.ok) throw new Error('Falha ao buscar dados do usuário');
-          return res.json();
-        })
-        .then(async (userInfo) => {
-          const user = { 
-            ...userInfo, 
-            accessToken,
-            loginMethod: isExpoGo ? 'web' : 'native',
-            loginTime: new Date().toISOString()
-          };
-          setGoogleUser(user);
-          await AsyncStorage.setItem('googleUser', JSON.stringify(user));
-          
-          // Inicializar Google Drive após login bem-sucedido
-          await initializeGoogleDrive(accessToken);
-          
-          Alert.alert('Sucesso', 'Login Google realizado!');
-        })
-        .catch((error) => {
-          console.error('Erro no login Google:', error);
-          setLoginError('Falha ao autenticar com Google. Tente novamente.');
-          Alert.alert('Erro', 'Falha ao autenticar com Google. Verifique sua conexão e tente novamente.');
-        })
-        .finally(() => setIsSyncing(false));
-    } else if (response?.type === 'error') {
-      setLoginError('Login cancelado ou falhou. Tente novamente.');
-      setIsSyncing(false);
-    }
-  }, [response]);
-
   const handleLoginGoogle = async () => {
-    if (!request) {
-      Alert.alert('Erro', 'Sistema de login não está pronto. Tente novamente.');
-      return;
-    }
-
-    setIsSyncing(true);
-    setLoginError(null);
-    
     try {
-      await promptAsync();
-    } catch (error) {
-      console.error('Erro ao iniciar login Google:', error);
-      setLoginError('Erro ao iniciar login. Tente novamente.');
-      Alert.alert('Erro', 'Não foi possível iniciar o login Google.');
-      setIsSyncing(false);
+      const response = await GoogleSignin.signIn();
+      if (response && response.type === 'success') {
+        setGoogleUser(response.data);
+        setAuthMode('google');
+        await AsyncStorage.setItem(AUTH_MODE_KEY, 'google');
+        Alert.alert('Sucesso', 'Login Google realizado!');
+      }
+    } catch (error: any) {
+      if (error.code === 'SIGN_IN_CANCELLED') {
+        // cancelado pelo usuário
+      } else {
+        setLoginError('Falha ao autenticar com Google. Tente novamente.');
+        Alert.alert('Erro', 'Falha ao autenticar com Google. Verifique sua conexão e tente novamente.');
+      }
     }
   };
 
   const handleSyncData = async () => {
-    if (!googleUser?.accessToken) {
+    if (!googleUser) {
       Alert.alert('Erro', 'Você precisa estar logado para sincronizar.');
       return;
     }
-
     setIsSyncing(true);
     setSyncError(null);
-
     try {
+      const tokens = await GoogleSignin.getTokens();
+      if (tokens.accessToken) {
+        await googleDriveService.initialize(tokens.accessToken);
+      }
       const result = await googleDriveService.syncData();
       await checkSyncStatus();
-      
       let message = 'Sincronização concluída!';
       if (result.uploaded && result.downloaded) {
         message += ' Dados enviados e recebidos do Google Drive.';
       } else if (result.uploaded) {
         message += ' Dados enviados para o Google Drive.';
       }
-      
       Alert.alert('Sucesso', message);
     } catch (error) {
-      console.error('Erro na sincronização:', error);
       setSyncError('Falha na sincronização. Tente novamente.');
       Alert.alert('Erro', 'Falha na sincronização. Verifique sua conexão e tente novamente.');
     } finally {
@@ -256,15 +237,27 @@ export default function ConfiguracoesScreen() {
     );
   };
 
-  const logoutGoogle = async () => {
+  const handleGoogleLogout = async () => {
     try {
+      await GoogleSignin.signOut();
       setGoogleUser(null);
-      await AsyncStorage.removeItem('googleUser');
-      Alert.alert('Logout', 'Você saiu da conta Google.');
+      setAuthMode('local');
+      await AsyncStorage.setItem(AUTH_MODE_KEY, 'local');
+      Alert.alert('Logout', 'Você saiu da conta Google. Agora está no modo offline/local.');
     } catch (error) {
-      console.error('Erro no logout:', error);
-      Alert.alert('Erro', 'Erro ao fazer logout.');
+      Alert.alert('Erro', 'Erro ao fazer logout do Google.');
     }
+  };
+
+  const handleSwitchToGoogle = async () => {
+    Alert.alert('Trocar para Google', 'Para logar com Google, saia e entre novamente pelo menu principal.');
+  };
+
+  const handleSwitchToLocal = async () => {
+    setAuthMode('local');
+    setGoogleUser(null);
+    await AsyncStorage.setItem(AUTH_MODE_KEY, 'local');
+    Alert.alert('Modo Local', 'Agora você está usando o app no modo offline/local.');
   };
 
   return (
@@ -350,37 +343,40 @@ export default function ConfiguracoesScreen() {
             </Text>
           )}
           
-          {/* Botão de Login com Google */}
-          {!googleUser && (
-            <TouchableOpacity style={styles.optionItem} onPress={handleLoginGoogle} disabled={isSyncing || !request}>
-              <MaterialIcons name="login" size={24} color="#4285F4" />
-              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>
-                {isSyncing ? 'Conectando...' : 'Login com Google'}
-              </Text>
-            </TouchableOpacity>
-          )}
-          
-          {/* Exibe status e botão de logout se logado */}
-          {googleUser && (
+          {/* Status do login Google nativo */}
+          {authMode === 'google' && googleUser && (
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-              <Image source={{ uri: googleUser.picture }} style={{ width: 32, height: 32, borderRadius: 16, marginRight: 8 }} />
+              {googleUser.user.photo && (
+                <Image source={{ uri: googleUser.user.photo }} style={{ width: 32, height: 32, borderRadius: 16, marginRight: 8 }} />
+              )}
               <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.text }}>Logado como {googleUser.name || googleUser.email}</Text>
-                {isDevelopment && (
-                  <Text style={{ color: colors.textSecondary, fontSize: 10 }}>
-                    Método: {googleUser.loginMethod || 'web'}
-                  </Text>
-                )}
+                <Text style={{ color: colors.text }}>Logado como {googleUser.user.name || googleUser.user.email}</Text>
               </View>
-              <TouchableOpacity style={[styles.optionItem, { backgroundColor: '#eee' }]} onPress={logoutGoogle}>
+              <TouchableOpacity style={[styles.optionItem, { backgroundColor: '#eee' }]} onPress={handleGoogleLogout}>
                 <MaterialIcons name="logout" size={20} color={colors.primary} />
                 <Text style={{ color: colors.primary, marginLeft: 4 }}>Logout</Text>
               </TouchableOpacity>
             </View>
           )}
-          
-          {/* Botões de sincronização (apenas se logado) */}
-          {googleUser && (
+
+          {/* Botão para trocar para modo local/offline */}
+          {authMode === 'google' && (
+            <TouchableOpacity style={styles.optionItem} onPress={handleSwitchToLocal}>
+              <MaterialIcons name="smartphone" size={20} color={colors.text} />
+              <Text style={[styles.optionText, { color: colors.text }, typography.bodyBold]}>Usar sem login (offline/local)</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Botão para trocar para Google (caso esteja em modo local) */}
+          {authMode === 'local' && (
+            <TouchableOpacity style={styles.optionItem} onPress={handleSwitchToGoogle}>
+              <MaterialIcons name="account-circle" size={24} color={colors.text} />
+              <Text style={[styles.optionText, { color: colors.text }, typography.button]}>Entrar com Google</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Sincronização só aparece se logado com Google */}
+          {authMode === 'google' && googleUser && (
             <>
               <TouchableOpacity style={styles.optionItem} onPress={handleSyncData} disabled={isSyncing}>
                 <MaterialIcons name="sync" size={24} color="#34C759" />
