@@ -41,6 +41,7 @@ export default function ListaDetalhesScreen() {
   const [ordenacaoTipo, setOrdenacaoTipo] = useState<OrdenacaoTipo>('ultimoModificado');
   const [ordenacaoDirecao, setOrdenacaoDirecao] = useState<OrdenacaoDirecao>('desc');
   const [modalSelecaoAleatoria, setModalSelecaoAleatoria] = useState(false);
+  const [modalOpcoesAleatoria, setModalOpcoesAleatoria] = useState(false);
   const [itemSelecionado, setItemSelecionado] = useState<Item | null>(null);
   const [animandoSelecao, setAnimandoSelecao] = useState(false);
 
@@ -200,16 +201,16 @@ export default function ListaDetalhesScreen() {
     setOrdenacaoDirecao(ordenacaoDirecao === 'asc' ? 'desc' : 'asc');
   };
 
-  const selecionarAleatoriamente = () => {
+  const selecionarAleatoriamente = (excluirConcluidos: boolean = false) => {
     if (!lista || lista.itens.length === 0) {
       Alert.alert('Aviso', 'Não há itens na lista para selecionar');
       return;
     }
 
-
     let itensFiltrados = lista.itens;
     let filtrosAtivos = [];
     
+    // Filtrar por busca
     if (textoBusca) {
       itensFiltrados = itensFiltrados.filter(item => 
         item.texto.toLowerCase().includes(textoBusca.toLowerCase())
@@ -217,6 +218,7 @@ export default function ListaDetalhesScreen() {
       filtrosAtivos.push(`Busca: "${textoBusca}"`);
     }
     
+    // Filtrar por categoria
     if (filtroCategoria) {
       const categoriaSelecionada = lista.categorias.find(cat => cat.id === filtroCategoria);
       itensFiltrados = itensFiltrados.filter(item => 
@@ -227,15 +229,19 @@ export default function ListaDetalhesScreen() {
       }
     }
 
+    // Filtrar itens concluídos se solicitado
+    if (excluirConcluidos) {
+      const itensAntes = itensFiltrados.length;
+      itensFiltrados = itensFiltrados.filter(item => !item.concluido);
+      const itensRemovidos = itensAntes - itensFiltrados.length;
+      if (itensRemovidos > 0) {
+        filtrosAtivos.push(`Excluídos ${itensRemovidos} itens concluídos`);
+      }
+    }
+
     if (itensFiltrados.length === 0) {
       Alert.alert('Aviso', 'Nenhum item encontrado com os filtros ativos');
       return;
-    }
-
-    // Mostrar informação sobre filtros aplicados
-    let mensagemFiltros = '';
-    if (filtrosAtivos.length > 0) {
-      mensagemFiltros = `\n\nFiltros aplicados:\n${filtrosAtivos.join('\n')}\n\nItens disponíveis: ${itensFiltrados.length}`;
     }
 
     setAnimandoSelecao(true);
@@ -388,7 +394,7 @@ export default function ListaDetalhesScreen() {
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={styles.btnExportar}
-            onPress={selecionarAleatoriamente}
+            onPress={() => setModalOpcoesAleatoria(true)}
           >
             <MaterialIcons name="casino" size={24} color="#fff" />
           </TouchableOpacity>
@@ -795,6 +801,67 @@ export default function ListaDetalhesScreen() {
         </View>
       </Modal>
 
+      {/* Modal de Opções de Seleção Aleatória */}
+      <Modal
+        visible={modalOpcoesAleatoria}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setModalOpcoesAleatoria(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }, typography.titleLarge]}>
+              Opções de Seleção Aleatória
+            </Text>
+            
+            <View style={styles.opcoesContainer}>
+              <TouchableOpacity
+                style={[styles.opcaoItem, { backgroundColor: colors.accent }]}
+                onPress={() => {
+                  setModalOpcoesAleatoria(false);
+                  selecionarAleatoriamente(false);
+                }}
+              >
+                <MaterialIcons name="casino" size={24} color={colors.primary} />
+                <View style={styles.opcaoContent}>
+                  <Text style={[styles.opcaoTitle, { color: colors.text }, typography.titleMedium]}>
+                    Incluir todos os itens
+                  </Text>
+                  <Text style={[styles.opcaoSubtitle, { color: colors.textSecondary }, typography.caption]}>
+                    Considerar itens concluídos e não concluídos
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.opcaoItem, { backgroundColor: colors.accent }]}
+                onPress={() => {
+                  setModalOpcoesAleatoria(false);
+                  selecionarAleatoriamente(true);
+                }}
+              >
+                <MaterialIcons name="filter-list" size={24} color={colors.primary} />
+                <View style={styles.opcaoContent}>
+                  <Text style={[styles.opcaoTitle, { color: colors.text }, typography.titleMedium]}>
+                    Excluir itens concluídos
+                  </Text>
+                  <Text style={[styles.opcaoSubtitle, { color: colors.textSecondary }, typography.caption]}>
+                    Selecionar apenas itens não concluídos
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.btnCancelar}
+              onPress={() => setModalOpcoesAleatoria(false)}
+            >
+              <Text style={styles.btnCancelarText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Modal de Seleção Aleatória */}
       <Modal
         visible={modalSelecaoAleatoria}
@@ -888,7 +955,7 @@ export default function ListaDetalhesScreen() {
               {!animandoSelecao && (
                 <TouchableOpacity
                   style={styles.btnCopiar}
-                  onPress={selecionarAleatoriamente}
+                  onPress={() => selecionarAleatoriamente()}
                 >
                   <Text style={styles.btnCopiarText}>Nova Seleção</Text>
                 </TouchableOpacity>
@@ -1401,6 +1468,28 @@ const styles = StyleSheet.create({
   },
   categoriasPlaceholder: {
     height: 0, // Altura zero quando não há categorias
+  },
+  // Estilos para modal de opções de seleção aleatória
+  opcoesContainer: {
+    marginVertical: 20,
+    gap: 12,
+  },
+  opcaoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
+  },
+  opcaoContent: {
+    flex: 1,
+  },
+  opcaoTitle: {
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  opcaoSubtitle: {
+    lineHeight: 18,
   },
 
 }); 

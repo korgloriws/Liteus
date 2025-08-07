@@ -23,6 +23,7 @@ export default function SelecaoAleatoriaScreen() {
   const [itemSelecionado, setItemSelecionado] = useState<Item | null>(null);
   const [mostrarResultado, setMostrarResultado] = useState(false);
   const [modalSelecaoAleatoria, setModalSelecaoAleatoria] = useState(false);
+  const [modalOpcoesAleatoria, setModalOpcoesAleatoria] = useState(false);
   const [animandoSelecao, setAnimandoSelecao] = useState(false);
 
   useEffect(() => {
@@ -43,10 +44,21 @@ export default function SelecaoAleatoriaScreen() {
     }
   };
 
-  const selecionarItemAleatorio = () => {
+  const selecionarItemAleatorio = (excluirConcluidos: boolean = false) => {
     if (!lista || lista.itens.length === 0) {
       Alert.alert('Erro', 'A lista não possui itens para selecionar');
       return;
+    }
+
+    let itensDisponiveis = lista.itens;
+    
+    // Filtrar itens concluídos se solicitado
+    if (excluirConcluidos) {
+      itensDisponiveis = itensDisponiveis.filter(item => !item.concluido);
+      if (itensDisponiveis.length === 0) {
+        Alert.alert('Aviso', 'Não há itens não concluídos para selecionar');
+        return;
+      }
     }
 
     setSelecionando(true);
@@ -59,15 +71,15 @@ export default function SelecaoAleatoriaScreen() {
     let contador = 0;
     const maxIteracoes = 20;
     const intervalo = setInterval(() => {
-      const itemAleatorio = lista.itens[Math.floor(Math.random() * lista.itens.length)];
+      const itemAleatorio = itensDisponiveis[Math.floor(Math.random() * itensDisponiveis.length)];
       setItemSelecionado(itemAleatorio);
       contador++;
 
       if (contador >= maxIteracoes) {
         clearInterval(intervalo);
         setAnimandoSelecao(false);
-    setSelecionando(false);
-    setMostrarResultado(true);
+        setSelecionando(false);
+        setMostrarResultado(true);
       }
     }, 100);
   };
@@ -171,7 +183,7 @@ export default function SelecaoAleatoriaScreen() {
 
               <TouchableOpacity
           style={[styles.btnSelecionar, { backgroundColor: colors.primary }]}
-                onPress={selecionarItemAleatorio}
+                onPress={() => setModalOpcoesAleatoria(true)}
                 disabled={selecionando}
               >
           <MaterialIcons 
@@ -236,6 +248,67 @@ export default function SelecaoAleatoriaScreen() {
           </View>
         )}
       </View>
+
+      {/* Modal de Opções de Seleção Aleatória */}
+      <Modal
+        visible={modalOpcoesAleatoria}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setModalOpcoesAleatoria(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }, typography.titleLarge]}>
+              Opções de Seleção Aleatória
+            </Text>
+            
+            <View style={styles.opcoesContainer}>
+              <TouchableOpacity
+                style={[styles.opcaoItem, { backgroundColor: colors.accent }]}
+                onPress={() => {
+                  setModalOpcoesAleatoria(false);
+                  selecionarItemAleatorio(false);
+                }}
+              >
+                <MaterialIcons name="casino" size={24} color={colors.primary} />
+                <View style={styles.opcaoContent}>
+                  <Text style={[styles.opcaoTitle, { color: colors.text }, typography.titleMedium]}>
+                    Incluir todos os itens
+                  </Text>
+                  <Text style={[styles.opcaoSubtitle, { color: colors.textSecondary }, typography.caption]}>
+                    Considerar itens concluídos e não concluídos
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.opcaoItem, { backgroundColor: colors.accent }]}
+                onPress={() => {
+                  setModalOpcoesAleatoria(false);
+                  selecionarItemAleatorio(true);
+                }}
+              >
+                <MaterialIcons name="filter-list" size={24} color={colors.primary} />
+                <View style={styles.opcaoContent}>
+                  <Text style={[styles.opcaoTitle, { color: colors.text }, typography.titleMedium]}>
+                    Excluir itens concluídos
+                  </Text>
+                  <Text style={[styles.opcaoSubtitle, { color: colors.textSecondary }, typography.caption]}>
+                    Selecionar apenas itens não concluídos
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.btnCancelar}
+              onPress={() => setModalOpcoesAleatoria(false)}
+            >
+              <Text style={styles.btnCancelarText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Modal de Seleção Aleatória */}
       <Modal
@@ -305,7 +378,7 @@ export default function SelecaoAleatoriaScreen() {
               {!animandoSelecao && (
                 <TouchableOpacity
                   style={styles.btnCopiar}
-                  onPress={selecionarItemAleatorio}
+                  onPress={() => selecionarItemAleatorio()}
                 >
                   <Text style={styles.btnCopiarText}>Nova Seleção</Text>
                 </TouchableOpacity>
@@ -540,5 +613,27 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Estilos para modal de opções de seleção aleatória
+  opcoesContainer: {
+    marginVertical: 20,
+    gap: 12,
+  },
+  opcaoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
+  },
+  opcaoContent: {
+    flex: 1,
+  },
+  opcaoTitle: {
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  opcaoSubtitle: {
+    lineHeight: 18,
   },
 }); 

@@ -20,28 +20,14 @@ import { SyncService } from '../services/syncService';
 import { useTheme } from '../services/ThemeContext';
 import { getPlaceholderColor } from '../services/theme';
 import Constants from 'expo-constants';
-import * as WebBrowser from 'expo-web-browser';
-import { useAuthRequest } from 'expo-auth-session/providers/google';
-import { makeRedirectUri } from 'expo-auth-session';
-import { googleDriveService } from '../services/googleDriveService';
-
-WebBrowser.maybeCompleteAuthSession();
+import { localSyncService } from '../services/localSyncService';
 
 
-const isExpoGo = Constants.appOwnership === 'expo';
 const isDevelopment = __DEV__;
-
-
-const GOOGLE_CLIENT_ID_WEB = '427785870854-qgvtds2hs528fo3899iale1eukbh1et3.apps.googleusercontent.com';
-const GOOGLE_CLIENT_ID_ANDROID = '427785870854-mlldubftlqtcbvvpb03o87h88r5a97i0.apps.googleusercontent.com';
-
-
-const GOOGLE_CLIENT_ID = isExpoGo ? GOOGLE_CLIENT_ID_WEB : GOOGLE_CLIENT_ID_ANDROID;
-const GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 
 export default function ConfiguracoesScreen() {
   const { isDarkMode, setDarkMode, colors, typography } = useTheme();
-  const [versao] = useState('1.0.7');
+  const [versao] = useState('1.0.8');
   const [listas, setListas] = useState<Lista[]>([]);
   const [modalSincronizacao, setModalSincronizacao] = useState(false);
   const [dadosSincronizacao, setDadosSincronizacao] = useState('');
@@ -50,143 +36,49 @@ export default function ConfiguracoesScreen() {
   const [conteudoGoogleDocs, setConteudoGoogleDocs] = useState('');
   const [dadosJSON, setDadosJSON] = useState('');
   const [tipoArquivoSelecionado, setTipoArquivoSelecionado] = useState('auto');
-  const [googleUser, setGoogleUser] = useState<any>(null);
-  const [syncStatus, setSyncStatus] = useState<{ lastSync: string | null; hasData: boolean } | null>(null);
+  const [syncStatus, setSyncStatus] = useState<any>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [loginError, setLoginError] = useState<string | null>(null);
-
-
-  const [request, response, promptAsync] = useAuthRequest({
-    clientId: GOOGLE_CLIENT_ID,
-    scopes: ['profile', 'email', GOOGLE_DRIVE_SCOPE],
-    redirectUri: makeRedirectUri(),
-
-    responseType: 'token',
-    extraParams: {
-      access_type: 'offline',
-      prompt: 'consent',
-    },
-  });
 
   useEffect(() => {
-    // Tenta restaurar sessão Google ao abrir configurações
-    AsyncStorage.getItem('googleUser').then(user => {
-      if (user) {
-        try {
-          const parsedUser = JSON.parse(user);
-          setGoogleUser(parsedUser);
-          // Inicializar Google Drive Service se usuário está logado
-          if (parsedUser.accessToken) {
-            initializeGoogleDrive(parsedUser.accessToken);
-          }
-        } catch (error) {
-          console.log('Erro ao restaurar sessão Google:', error);
-          AsyncStorage.removeItem('googleUser');
-        }
-      }
-    });
+    
+    initializeSyncService();
+    carregarListas();
   }, []);
 
-  const initializeGoogleDrive = async (accessToken: string) => {
+  const initializeSyncService = async () => {
     try {
-      await googleDriveService.initialize(accessToken);
+      await localSyncService.initialize();
       await checkSyncStatus();
     } catch (error) {
-      console.error('Erro ao inicializar Google Drive:', error);
-      setSyncError('Falha ao conectar com Google Drive');
+      console.error('Erro ao inicializar serviço de sincronização:', error);
+      setSyncError('Falha ao inicializar sincronização');
     }
   };
 
   const checkSyncStatus = async () => {
     try {
-      const status = await googleDriveService.getSyncStatus();
+      const status = await localSyncService.getSyncStatus();
       setSyncStatus(status);
     } catch (error) {
       console.error('Erro ao verificar status de sync:', error);
     }
   };
 
-  useEffect(() => {
-    if (response?.type === 'success' && response.authentication && typeof response.authentication.accessToken === 'string') {
-      setIsSyncing(true);
-      setLoginError(null);
-      const accessToken = response.authentication.accessToken;
-      
-      fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      })
-        .then(res => {
-          if (!res.ok) throw new Error('Falha ao buscar dados do usuário');
-          return res.json();
-        })
-        .then(async (userInfo) => {
-          const user = { 
-            ...userInfo, 
-            accessToken,
-            loginMethod: isExpoGo ? 'web' : 'native',
-            loginTime: new Date().toISOString()
-          };
-          setGoogleUser(user);
-          await AsyncStorage.setItem('googleUser', JSON.stringify(user));
-          
-          // Inicializar Google Drive após login bem-sucedido
-          await initializeGoogleDrive(accessToken);
-          
-          Alert.alert('Sucesso', 'Login Google realizado!');
-        })
-        .catch((error) => {
-          console.error('Erro no login Google:', error);
-          setLoginError('Falha ao autenticar com Google. Tente novamente.');
-          Alert.alert('Erro', 'Falha ao autenticar com Google. Verifique sua conexão e tente novamente.');
-        })
-        .finally(() => setIsSyncing(false));
-    } else if (response?.type === 'error') {
-      setLoginError('Login cancelado ou falhou. Tente novamente.');
-      setIsSyncing(false);
-    }
-  }, [response]);
-
-  const handleLoginGoogle = async () => {
-    if (!request) {
-      Alert.alert('Erro', 'Sistema de login não está pronto. Tente novamente.');
-      return;
-    }
-
-    setIsSyncing(true);
-    setLoginError(null);
-    
-    try {
-      await promptAsync();
-    } catch (error) {
-      console.error('Erro ao iniciar login Google:', error);
-      setLoginError('Erro ao iniciar login. Tente novamente.');
-      Alert.alert('Erro', 'Não foi possível iniciar o login Google.');
-      setIsSyncing(false);
-    }
-  };
-
   const handleSyncData = async () => {
-    if (!googleUser?.accessToken) {
-      Alert.alert('Erro', 'Você precisa estar logado para sincronizar.');
-      return;
-    }
-
     setIsSyncing(true);
     setSyncError(null);
 
     try {
-      const result = await googleDriveService.syncData();
+      const result = await localSyncService.syncData();
       await checkSyncStatus();
       
-      let message = 'Sincronização concluída!';
-      if (result.uploaded && result.downloaded) {
-        message += ' Dados enviados e recebidos do Google Drive.';
-      } else if (result.uploaded) {
-        message += ' Dados enviados para o Google Drive.';
+      if (result.success) {
+        Alert.alert('Sucesso', result.message);
+      } else {
+        setSyncError(result.message);
+        Alert.alert('Aviso', result.message);
       }
-      
-      Alert.alert('Sucesso', message);
     } catch (error) {
       console.error('Erro na sincronização:', error);
       setSyncError('Falha na sincronização. Tente novamente.');
@@ -196,10 +88,10 @@ export default function ConfiguracoesScreen() {
     }
   };
 
-  const handleClearDriveData = async () => {
+  const handleClearSyncData = async () => {
     Alert.alert(
-      'Limpar Dados do Drive',
-      'Tem certeza que deseja remover todos os dados do Google Drive? Esta ação não pode ser desfeita.',
+      'Limpar Dados de Sincronização',
+      'Tem certeza que deseja limpar todos os dados de sincronização? Esta ação não pode ser desfeita.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -207,17 +99,48 @@ export default function ConfiguracoesScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await googleDriveService.clearDriveData();
+              await localSyncService.clearSyncData();
               await checkSyncStatus();
-              Alert.alert('Sucesso', 'Dados do Google Drive removidos.');
+              Alert.alert('Sucesso', 'Dados de sincronização removidos.');
             } catch (error) {
-              console.error('Erro ao limpar dados do Drive:', error);
-              Alert.alert('Erro', 'Falha ao limpar dados do Google Drive.');
+              console.error('Erro ao limpar dados de sync:', error);
+              Alert.alert('Erro', 'Falha ao limpar dados de sincronização.');
             }
           },
         },
       ]
     );
+  };
+
+  // Exportar e compartilhar backup
+  const handleExportBackup = async () => {
+    try {
+      const result = await localSyncService.shareBackup();
+      if (result.success) {
+        Alert.alert('Sucesso', result.message);
+      } else {
+        Alert.alert('Erro', result.message);
+      }
+    } catch (error) {
+      console.error('Erro ao exportar backup:', error);
+      Alert.alert('Erro', 'Falha ao exportar backup');
+    }
+  };
+
+  // Importar backup
+  const handleImportBackup = async () => {
+    try {
+      const result = await localSyncService.importData();
+      if (result.success) {
+        Alert.alert('Sucesso', result.message);
+        await carregarListas(); // Recarregar listas após importação
+      } else {
+        Alert.alert('Erro', result.message);
+      }
+    } catch (error) {
+      console.error('Erro ao importar backup:', error);
+      Alert.alert('Erro', 'Falha ao importar backup');
+    }
   };
 
   const carregarListas = async () => {
@@ -232,6 +155,8 @@ export default function ConfiguracoesScreen() {
   const handleModoEscuroChange = async (novoModoEscuro: boolean) => {
     await setDarkMode(novoModoEscuro);
   };
+
+
 
   const limparDados = async () => {
     Alert.alert(
@@ -256,16 +181,7 @@ export default function ConfiguracoesScreen() {
     );
   };
 
-  const logoutGoogle = async () => {
-    try {
-      setGoogleUser(null);
-      await AsyncStorage.removeItem('googleUser');
-      Alert.alert('Logout', 'Você saiu da conta Google.');
-    } catch (error) {
-      console.error('Erro no logout:', error);
-      Alert.alert('Erro', 'Erro ao fazer logout.');
-    }
-  };
+
 
   return (
     <View style={{ flex: 1 }}>
@@ -346,82 +262,78 @@ export default function ConfiguracoesScreen() {
           {/* Status do ambiente */}
           {isDevelopment && (
             <Text style={[styles.modalSubtitle, { color: colors.textSecondary, fontSize: 12, marginBottom: 10 }, typography.caption]}>
-              Ambiente: {isExpoGo ? 'Expo Go (Web)' : 'Build Nativa (Nativo)'}
+              Ambiente: {Constants.appOwnership === 'expo' ? 'Expo Go' : 'Build Nativa'}
             </Text>
           )}
           
-          {/* Botão de Login com Google */}
-          {!googleUser && (
-            <TouchableOpacity style={styles.optionItem} onPress={handleLoginGoogle} disabled={isSyncing || !request}>
-              <MaterialIcons name="login" size={24} color="#4285F4" />
-              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>
-                {isSyncing ? 'Conectando...' : 'Login com Google'}
-              </Text>
-            </TouchableOpacity>
-          )}
+          {/* Botão de Sincronização */}
+          <TouchableOpacity style={styles.optionItem} onPress={handleSyncData} disabled={isSyncing}>
+            <MaterialIcons name="sync" size={24} color="#34C759" />
+            <Text style={[styles.optionText, { color: colors.text }, typography.body]}>
+              {isSyncing ? 'Sincronizando...' : 'Sincronizar Dados'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Botão de Exportar Backup */}
+          <TouchableOpacity style={styles.optionItem} onPress={handleExportBackup}>
+            <MaterialIcons name="file-download" size={24} color="#007AFF" />
+            <Text style={[styles.optionText, { color: colors.text }, typography.body]}>
+              Exportar e Compartilhar Backup
+            </Text>
+          </TouchableOpacity>
+
+          {/* Botão de Importar Backup */}
+          <TouchableOpacity style={styles.optionItem} onPress={handleImportBackup}>
+            <MaterialIcons name="file-upload" size={24} color="#FF9500" />
+            <Text style={[styles.optionText, { color: colors.text }, typography.body]}>
+              Importar Backup
+            </Text>
+          </TouchableOpacity>
           
-          {/* Exibe status e botão de logout se logado */}
-          {googleUser && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-              <Image source={{ uri: googleUser.picture }} style={{ width: 32, height: 32, borderRadius: 16, marginRight: 8 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.text }}>Logado como {googleUser.name || googleUser.email}</Text>
-                {isDevelopment && (
-                  <Text style={{ color: colors.textSecondary, fontSize: 10 }}>
-                    Método: {googleUser.loginMethod || 'web'}
-                  </Text>
-                )}
-              </View>
-              <TouchableOpacity style={[styles.optionItem, { backgroundColor: '#eee' }]} onPress={logoutGoogle}>
-                <MaterialIcons name="logout" size={20} color={colors.primary} />
-                <Text style={{ color: colors.primary, marginLeft: 4 }}>Logout</Text>
-              </TouchableOpacity>
+          {/* Status da Sincronização */}
+          {syncStatus && (
+            <View style={{ marginTop: 5, paddingHorizontal: 15 }}>
+              <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+                Última sincronização: {syncStatus.lastSync ? new Date(syncStatus.lastSync).toLocaleString() : 'Nunca'}
+              </Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+                Status: {syncStatus.isOnline ? 'Online' : 'Offline'} • {syncStatus.pendingChanges} mudanças pendentes
+              </Text>
+              {syncStatus.lastExport && (
+                <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+                  Último backup: {new Date(syncStatus.lastExport).toLocaleString()}
+                </Text>
+              )}
+              {syncStatus.lastImport && (
+                <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+                  Última importação: {new Date(syncStatus.lastImport).toLocaleString()}
+                </Text>
+              )}
+              {syncStatus.pendingChanges > 0 && (
+                <Text style={{ color: '#FF9500', fontSize: 12 }}>
+                  ⚠️ {syncStatus.pendingChanges} mudanças pendentes para sincronização
+                </Text>
+              )}
             </View>
           )}
           
-          {/* Botões de sincronização (apenas se logado) */}
-          {googleUser && (
-            <>
-              <TouchableOpacity style={styles.optionItem} onPress={handleSyncData} disabled={isSyncing}>
-                <MaterialIcons name="sync" size={24} color="#34C759" />
-                <Text style={[styles.optionText, { color: colors.text }, typography.body]}>
-                  {isSyncing ? 'Sincronizando...' : 'Sincronizar com Google Drive'}
-                </Text>
-              </TouchableOpacity>
-              
-              {syncStatus && (
-                <View style={{ marginTop: 5, paddingHorizontal: 15 }}>
-                  <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
-                    Última sincronização: {syncStatus.lastSync ? new Date(syncStatus.lastSync).toLocaleString() : 'Nunca'}
-                  </Text>
-                  <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
-                    Status: {syncStatus.hasData ? 'Dados encontrados no Drive' : 'Nenhum dado no Drive'}
-                  </Text>
-                </View>
-              )}
-              
-              <TouchableOpacity style={styles.optionItem} onPress={handleClearDriveData}>
-                <MaterialIcons name="delete" size={24} color="#FF3B30" />
-                <Text style={[styles.optionText, { color: colors.text }, typography.body]}>
-                  Limpar dados do Drive
-                </Text>
-              </TouchableOpacity>
-            </>
-          )}
+          {/* Botão de Limpar Dados de Sincronização */}
+          <TouchableOpacity style={styles.optionItem} onPress={handleClearSyncData}>
+            <MaterialIcons name="delete" size={24} color="#FF3B30" />
+            <Text style={[styles.optionText, { color: colors.text }, typography.body]}>
+              Limpar dados de sincronização
+            </Text>
+          </TouchableOpacity>
           
           {/* Mensagens de erro */}
-          {loginError && (
-            <Text style={{ color: '#FF3B30', fontSize: 12, marginTop: 5 }}>
-              {loginError}
-            </Text>
-          )}
-          
           {syncError && (
             <Text style={{ color: '#FF3B30', fontSize: 12, marginTop: 5 }}>
               {syncError}
             </Text>
           )}
         </View>
+
+
 
         {/* Seção de Dados */}
         <View style={[styles.section, { 
@@ -496,7 +408,7 @@ export default function ConfiguracoesScreen() {
           
           <View style={styles.featureItem}>
             <MaterialIcons name="cloud-sync" size={20} color="#34C759" />
-            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Sincronização com Google Drive</Text>
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Backup e sincronização local</Text>
           </View>
           
           <View style={styles.featureItem}>

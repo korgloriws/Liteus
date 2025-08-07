@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Lista, Item, Categoria } from '../types';
+import { localSyncService } from './localSyncService';
 
 const LISTAS_KEY = '@liteus_listas';
 
@@ -50,6 +51,14 @@ export class StorageService {
       
       listas.push(novaLista);
       await this.salvarListas(listas);
+      
+      // Adicionar à fila de sincronização
+      try {
+        await localSyncService.onListaCreated(novaLista);
+      } catch (syncError) {
+        console.log('Erro ao adicionar à fila de sync:', syncError);
+      }
+      
       return novaLista;
     } catch (error) {
       console.error('Erro ao adicionar lista:', error);
@@ -72,6 +81,14 @@ export class StorageService {
       };
       
       await this.salvarListas(listas);
+      
+      // Adicionar à fila de sincronização
+      try {
+        await localSyncService.onListaUpdated(listas[index]);
+      } catch (syncError) {
+        console.log('Erro ao adicionar à fila de sync:', syncError);
+      }
+      
       return listas[index];
     } catch (error) {
       console.error('Erro ao atualizar lista:', error);
@@ -83,11 +100,22 @@ export class StorageService {
   static async removerLista(id: string): Promise<boolean> {
     try {
       const listas = await this.carregarListas();
+      const listaRemovida = listas.find(lista => lista.id === id);
       const listasFiltradas = listas.filter(lista => lista.id !== id);
       
       if (listasFiltradas.length === listas.length) return false;
       
       await this.salvarListas(listasFiltradas);
+      
+      // Adicionar à fila de sincronização
+      if (listaRemovida) {
+        try {
+          await localSyncService.onListaDeleted(listaRemovida.id);
+        } catch (syncError) {
+          console.log('Erro ao adicionar à fila de sync:', syncError);
+        }
+      }
+      
       return true;
     } catch (error) {
       console.error('Erro ao remover lista:', error);
@@ -213,9 +241,28 @@ export class StorageService {
       listas.push(listaDuplicada);
       await this.salvarListas(listas);
       
+      // Adicionar à fila de sincronização
+      try {
+        await localSyncService.onListaCreated(listaDuplicada);
+      } catch (syncError) {
+        console.log('Erro ao adicionar à fila de sync:', syncError);
+      }
+      
       return listaDuplicada;
     } catch (error) {
       console.error('Erro ao duplicar lista:', error);
+      throw error;
+    }
+  }
+
+  // Criar lista sem sincronização (para importação)
+  static async criarLista(lista: Lista): Promise<void> {
+    try {
+      const listas = await this.carregarListas();
+      listas.push(lista);
+      await this.salvarListas(listas);
+    } catch (error) {
+      console.error('Erro ao criar lista:', error);
       throw error;
     }
   }
@@ -293,6 +340,32 @@ export class StorageService {
       return true;
     } catch (error) {
       console.error('Erro ao remover categoria:', error);
+      throw error;
+    }
+  }
+
+
+  static async atualizarCategoria(listaId: string, categoriaId: string, dados: Partial<Categoria>): Promise<Categoria | null> {
+    try {
+      const listas = await this.carregarListas();
+      const listaIndex = listas.findIndex(lista => lista.id === listaId);
+      
+      if (listaIndex === -1) return null;
+      
+      const categoriaIndex = listas[listaIndex].categorias.findIndex(cat => cat.id === categoriaId);
+      if (categoriaIndex === -1) return null;
+      
+      listas[listaIndex].categorias[categoriaIndex] = {
+        ...listas[listaIndex].categorias[categoriaIndex],
+        ...dados
+      };
+      
+      listas[listaIndex].dataModificacao = Date.now();
+      await this.salvarListas(listas);
+      
+      return listas[listaIndex].categorias[categoriaIndex];
+    } catch (error) {
+      console.error('Erro ao atualizar categoria:', error);
       throw error;
     }
   }

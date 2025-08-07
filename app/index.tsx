@@ -16,13 +16,14 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { Lista, OrdenacaoTipo, OrdenacaoDirecao } from '../types';
+import { Lista, OrdenacaoTipo, OrdenacaoDirecao, Item } from '../types';
 import { StorageService } from '../services/storage';
 import { UtilsService } from '../services/utils';
 import { DocumentProcessor } from '../services/documentProcessor';
 import { useTheme } from '../services/ThemeContext';
 import { SyncService } from '../services/syncService';
 import { getPlaceholderColor } from '../services/theme';
+import SyncStatus from '../components/SyncStatus';
 
 export default function ListasScreen() {
   const { isDarkMode, colors, typography } = useTheme();
@@ -53,6 +54,12 @@ export default function ListasScreen() {
   const [nomeCategoriaEditando, setNomeCategoriaEditando] = useState('');
   const [corCategoriaEditando, setCorCategoriaEditando] = useState('#007AFF');
 
+  // Estados para seleção aleatória
+  const [modalOpcoesAleatoria, setModalOpcoesAleatoria] = useState(false);
+  const [modalSelecaoAleatoria, setModalSelecaoAleatoria] = useState(false);
+  const [itemSelecionado, setItemSelecionado] = useState<Item | null>(null);
+  const [animandoSelecao, setAnimandoSelecao] = useState(false);
+  const [listaParaSelecao, setListaParaSelecao] = useState<Lista | null>(null);
 
 
   useFocusEffect(
@@ -208,6 +215,69 @@ export default function ListasScreen() {
     setEditandoCategorias(editandoCategorias.filter(cat => cat.id !== id));
   };
 
+  const editarCategoria = (categoria: any) => {
+    setCategoriaEditando(categoria);
+    setNomeCategoriaEditando(categoria.nome);
+    setCorCategoriaEditando(categoria.cor || '#007AFF');
+    setModalEditarCategoria(true);
+  };
+
+  // Funções para seleção aleatória
+  const abrirModalOpcoesAleatoria = (lista: Lista) => {
+    setListaParaSelecao(lista);
+    setModalOpcoesAleatoria(true);
+  };
+
+  const selecionarAleatoriamente = (excluirConcluidos: boolean = false) => {
+    if (!listaParaSelecao || listaParaSelecao.itens.length === 0) {
+      Alert.alert('Aviso', 'Não há itens na lista para selecionar');
+      return;
+    }
+
+    let itensFiltrados = listaParaSelecao.itens;
+    let filtrosAtivos = [];
+
+    // Filtrar itens concluídos se solicitado
+    if (excluirConcluidos) {
+      const itensAntes = itensFiltrados.length;
+      itensFiltrados = itensFiltrados.filter(item => !item.concluido);
+      const itensRemovidos = itensAntes - itensFiltrados.length;
+      if (itensRemovidos > 0) {
+        filtrosAtivos.push(`Excluídos ${itensRemovidos} itens concluídos`);
+      }
+    }
+
+    if (itensFiltrados.length === 0) {
+      Alert.alert('Aviso', 'Nenhum item encontrado com os filtros ativos');
+      return;
+    }
+
+    setAnimandoSelecao(true);
+    setModalSelecaoAleatoria(true);
+    setItemSelecionado(null);
+
+    // Simular animação de seleção
+    let contador = 0;
+    const maxIteracoes = 20;
+    const intervalo = setInterval(() => {
+      const itemAleatorio = itensFiltrados[Math.floor(Math.random() * itensFiltrados.length)];
+      setItemSelecionado(itemAleatorio);
+      contador++;
+
+      if (contador >= maxIteracoes) {
+        clearInterval(intervalo);
+        setAnimandoSelecao(false);
+      }
+    }, 100);
+  };
+
+  const reiniciarSelecaoAleatoria = () => {
+    setItemSelecionado(null);
+    setModalSelecaoAleatoria(false);
+    setAnimandoSelecao(false);
+    setListaParaSelecao(null);
+  };
+
   // Remover funções e estados relacionados à importação de arquivos, seleção de arquivo, processamento de arquivo importado, e criação de lista importada.
   // Remover botões e modais de importação/exportação de arquivos.
 
@@ -242,10 +312,7 @@ export default function ListasScreen() {
         {item.permiteSelecaoAleatoria && (
           <TouchableOpacity
             style={[styles.btnAleatorio, { backgroundColor: colors.accent }]}
-            onPress={() => router.push({
-              pathname: '/selecao-aleatoria',
-              params: { id: item.id }
-            })}
+            onPress={() => abrirModalOpcoesAleatoria(item)}
           >
             <MaterialIcons name="casino" size={20} color={colors.primary} />
           </TouchableOpacity>
@@ -296,6 +363,9 @@ export default function ListasScreen() {
         </View>
       </View>
 
+      {/* Status de Sincronização */}
+      <SyncStatus onPress={() => router.push('/configuracoes')} />
+      
       {/* Conteúdo com scroll */}
       <ScrollView 
         style={styles.scrollContainer}
@@ -610,12 +680,20 @@ export default function ListasScreen() {
                         <Text style={[styles.categoriaNome, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
                           {categoria.nome}
                         </Text>
-                        <TouchableOpacity
-                          style={styles.btnRemoverCategoria}
-                          onPress={() => removerCategoria(categoria.id)}
-                        >
-                          <MaterialIcons name="close" size={16} color="#FF3B30" />
-                        </TouchableOpacity>
+                        <View style={styles.categoriaBotoes}>
+                          <TouchableOpacity
+                            style={styles.btnEditarCategoria}
+                            onPress={() => editarCategoria(categoria)}
+                          >
+                            <MaterialIcons name="edit" size={16} color="#007AFF" />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.btnRemoverCategoria}
+                            onPress={() => removerCategoria(categoria.id)}
+                          >
+                            <MaterialIcons name="close" size={16} color="#FF3B30" />
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     ))}
                   </View>
@@ -746,10 +824,10 @@ export default function ListasScreen() {
 
       {/* Modal de Importação */}
       <Modal
-        visible={false} // Remover modal de importação
+        visible={false} 
         transparent
         animationType="slide"
-        onRequestClose={() => {}} // Remover função de limpar importação
+        onRequestClose={() => {}} 
       >
         <View style={styles.modalOverlay}>
           <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
@@ -791,7 +869,7 @@ export default function ListasScreen() {
                   <Text style={styles.btnCancelarText}>Cancelar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.btnSalvar, { opacity: 0.5 }]} // Remover botão de criar lista importada
+                  style={[styles.btnSalvar, { opacity: 0.5 }]} 
                   onPress={() => {}}
                   disabled={true}
                 >
@@ -855,36 +933,192 @@ export default function ListasScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.btnSalvar}
-                onPress={() => {
-                  if (!nomeCategoriaEditando.trim()) return;
-                  // Atualizar categoria na lista
-                  setEditandoCategorias(editandoCategorias.map(cat =>
-                    cat.id === categoriaEditando.id
-                      ? { ...cat, nome: nomeCategoriaEditando.trim(), cor: corCategoriaEditando }
-                      : cat
-                  ));
-                  // Atualizar categoria nos itens da lista editando
-                  setListas(listasAntigas => listasAntigas.map(lista => {
-                    if (listaEditando && lista.id === listaEditando.id) {
-                      return {
-                        ...lista,
-                        categorias: lista.categorias.map(cat =>
-                          cat.id === categoriaEditando.id
-                            ? { ...cat, nome: nomeCategoriaEditando.trim(), cor: corCategoriaEditando }
-                            : cat
-                        ),
-                        itens: lista.itens.map(item => {
-                          // Se o item tem essa categoria, não precisa mudar nada pois só nome/cor mudam
-                          return { ...item };
-                        })
-                      };
+                onPress={async () => {
+                  if (!nomeCategoriaEditando.trim() || !categoriaEditando || !listaEditando) return;
+                  
+                  try {
+                    // Atualizar categoria no StorageService
+                    const categoriaAtualizada = await StorageService.atualizarCategoria(
+                      listaEditando.id,
+                      categoriaEditando.id,
+                      {
+                        nome: nomeCategoriaEditando.trim(),
+                        cor: corCategoriaEditando
+                      }
+                    );
+
+                    if (categoriaAtualizada) {
+                      // Atualizar categoria na lista local
+                      setEditandoCategorias(editandoCategorias.map(cat =>
+                        cat.id === categoriaEditando.id
+                          ? { ...cat, nome: nomeCategoriaEditando.trim(), cor: corCategoriaEditando }
+                          : cat
+                      ));
+                      
+                      // Atualizar categoria na lista principal
+                      setListas(listasAntigas => listasAntigas.map(lista => {
+                        if (lista.id === listaEditando.id) {
+                          return {
+                            ...lista,
+                            categorias: lista.categorias.map(cat =>
+                              cat.id === categoriaEditando.id
+                                ? { ...cat, nome: nomeCategoriaEditando.trim(), cor: corCategoriaEditando }
+                                : cat
+                            )
+                          };
+                        }
+                        return lista;
+                      }));
                     }
-                    return lista;
-                  }));
-                  setModalEditarCategoria(false);
+                    
+                    setModalEditarCategoria(false);
+                  } catch (error) {
+                    console.error('Erro ao atualizar categoria:', error);
+                    Alert.alert('Erro', 'Falha ao atualizar categoria');
+                  }
                 }}
               >
                 <Text style={styles.btnSalvarText}>Salvar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Opções de Seleção Aleatória */}
+      <Modal
+        visible={modalOpcoesAleatoria}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setModalOpcoesAleatoria(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }, typography.titleLarge]}>
+              Opções de Seleção Aleatória
+            </Text>
+            
+            <View style={styles.opcoesContainer}>
+              <TouchableOpacity
+                style={[styles.opcaoItem, { backgroundColor: colors.accent }]}
+                onPress={() => {
+                  setModalOpcoesAleatoria(false);
+                  selecionarAleatoriamente(false);
+                }}
+              >
+                <MaterialIcons name="casino" size={24} color={colors.primary} />
+                <View style={styles.opcaoContent}>
+                  <Text style={[styles.opcaoTitle, { color: colors.text }, typography.titleMedium]}>
+                    Incluir todos os itens
+                  </Text>
+                  <Text style={[styles.opcaoSubtitle, { color: colors.textSecondary }, typography.caption]}>
+                    Considerar itens concluídos e não concluídos
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.opcaoItem, { backgroundColor: colors.accent }]}
+                onPress={() => {
+                  setModalOpcoesAleatoria(false);
+                  selecionarAleatoriamente(true);
+                }}
+              >
+                <MaterialIcons name="filter-list" size={24} color={colors.primary} />
+                <View style={styles.opcaoContent}>
+                  <Text style={[styles.opcaoTitle, { color: colors.text }, typography.titleMedium]}>
+                    Excluir itens concluídos
+                  </Text>
+                  <Text style={[styles.opcaoSubtitle, { color: colors.textSecondary }, typography.caption]}>
+                    Selecionar apenas itens não concluídos
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.btnCancelar}
+              onPress={() => setModalOpcoesAleatoria(false)}
+            >
+              <Text style={styles.btnCancelarText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Seleção Aleatória */}
+      <Modal
+        visible={modalSelecaoAleatoria}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {
+          setModalSelecaoAleatoria(false);
+          reiniciarSelecaoAleatoria();
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }, typography.titleLarge]}>
+              {animandoSelecao ? 'Selecionando...' : 'Item Selecionado!'}
+            </Text>
+            
+            {itemSelecionado && (
+              <View style={[styles.itemSelecionadoContainer, { 
+                borderColor: colors.primary,
+                backgroundColor: colors.accent 
+              }]}>
+                <View style={styles.itemSelecionadoHeader}>
+                  <MaterialIcons 
+                    name="star" 
+                    size={24} 
+                    color={colors.primary} 
+                  />
+                  <Text style={[styles.itemSelecionadoTitle, { color: colors.text }, typography.titleMedium]}>
+                    {itemSelecionado.texto}
+                  </Text>
+                </View>
+                
+                {itemSelecionado.descricao && (
+                  <Text style={[styles.itemSelecionadoDescricao, { color: colors.textSecondary }, typography.body]}>
+                    {itemSelecionado.descricao}
+                  </Text>
+                )}
+                
+                {itemSelecionado.categoria && listaParaSelecao && (
+                  <View style={styles.itemSelecionadoCategoria}>
+                    <Text style={[styles.itemSelecionadoCategoriaText, { color: colors.primary }, typography.caption]}>
+                      Categoria: {listaParaSelecao.categorias.find(cat => cat.id === itemSelecionado.categoria)?.nome || itemSelecionado.categoria}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            <View style={styles.modalBotoes}>
+              <TouchableOpacity
+                style={[styles.btnCancelar, { flex: 1 }]}
+                onPress={() => {
+                  setModalSelecaoAleatoria(false);
+                  reiniciarSelecaoAleatoria();
+                }}
+              >
+                <Text style={styles.btnCancelarText}>Fechar</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.btnSalvar, { flex: 1 }]}
+                onPress={() => {
+                  setModalSelecaoAleatoria(false);
+                  reiniciarSelecaoAleatoria();
+                  if (listaParaSelecao) {
+                    router.push({
+                      pathname: '/lista-detalhes',
+                      params: { id: listaParaSelecao.id }
+                    });
+                  }
+                }}
+              >
+                <Text style={styles.btnSalvarText}>Ver na Lista</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1362,10 +1596,63 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: 8,
   },
-  // Estilo para botão de editar categoria
+  
   btnEditarCategoria: {
     padding: 4,
     marginRight: 4,
+  },
+  categoriaBotoes: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  // Estilos para modal de opções de seleção aleatória
+  opcoesContainer: {
+    marginVertical: 20,
+    gap: 12,
+  },
+  opcaoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
+  },
+  opcaoContent: {
+    flex: 1,
+  },
+  opcaoTitle: {
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  opcaoSubtitle: {
+    lineHeight: 18,
+  },
+  // Estilos para seleção aleatória
+  itemSelecionadoContainer: {
+    padding: 20,
+    borderRadius: 12,
+    marginVertical: 20,
+    borderWidth: 2,
+  },
+  itemSelecionadoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  itemSelecionadoTitle: {
+    flex: 1,
+    marginLeft: 12,
+    fontWeight: '600',
+  },
+  itemSelecionadoDescricao: {
+    marginBottom: 8,
+    fontStyle: 'italic',
+  },
+  itemSelecionadoCategoria: {
+    marginTop: 8,
+  },
+  itemSelecionadoCategoriaText: {
+    fontWeight: '500',
   },
 
 }); 
