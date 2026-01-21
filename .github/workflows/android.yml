@@ -32,6 +32,12 @@ jobs:
       - name: Expo prebuild (Android)
         run: npx expo prebuild --platform android --non-interactive
 
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      - name: Normalize gradlew line endings
+        run: sed -i 's/\r$//' android/gradlew
+
       - name: Accept Android licenses
         run: yes | sdkmanager --licenses
 
