@@ -27,7 +27,7 @@ const isDevelopment = __DEV__;
 
 export default function ConfiguracoesScreen() {
   const { isDarkMode, setDarkMode, colors, typography } = useTheme();
-  const [versao] = useState('1.0.9');
+  const [versao] = useState('1.1.0');
   const [listas, setListas] = useState<Lista[]>([]);
   const [modalSincronizacao, setModalSincronizacao] = useState(false);
   const [dadosSincronizacao, setDadosSincronizacao] = useState('');
@@ -413,22 +413,82 @@ export default function ConfiguracoesScreen() {
           
           <View style={styles.featureItem}>
             <MaterialIcons name="list" size={20} color="#34C759" />
-            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Criação de listas personalizadas</Text>
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Criação de listas personalizadas com itens formatados</Text>
+          </View>
+          
+          <View style={styles.featureItem}>
+            <MaterialIcons name="notes" size={20} color="#34C759" />
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Notas com editor de texto rico (formatação completa)</Text>
+          </View>
+          
+          <View style={styles.featureItem}>
+            <MaterialIcons name="format-bold" size={20} color="#34C759" />
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Editor rico: negrito, itálico, cores, tamanhos, títulos, listas, alinhamento</Text>
+          </View>
+          
+          <View style={styles.featureItem}>
+            <MaterialIcons name="category" size={20} color="#34C759" />
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Categorias personalizadas com cores para organização</Text>
           </View>
           
           <View style={styles.featureItem}>
             <MaterialIcons name="casino" size={20} color="#34C759" />
-            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Seleção aleatória com animações</Text>
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Seleção aleatória com animações e filtros</Text>
+          </View>
+          
+          <View style={styles.featureItem}>
+            <MaterialIcons name="search" size={20} color="#34C759" />
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Busca avançada e filtros por categoria</Text>
+          </View>
+          
+          <View style={styles.featureItem}>
+            <MaterialIcons name="sort" size={20} color="#34C759" />
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Ordenação: alfabética, data, categoria, último modificado</Text>
+          </View>
+          
+          <View style={styles.featureItem}>
+            <MaterialIcons name="check-circle" size={20} color="#34C759" />
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Marcação de itens como concluídos</Text>
+          </View>
+          
+          <View style={styles.featureItem}>
+            <MaterialIcons name="analytics" size={20} color="#34C759" />
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Estatísticas detalhadas e insights de produtividade</Text>
+          </View>
+          
+          <View style={styles.featureItem}>
+            <MaterialIcons name="delete-outline" size={20} color="#34C759" />
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Lixeira com recuperação (30 dias de retenção)</Text>
           </View>
           
           <View style={styles.featureItem}>
             <MaterialIcons name="cloud-sync" size={20} color="#34C759" />
-            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Backup e sincronização local</Text>
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Backup e sincronização local (exportar/importar JSON)</Text>
+          </View>
+          
+          <View style={styles.featureItem}>
+            <MaterialIcons name="file-upload" size={20} color="#34C759" />
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Importação: Google Docs, JSON, texto formatado</Text>
+          </View>
+          
+          <View style={styles.featureItem}>
+            <MaterialIcons name="security" size={20} color="#34C759" />
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Segurança: autenticação biométrica e PIN</Text>
           </View>
           
           <View style={styles.featureItem}>
             <MaterialIcons name="palette" size={20} color="#34C759" />
-            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Temas e cores personalizáveis</Text>
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Temas claro/escuro e cores personalizáveis</Text>
+          </View>
+          
+          <View style={styles.featureItem}>
+            <MaterialIcons name="content-copy" size={20} color="#34C759" />
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Duplicação de listas, notas e itens</Text>
+          </View>
+          
+          <View style={styles.featureItem}>
+            <MaterialIcons name="share" size={20} color="#34C759" />
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Exportação e compartilhamento de dados</Text>
           </View>
         </View>
 
@@ -515,6 +575,8 @@ export default function ConfiguracoesScreen() {
             • Texto simples
             • Templates estruturados
             • Exportações do Google Docs
+            • Texto formatado com negrito/itálico
+            • Estruturas hierárquicas
           </Text>
 
           <Text style={[styles.modalSubtitle, { color: colors.textSecondary, fontSize: 12, marginBottom: 5 }, typography.caption]}>
