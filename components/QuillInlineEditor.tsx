@@ -42,41 +42,151 @@ export default function QuillInlineEditor({
         --toolbarColor: ${colors.text};
         --placeholderColor: ${getPlaceholderColor(isDarkMode)};
       }
-      html, body, #root { height: 100%; }
-      body { margin: 0; padding: 0; background: transparent; }
-      #root { display: flex; flex-direction: column; height: 100%; }
+      html, body, #root { height: 100%; margin: 0; padding: 0; }
+      body { margin: 0; padding: 0; background: transparent; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+      #root { display: flex; flex-direction: column; min-height: 100%; position: relative; }
       #toolbar {
         position: sticky;
         top: 0;
+        left: 0;
+        right: 0;
         z-index: 10000;
         border: none;
         border-bottom: 1px solid var(--borderColor);
         display: flex;
         flex-wrap: nowrap;
         overflow-x: auto;
-        overflow-y: visible;
+        overflow-y: hidden;
         white-space: nowrap;
         -webkit-overflow-scrolling: touch;
         padding: 4px 6px;
         gap: 8px;
-        background: transparent;
+        background: var(--surfaceColor);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        height: 40px;
+        flex-shrink: 0;
+        margin: 0;
       }
-      .ql-toolbar.ql-snow { border: none; padding: 0; background: transparent; position: sticky; top: 0; z-index: 10000; }
+      .ql-toolbar.ql-snow { 
+        border: none; 
+        padding: 0; 
+        background: transparent; 
+        position: sticky; 
+        top: 0; 
+        left: 0; 
+        right: 0; 
+        z-index: 10000; 
+        margin: 0;
+        height: 40px;
+      }
       .ql-toolbar.ql-snow .ql-formats { display: inline-flex; align-items: center; margin-right: 0 !important; gap: 8px; }
       .ql-toolbar.ql-snow button,
       .ql-toolbar.ql-snow .ql-picker { margin-right: 0 !important; }
-      .ql-toolbar.ql-snow button { width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--toolbarColor); }
-      .ql-snow .ql-toolbar button svg { width: 20px; height: 20px; }
+      .ql-toolbar.ql-snow button { 
+        width: 20px; height: 20px; 
+        display: inline-flex; align-items: center; justify-content: center; 
+        padding: 0; color: var(--toolbarColor);
+      }
+      .ql-toolbar.ql-snow .ql-picker { height: 20px; }
+      .ql-toolbar.ql-snow .ql-picker-label { 
+        height: 20px; line-height: 20px; 
+        width: 20px; min-width: 20px; 
+        display: inline-flex; align-items: center; justify-content: center;
+        padding: 0; 
+      }
+      .ql-toolbar.ql-snow .ql-picker.ql-color .ql-picker-label,
+      .ql-toolbar.ql-snow .ql-picker.ql-background .ql-picker-label,
+      .ql-toolbar.ql-snow .ql-picker.ql-align .ql-picker-label { 
+        width: 20px; min-width: 20px; 
+      }
+      .ql-snow .ql-toolbar button svg,
+      .ql-snow .ql-toolbar .ql-picker-label svg,
+      .ql-snow .ql-toolbar .ql-picker-item svg { width: 20px; height: 20px; }
       .ql-snow .ql-stroke { stroke: currentColor !important; }
       .ql-snow .ql-fill { fill: currentColor !important; }
       .ql-picker { position: relative; z-index: 10001; color: var(--toolbarColor); }
       .ql-picker-options { z-index: 10002 !important; background: var(--surfaceColor); border-color: var(--borderColor); color: var(--textColor); }
-      .ql-container.ql-snow { border: none; flex: 1 1 auto; position: relative; z-index: 1; background: transparent; }
-      #editor { flex: 1 1 auto; padding: 8px; position: relative; z-index: 1; color: var(--textColor); caret-color: var(--textColor); }
-      .ql-snow .ql-editor, .ql-editor { color: var(--textColor) !important; }
-      .ql-editor p, .ql-editor span, .ql-editor ul, .ql-editor ol, .ql-editor li, .ql-editor h1, .ql-editor h2, .ql-editor h3, .ql-editor blockquote { color: var(--textColor) !important; }
+      .ql-picker-item { color: var(--textColor); }
+      .ql-container.ql-snow { 
+        border: none; 
+        flex: 1 1 auto; 
+        position: relative; 
+        z-index: 1; 
+        background: transparent; 
+        overflow: visible;
+        display: flex;
+        flex-direction: column;
+        margin-top: 0;
+        padding-top: 0;
+      }
+      #editor { 
+        width: 100%;
+        min-height: 200px;
+        padding: 0; 
+        position: relative; 
+        z-index: 1; 
+        color: var(--textColor); 
+        caret-color: var(--textColor);
+        overflow-y: visible;
+        overflow-x: hidden;
+        box-sizing: border-box;
+        margin-top: 0;
+      }
+      .ql-snow .ql-editor, .ql-editor { 
+        color: var(--textColor); 
+        height: auto;
+        min-height: 200px;
+        overflow-y: visible;
+        overflow-x: hidden;
+        padding: 8px;
+        box-sizing: border-box;
+        padding-bottom: 20px;
+        margin-top: 0;
+      }
+      .ql-editor p:not([style*="color"]), 
+      .ql-editor ul:not([style*="color"]), 
+      .ql-editor ol:not([style*="color"]), 
+      .ql-editor li:not([style*="color"]), 
+      .ql-editor h1:not([style*="color"]), 
+      .ql-editor h2:not([style*="color"]), 
+      .ql-editor h3:not([style*="color"]), 
+      .ql-editor blockquote:not([style*="color"]) { color: var(--textColor); }
+      .ql-editor span:not([style*="color"]):not([class*="ql-"]) { color: var(--textColor); }
       .ql-editor.ql-blank::before { color: var(--placeholderColor) !important; }
+      .ql-editor p {
+        margin: 0 0 8px 0;
+        padding: 0;
+        min-height: 1em;
+      }
+      .ql-editor p:last-child {
+        margin-bottom: 0;
+      }
+      .ql-editor p:empty {
+        margin: 0;
+        padding: 0;
+        height: 1em;
+      }
+      .ql-editor ul, .ql-editor ol {
+        margin: 0 0 8px 0;
+        padding-left: 20px;
+      }
+      .ql-editor ul:last-child, .ql-editor ol:last-child {
+        margin-bottom: 0;
+      }
+      .ql-editor * { 
+        max-height: none !important; 
+        position: static !important; 
+        z-index: auto !important; 
+      }
+      .ql-editor [style*="max-height"], .ql-editor [style*="position"] { 
+        max-height: none !important; 
+        position: static !important; 
+      }
+      .ql-editor [style*="overflow"] {
+        overflow: visible !important;
+      }
       .ql-more { width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; }
+      .ql-editor img { max-width: 100%; height: auto; display: block; }
     </style>
   </head>
   <body>
@@ -102,10 +212,6 @@ export default function QuillInlineEditor({
           <button class="ql-strike"></button>
         </span>
         <span class="ql-formats">
-          <button class="ql-list" value="bullet"></button>
-          <button class="ql-list" value="ordered"></button>
-        </span>
-        <span class="ql-formats">
           <button class="ql-more" title="Mais">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
@@ -120,18 +226,45 @@ export default function QuillInlineEditor({
       var editor = new Quill('#editor', {
         theme: 'snow',
         placeholder: ${JSON.stringify(placeholder)},
-        modules: { toolbar: '#toolbar', history: { delay: 400, maxStack: 120, userOnly: true } }
+        modules: {
+          toolbar: '#toolbar',
+          history: { delay: 500, maxStack: 200, userOnly: true }
+        }
       });
+      document.querySelector('.ql-undo').addEventListener('click', function() { editor.history.undo(); });
+      document.querySelector('.ql-redo').addEventListener('click', function() { editor.history.redo(); });
       function postChange() {
         try {
           const payload = { type: 'change', html: editor.root.innerHTML, text: editor.getText() };
           window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify(payload));
         } catch (e) {}
       }
-      editor.on('text-change', function(){ postChange(); });
-      // Helpers e botões
+      editor.on('text-change', function() { postChange(); });
+      ['div','p','span'].forEach(function(tag){
+        editor.clipboard.addMatcher(tag, function(node, delta) {
+          try { if (node && node.removeAttribute) node.removeAttribute('style'); } catch(e) {}
+          return delta;
+        });
+      });
+      editor.clipboard.addMatcher(Node.ELEMENT_NODE, function(node, delta) {
+        try { if (node && node.removeAttribute) node.removeAttribute('style'); } catch(e) {}
+        return delta;
+      });
+      function setHTML(html) {
+        try {
+          const delta = editor.clipboard.convert(html || '');
+          editor.setContents(delta, 'silent');
+        } catch(e) {}
+      }
       function applyFormat(key, value) {
-        try { editor.format(key, value === null ? false : value); } catch(e) {}
+        try {
+          var range = editor.getSelection(true);
+          if (range && range.length > 0) {
+            editor.formatText(range.index, range.length, key, value === null ? false : value, 'user');
+          } else {
+            editor.format(key, value === null ? false : value, 'user');
+          }
+        } catch(e) {}
       }
       function applyList(value) {
         try { editor.format('list', value); } catch(e) {}
@@ -140,10 +273,24 @@ export default function QuillInlineEditor({
         try { editor.format('align', value || false); } catch(e) {}
       }
       function applyHeader(value) {
-        try { editor.format('header', value === null ? false : value); } catch(e) {}
+        try {
+          var range = editor.getSelection(true);
+          if (range && range.length > 0) {
+            editor.formatText(range.index, range.length, 'header', value === null ? false : value, 'user');
+          } else {
+            editor.format('header', value === null ? false : value, 'user');
+          }
+        } catch(e) {}
       }
       function applySize(value) {
-        try { editor.format('size', value === null ? false : value); } catch(e) {}
+        try {
+          var range = editor.getSelection(true);
+          if (range && range.length > 0) {
+            editor.formatText(range.index, range.length, 'size', value === null ? false : value, 'user');
+          } else {
+            editor.format('size', value === null ? false : value, 'user');
+          }
+        } catch(e) {}
       }
       function doUndo(){ try { editor.history.undo(); } catch(e) {} }
       function doRedo(){ try { editor.history.redo(); } catch(e) {} }
@@ -153,8 +300,20 @@ export default function QuillInlineEditor({
           if (range) editor.removeFormat(range.index, range.length);
         } catch(e) {}
       }
-      document.querySelector('.ql-undo')?.addEventListener('click', function(){ doUndo(); });
-      document.querySelector('.ql-redo')?.addEventListener('click', function(){ doRedo(); });
+      function handleRNMessage(data) {
+        try {
+          const msg = JSON.parse(data || '{}');
+          if (msg.type === 'setHTML') { setHTML(msg.html || ''); }
+          if (msg.type === 'format') { applyFormat(msg.key, msg.value ?? null); }
+          if (msg.type === 'list') { applyList(msg.value); }
+          if (msg.type === 'align') { applyAlign(msg.value); }
+          if (msg.type === 'header') { applyHeader(msg.value ?? null); }
+          if (msg.type === 'size') { applySize(msg.value ?? null); }
+          if (msg.type === 'undo') { doUndo(); }
+          if (msg.type === 'redo') { doRedo(); }
+          if (msg.type === 'clean') { doClean(); }
+        } catch (e) {}
+      }
       (function() {
         var btn = document.querySelector('.ql-more');
         if (btn) {
@@ -166,26 +325,6 @@ export default function QuillInlineEditor({
           });
         }
       })();
-      function setHTML(html) {
-        try {
-          const delta = editor.clipboard.convert(html || '');
-          editor.setContents(delta, 'silent');
-        } catch(e) {}
-      }
-      function handleRNMessage(data) {
-        try {
-          const msg = JSON.parse(data || '{}');
-          if (msg.type==='setHTML') setHTML(msg.html||'');
-          if (msg.type==='format') applyFormat(msg.key, msg.value ?? null);
-          if (msg.type==='list') applyList(msg.value);
-          if (msg.type==='align') applyAlign(msg.value);
-          if (msg.type==='header') applyHeader(msg.value ?? null);
-          if (msg.type==='size') applySize(msg.value ?? null);
-          if (msg.type==='undo') doUndo();
-          if (msg.type==='redo') doRedo();
-          if (msg.type==='clean') doClean();
-        } catch(e) {}
-      }
       document.addEventListener('message', function(e){ handleRNMessage(e.data); });
       window.addEventListener('message', function(e){ handleRNMessage(e.data); });
     </script>
@@ -219,7 +358,12 @@ export default function QuillInlineEditor({
             }
           } catch {}
         }}
-        style={{ backgroundColor: 'transparent' }}
+        style={{ backgroundColor: 'transparent', flex: 1, minHeight }}
+        scrollEnabled={true}
+        nestedScrollEnabled={true}
+        bounces={true}
+        showsVerticalScrollIndicator={true}
+        showsHorizontalScrollIndicator={false}
       />
       <Modal
         visible={showMoreModal}
@@ -324,6 +468,7 @@ const styles = StyleSheet.create({
     width: '100%',
     overflow: 'hidden',
     borderRadius: 8,
+    flex: 1,
   },
   modalOverlay: {
     flex: 1,
