@@ -27,7 +27,7 @@ const isDevelopment = __DEV__;
 
 export default function ConfiguracoesScreen() {
   const { isDarkMode, setDarkMode, colors, typography } = useTheme();
-  const [versao] = useState('1.1.0');
+  const [versao] = useState('1.1.1');
   const [listas, setListas] = useState<Lista[]>([]);
   const [modalSincronizacao, setModalSincronizacao] = useState(false);
   const [dadosSincronizacao, setDadosSincronizacao] = useState('');

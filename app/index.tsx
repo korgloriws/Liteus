@@ -544,9 +544,9 @@ export default function ListasScreen() {
                     onPress={() => router.push({ pathname: '/lista-detalhes', params: { id: e.id } })}
                   >
                     <View style={styles.listaInfo}>
-                      <Text style={[styles.listaNome, { color: colors.text }, typography.titleMedium]} numberOfLines={1}>{e.titulo}</Text>
+                      <Text style={[styles.listaNome, { color: colors.text }, typography.titleMedium]}>{e.titulo}</Text>
                       {e.descricao ? (
-                        <Text style={[styles.listaDescricao, { color: colors.textSecondary }, typography.body]} numberOfLines={1}>{e.descricao}</Text>
+                        <Text style={[styles.listaDescricao, { color: colors.textSecondary }, typography.body]}>{e.descricao}</Text>
                       ) : null}
                       {e.extra ? (
                         <Text style={[styles.listaItens, { color: colors.textSecondary }, typography.caption]}>{e.extra}</Text>
@@ -1449,18 +1449,23 @@ const styles = StyleSheet.create({
   },
   listaInfo: {
     flex: 1,
+    paddingRight: 8,
   },
   listaNome: {
     marginBottom: 4,
+    flexShrink: 1,
   },
   listaDescricao: {
     marginBottom: 4,
+    flexShrink: 1,
   },
   listaItens: {
   },
   listaAcoes: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
+    marginLeft: 8,
   },
   noteBadge: {
     position: 'absolute',

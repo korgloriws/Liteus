@@ -636,68 +636,69 @@ export default function ListaDetalhesScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.modalTitulo, { color: colors.text }, typography.titleMedium]}>
-              Adicionar Item
-            </Text>
+            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalScrollContent} showsVerticalScrollIndicator={false}>
+              <Text style={[styles.modalTitulo, { color: colors.text }, typography.titleMedium]}>
+                Adicionar Item
+              </Text>
 
-            <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
-              Texto do Item *
-            </Text>
-            <QuillInlineEditor
-              initialHtml={novoTextoHtml}
-              placeholder="Digite o texto do item..."
-              onChange={(text, html) => {
-                setNovoTexto(text);
-                setNovoTextoHtml(html);
-              }}
-              minHeight={160}
-            />
+              <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
+                Texto do Item *
+              </Text>
+              <QuillInlineEditor
+                initialHtml={novoTextoHtml}
+                placeholder="Digite o texto do item..."
+                onChange={(text, html) => {
+                  setNovoTexto(text);
+                  setNovoTextoHtml(html);
+                }}
+                minHeight={160}
+              />
 
-            <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
-              Descrição (opcional)
-            </Text>
-            <TextInput
-              style={[styles.textInput, { 
-                backgroundColor: colors.accent, 
-                color: colors.text,
-                borderColor: colors.border
-              }]}
-              value={novaDescricao}
-              onChangeText={setNovaDescricao}
-              placeholder="Descrição do item..."
-              placeholderTextColor={getPlaceholderColor(isDarkMode)}
-            />
+              <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
+                Descrição (opcional)
+              </Text>
+              <TextInput
+                style={[styles.textInput, { 
+                  backgroundColor: colors.accent, 
+                  color: colors.text,
+                  borderColor: colors.border
+                }]}
+                value={novaDescricao}
+                onChangeText={setNovaDescricao}
+                placeholder="Descrição do item..."
+                placeholderTextColor={getPlaceholderColor(isDarkMode)}
+              />
 
-            <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
-              Categorias (opcional)
-            </Text>
-            <View style={styles.categoriaContainer}>
-              {lista.categorias.map((categoria) => {
-                const selecionada = novasCategorias.includes(categoria.id);
-                return (
-                  <TouchableOpacity
-                    key={categoria.id}
-                    style={[
-                      styles.categoriaOption,
-                      { backgroundColor: selecionada ? colors.primary : colors.accent, borderColor: colors.border },
-                      selecionada && styles.categoriaOptionSelecionada
-                    ]}
-                    onPress={() => {
-                      if (selecionada) {
-                        setNovasCategorias(novasCategorias.filter(id => id !== categoria.id));
-                      } else {
-                        setNovasCategorias([...novasCategorias, categoria.id]);
-                      }
-                    }}
-                  >
-                    <Text style={[styles.categoriaOptionText, { color: selecionada ? '#fff' : colors.text }, typography.body]}>
-                      {categoria.nome}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
+              <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
+                Categorias (opcional)
+              </Text>
+              <View style={styles.categoriaContainer}>
+                {lista.categorias.map((categoria) => {
+                  const selecionada = novasCategorias.includes(categoria.id);
+                  return (
+                    <TouchableOpacity
+                      key={categoria.id}
+                      style={[
+                        styles.categoriaOption,
+                        { backgroundColor: selecionada ? colors.primary : colors.accent, borderColor: colors.border },
+                        selecionada && styles.categoriaOptionSelecionada
+                      ]}
+                      onPress={() => {
+                        if (selecionada) {
+                          setNovasCategorias(novasCategorias.filter(id => id !== categoria.id));
+                        } else {
+                          setNovasCategorias([...novasCategorias, categoria.id]);
+                        }
+                      }}
+                    >
+                      <Text style={[styles.categoriaOptionText, { color: selecionada ? '#fff' : colors.text }, typography.body]}>
+                        {categoria.nome}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
             <View style={styles.modalBotoes}>
               <TouchableOpacity
                 style={styles.btnCancelar}
@@ -731,68 +732,69 @@ export default function ListaDetalhesScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.modalTitulo, { color: colors.text }, typography.titleMedium]}>
-              Editar Item
-            </Text>
+            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalScrollContent} showsVerticalScrollIndicator={false}>
+              <Text style={[styles.modalTitulo, { color: colors.text }, typography.titleMedium]}>
+                Editar Item
+              </Text>
 
-            <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
-              Texto do Item *
-            </Text>
-            <QuillInlineEditor
-              initialHtml={novoTextoHtml}
-              placeholder="Digite o texto do item..."
-              onChange={(text, html) => {
-                setNovoTexto(text);
-                setNovoTextoHtml(html);
-              }}
-              minHeight={160}
-            />
+              <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
+                Texto do Item *
+              </Text>
+              <QuillInlineEditor
+                initialHtml={novoTextoHtml}
+                placeholder="Digite o texto do item..."
+                onChange={(text, html) => {
+                  setNovoTexto(text);
+                  setNovoTextoHtml(html);
+                }}
+                minHeight={160}
+              />
 
-            <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
-              Descrição (opcional)
-            </Text>
-            <TextInput
-              style={[styles.textInput, { 
-                backgroundColor: colors.accent, 
-                color: colors.text,
-                borderColor: colors.border
-              }]}
-              value={novaDescricao}
-              onChangeText={setNovaDescricao}
-              placeholder="Descrição do item..."
-              placeholderTextColor={getPlaceholderColor(isDarkMode)}
-            />
+              <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
+                Descrição (opcional)
+              </Text>
+              <TextInput
+                style={[styles.textInput, { 
+                  backgroundColor: colors.accent, 
+                  color: colors.text,
+                  borderColor: colors.border
+                }]}
+                value={novaDescricao}
+                onChangeText={setNovaDescricao}
+                placeholder="Descrição do item..."
+                placeholderTextColor={getPlaceholderColor(isDarkMode)}
+              />
 
-            <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
-              Categorias (opcional)
-            </Text>
-            <View style={styles.categoriaContainer}>
-              {lista.categorias.map((categoria) => {
-                const selecionada = novasCategorias.includes(categoria.id);
-                return (
-                  <TouchableOpacity
-                    key={categoria.id}
-                    style={[
-                      styles.categoriaOption,
-                      { backgroundColor: selecionada ? colors.primary : colors.accent, borderColor: colors.border },
-                      selecionada && styles.categoriaOptionSelecionada
-                    ]}
-                    onPress={() => {
-                      if (selecionada) {
-                        setNovasCategorias(novasCategorias.filter(id => id !== categoria.id));
-                      } else {
-                        setNovasCategorias([...novasCategorias, categoria.id]);
-                      }
-                    }}
-                  >
-                    <Text style={[styles.categoriaOptionText, { color: selecionada ? '#fff' : colors.text }, typography.body]}>
-                      {categoria.nome}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
+              <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
+                Categorias (opcional)
+              </Text>
+              <View style={styles.categoriaContainer}>
+                {lista.categorias.map((categoria) => {
+                  const selecionada = novasCategorias.includes(categoria.id);
+                  return (
+                    <TouchableOpacity
+                      key={categoria.id}
+                      style={[
+                        styles.categoriaOption,
+                        { backgroundColor: selecionada ? colors.primary : colors.accent, borderColor: colors.border },
+                        selecionada && styles.categoriaOptionSelecionada
+                      ]}
+                      onPress={() => {
+                        if (selecionada) {
+                          setNovasCategorias(novasCategorias.filter(id => id !== categoria.id));
+                        } else {
+                          setNovasCategorias([...novasCategorias, categoria.id]);
+                        }
+                      }}
+                    >
+                      <Text style={[styles.categoriaOptionText, { color: selecionada ? '#fff' : colors.text }, typography.body]}>
+                        {categoria.nome}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
             <View style={styles.modalBotoes}>
               <TouchableOpacity
                 style={styles.btnCancelar}
@@ -1094,7 +1096,7 @@ const styles = StyleSheet.create({
   },
   itemHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 4,
   },
   checkboxContainer: {
@@ -1102,6 +1104,7 @@ const styles = StyleSheet.create({
   },
   itemTextContainer: {
     flex: 1,
+    flexShrink: 1,
   },
   itemTexto: {
     fontSize: 16,
@@ -1147,6 +1150,14 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '90%',
     maxWidth: 400,
+    maxHeight: '85%',
+  },
+  modalScroll: {
+    maxHeight: '100%',
+    width: '100%',
+  },
+  modalScrollContent: {
+    paddingBottom: 12,
   },
   modalTitulo: {
     fontSize: 18,
