@@ -469,6 +469,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: 8,
     flex: 1,
+    minHeight: 0,
   },
   modalOverlay: {
     flex: 1,

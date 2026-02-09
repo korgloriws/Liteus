@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, ScrollView, BackHandler } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Alert, TextInput, BackHandler, KeyboardAvoidingView, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { Nota, FormatoTexto } from '../types';
+import { Nota } from '../types';
 import { StorageService } from '../services/storage';
 import { useTheme } from '../services/ThemeContext';
 import { getPlaceholderColor } from '../services/theme';
@@ -99,35 +99,40 @@ export default function NotaDetalhesScreen() {
 
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}> 
-      <View style={[styles.header, { backgroundColor: colors.surface }]}> 
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface }]}>
         <TouchableOpacity style={styles.headerButton} onPress={() => router.replace('/notas')}>
           <MaterialIcons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.headerTools} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        style={styles.contentWrapper}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      >
         <TextInput
-          style={[styles.titleInput, { color: colors.text }]}
+          style={[styles.titleInput, { color: colors.text, backgroundColor: colors.background }]}
           value={titulo}
           onChangeText={setTitulo}
           placeholder="Título"
           placeholderTextColor={getPlaceholderColor(isDarkMode)}
         />
-
-        <QuillInlineEditor
-          key={id as any}
-          initialHtml={html}
-          placeholder="Escreva sua nota..."
-          onChange={(text, htmlContent) => {
-            setHtml(htmlContent);
-            const plain = text.replace(/\s+/g, ' ').trim();
-            setConteudo(plain);
-          }}
-          minHeight={300}
-        />
-      </ScrollView>
+        <View style={styles.editorContainer}>
+          <QuillInlineEditor
+            key={id as any}
+            initialHtml={html}
+            placeholder="Escreva sua nota..."
+            onChange={(text, htmlContent) => {
+              setHtml(htmlContent);
+              const plain = text.replace(/\s+/g, ' ').trim();
+              setConteudo(plain);
+            }}
+            minHeight={200}
+          />
+        </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -172,14 +177,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  content: {
+  contentWrapper: {
     flex: 1,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
+    minHeight: 0,
   },
   titleInput: {
     fontSize: 22,
     fontWeight: '700',
     marginBottom: 12,
+    paddingVertical: 4,
+  },
+  editorContainer: {
+    flex: 1,
+    minHeight: 0,
   },
 });
 

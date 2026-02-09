@@ -6,14 +6,17 @@ import { useTheme } from '../services/ThemeContext';
 interface HtmlViewerProps {
   html?: string;
   style?: any;
+  /** Altura máxima em px. Se não informado, o conteúdo é exibido por completo (quebra de linha). */
   maxHeight?: number;
 }
 
-export default function HtmlViewer({ html = '', style, maxHeight = 60 }: HtmlViewerProps) {
+export default function HtmlViewer({ html = '', style, maxHeight }: HtmlViewerProps) {
   const { isDarkMode, colors } = useTheme();
+  const hasMaxHeight = maxHeight != null && maxHeight > 0;
 
   const htmlContent = useMemo(() => {
     const content = html || '<p></p>';
+    const contentMaxHeightCss = hasMaxHeight ? `max-height: ${maxHeight}px; overflow: hidden;` : '';
     return `
 <!DOCTYPE html>
 <html>
@@ -40,8 +43,7 @@ export default function HtmlViewer({ html = '', style, maxHeight = 60 }: HtmlVie
         word-wrap: break-word;
         font-size: 16px;
         font-weight: 600;
-        max-height: ${maxHeight}px;
-        overflow: hidden;
+        ${contentMaxHeightCss}
       }
       #content p {
         margin: 0;
@@ -94,18 +96,20 @@ export default function HtmlViewer({ html = '', style, maxHeight = 60 }: HtmlVie
   </body>
 </html>
     `;
-  }, [html, colors.text, maxHeight]);
+  }, [html, colors.text, maxHeight, hasMaxHeight]);
 
   if (!html || html.trim() === '' || html === '<p></p>') {
     return null;
   }
 
+  const webViewHeight = hasMaxHeight ? maxHeight! : 500;
+
   return (
-    <View style={[styles.container, style, { maxHeight }]}>
+    <View style={[styles.container, style, hasMaxHeight && { maxHeight }]}>
       <WebView
         originWhitelist={['*']}
         source={{ html: htmlContent }}
-        style={[styles.webview, { backgroundColor: 'transparent', height: maxHeight }]}
+        style={[styles.webview, { backgroundColor: 'transparent', minHeight: hasMaxHeight ? undefined : 24, height: webViewHeight }]}
         scrollEnabled={false}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}

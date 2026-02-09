@@ -315,7 +315,7 @@ export default function ListaDetalhesScreen() {
                 <HtmlViewer 
                   html={item.html}
                   style={styles.itemTexto}
-                  maxHeight={60}
+                  maxHeight={undefined}
                 />
               ) : (
                 <FormattedText 
@@ -1105,6 +1105,7 @@ const styles = StyleSheet.create({
   itemTextContainer: {
     flex: 1,
     flexShrink: 1,
+    minWidth: 0,
   },
   itemTexto: {
     fontSize: 16,
