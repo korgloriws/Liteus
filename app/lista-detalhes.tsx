@@ -19,7 +19,6 @@ import { StorageService } from '../services/storage';
 import { UtilsService } from '../services/utils';
 import { FormattedText } from '../services/FormattedText';
 import QuillInlineEditor from '../components/QuillInlineEditor';
-import HtmlViewer from '../components/HtmlViewer';
 import { SyncService } from '../services/syncService';
 import { useTheme } from '../services/ThemeContext';
 import { getPlaceholderColor } from '../services/theme';
@@ -311,20 +310,12 @@ export default function ListaDetalhesScreen() {
             </TouchableOpacity>
             
             <View style={styles.itemTextContainer}>
-              {item.html ? (
-                <HtmlViewer 
-                  html={item.html}
-                  style={styles.itemTexto}
-                  maxHeight={undefined}
-                />
-              ) : (
-                <FormattedText 
-                  texto={item.texto}
-                  textoFormatado={item.textoFormatado}
-                  style={styles.itemTexto}
-                  isDarkMode={isDarkMode}
-                />
-              )}
+              <FormattedText
+                texto={item.texto}
+                textoFormatado={item.textoFormatado}
+                style={{ ...styles.itemTexto, color: colors.text, flexShrink: 1 }}
+                isDarkMode={isDarkMode}
+              />
             </View>
           </View>
           

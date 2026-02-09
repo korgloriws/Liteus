@@ -27,7 +27,7 @@ const isDevelopment = __DEV__;
 
 export default function ConfiguracoesScreen() {
   const { isDarkMode, setDarkMode, colors, typography } = useTheme();
-  const [versao] = useState('1.1.2');
+  const [versao] = useState('1.1.3');
   const [listas, setListas] = useState<Lista[]>([]);
   const [modalSincronizacao, setModalSincronizacao] = useState(false);
   const [dadosSincronizacao, setDadosSincronizacao] = useState('');
@@ -134,7 +134,7 @@ export default function ConfiguracoesScreen() {
       const result = await localSyncService.importData();
       if (result.success) {
         Alert.alert('Sucesso', result.message);
-        await carregarListas(); // Recarregar listas após importação
+        await carregarListas(); 
       } else {
         Alert.alert('Erro', result.message);
       }
@@ -314,7 +314,7 @@ export default function ConfiguracoesScreen() {
               )}
               {syncStatus.pendingChanges > 0 && (
                 <Text style={{ color: '#FF9500', fontSize: 12 }}>
-                  ⚠️ {syncStatus.pendingChanges} mudanças pendentes para sincronização
+                   {syncStatus.pendingChanges} mudanças pendentes para sincronização
                 </Text>
               )}
             </View>
