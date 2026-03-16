@@ -27,7 +27,7 @@ const isDevelopment = __DEV__;
 
 export default function ConfiguracoesScreen() {
   const { isDarkMode, setDarkMode, colors, typography } = useTheme();
-  const [versao] = useState('1.1.3');
+  const [versao] = useState('1.1.4');
   const [listas, setListas] = useState<Lista[]>([]);
   const [modalSincronizacao, setModalSincronizacao] = useState(false);
   const [dadosSincronizacao, setDadosSincronizacao] = useState('');
@@ -400,7 +400,7 @@ export default function ConfiguracoesScreen() {
               <MaterialIcons name="code" size={24} color={colors.primary} />
               <Text style={[styles.optionText, { color: colors.text }, typography.body]}>Desenvolvedor</Text>
             </View>
-            <Text style={[styles.optionValue, { color: colors.textSecondary }, typography.body]}>Mateus Rodrigues</Text>
+            <Text style={[styles.optionValue, { color: colors.textSecondary }, typography.body]}>Korgloriws</Text>
           </View>
         </View>
 
@@ -495,7 +495,7 @@ export default function ConfiguracoesScreen() {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: colors.textSecondary }, typography.caption]}>
-            © 2025 Liteus - Listas Inteligentes
+            © 2025 - 2026 Liteus - Listas Inteligentes
           </Text>
         </View>
       </View>

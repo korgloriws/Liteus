@@ -166,6 +166,108 @@ class LocalSyncService {
     }
   }
 
+  // Exportar apenas uma lista individual em formato compatível
+  async exportSingleList(lista: Lista): Promise<{ success: boolean; filePath?: string; message: string }> {
+    try {
+      const notasVazias: Nota[] = [];
+
+      const syncData: SyncData = {
+        lists: [lista],
+        notes: notasVazias,
+        metadata: {
+          exportadoEm: new Date().toISOString(),
+          versao: '1.0.0',
+          dispositivo: this.deviceId || 'unknown',
+          totalListas: 1,
+          totalItens: lista.itens.length,
+          totalNotas: 0,
+        },
+      };
+
+      const safeNome = (lista.nome || 'lista')
+        .toLowerCase()
+        .replace(/[^a-z0-9-_]+/gi, '_')
+        .slice(0, 40);
+
+      const fileName = `liteus_lista_${safeNome || 'sem_nome'}_${new Date()
+        .toISOString()
+        .split('T')[0]}.json`;
+      const dir: string =
+        (FileSystemLegacy as any).documentDirectory ||
+        (FileSystemLegacy as any).cacheDirectory ||
+        '';
+      const filePath = `${dir}${fileName}`;
+
+      await FileSystemLegacy.writeAsStringAsync(
+        filePath,
+        JSON.stringify(syncData, null, 2)
+      );
+
+      return {
+        success: true,
+        filePath,
+        message: `Backup criado para a lista "${lista.nome}" com ${lista.itens.length} itens`,
+      };
+    } catch (error) {
+      console.error('Erro ao exportar lista individual:', error);
+      return {
+        success: false,
+        message: 'Falha ao criar backup da lista',
+      };
+    }
+  }
+
+  // Exportar apenas uma nota individual em formato compatível
+  async exportSingleNote(nota: Nota): Promise<{ success: boolean; filePath?: string; message: string }> {
+    try {
+      const listasVazias: Lista[] = [];
+
+      const syncData: SyncData = {
+        lists: listasVazias,
+        notes: [nota],
+        metadata: {
+          exportadoEm: new Date().toISOString(),
+          versao: '1.0.0',
+          dispositivo: this.deviceId || 'unknown',
+          totalListas: 0,
+          totalItens: 0,
+          totalNotas: 1,
+        },
+      };
+
+      const safeTitulo = (nota.titulo || 'nota')
+        .toLowerCase()
+        .replace(/[^a-z0-9-_]+/gi, '_')
+        .slice(0, 40);
+
+      const fileName = `liteus_nota_${safeTitulo || 'sem_titulo'}_${new Date()
+        .toISOString()
+        .split('T')[0]}.json`;
+      const dir: string =
+        (FileSystemLegacy as any).documentDirectory ||
+        (FileSystemLegacy as any).cacheDirectory ||
+        '';
+      const filePath = `${dir}${fileName}`;
+
+      await FileSystemLegacy.writeAsStringAsync(
+        filePath,
+        JSON.stringify(syncData, null, 2)
+      );
+
+      return {
+        success: true,
+        filePath,
+        message: `Backup criado para a nota "${nota.titulo || 'Sem título'}"`,
+      };
+    } catch (error) {
+      console.error('Erro ao exportar nota individual:', error);
+      return {
+        success: false,
+        message: 'Falha ao criar backup da nota',
+      };
+    }
+  }
+
   // Compartilhar arquivo de backup
   async shareBackup(): Promise<{ success: boolean; message: string }> {
     try {
@@ -189,6 +291,64 @@ class LocalSyncService {
     } catch (error) {
       console.error('Erro ao compartilhar backup:', error);
       return { success: false, message: 'Erro ao compartilhar backup' };
+    }
+  }
+
+  // Compartilhar apenas uma lista específica em JSON
+  async shareList(lista: Lista): Promise<{ success: boolean; message: string }> {
+    try {
+      const exportResult = await this.exportSingleList(lista);
+
+      if (!exportResult.success || !exportResult.filePath) {
+        return { success: false, message: exportResult.message };
+      }
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (!canShare) {
+        return {
+          success: false,
+          message: 'Compartilhamento não disponível neste dispositivo',
+        };
+      }
+
+      await Sharing.shareAsync(exportResult.filePath, {
+        mimeType: 'application/json',
+        dialogTitle: 'Compartilhar Lista (JSON) - Liteus',
+      });
+
+      return { success: true, message: 'Lista compartilhada com sucesso!' };
+    } catch (error) {
+      console.error('Erro ao compartilhar lista individual:', error);
+      return { success: false, message: 'Erro ao compartilhar lista' };
+    }
+  }
+
+  // Compartilhar apenas uma nota específica em JSON
+  async shareNote(nota: Nota): Promise<{ success: boolean; message: string }> {
+    try {
+      const exportResult = await this.exportSingleNote(nota);
+
+      if (!exportResult.success || !exportResult.filePath) {
+        return { success: false, message: exportResult.message };
+      }
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (!canShare) {
+        return {
+          success: false,
+          message: 'Compartilhamento não disponível neste dispositivo',
+        };
+      }
+
+      await Sharing.shareAsync(exportResult.filePath, {
+        mimeType: 'application/json',
+        dialogTitle: 'Compartilhar Nota (JSON) - Liteus',
+      });
+
+      return { success: true, message: 'Nota compartilhada com sucesso!' };
+    } catch (error) {
+      console.error('Erro ao compartilhar nota individual:', error);
+      return { success: false, message: 'Erro ao compartilhar nota' };
     }
   }
 

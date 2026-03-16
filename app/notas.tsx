@@ -7,6 +7,7 @@ import { StorageService } from '../services/storage';
 import { Nota } from '../types';
 import { router } from 'expo-router';
 import SyncStatus from '../components/SyncStatus';
+import { localSyncService } from '../services/localSyncService';
 
 export default function NotasScreen() {
   const { isDarkMode, colors, typography } = useTheme();
@@ -72,6 +73,17 @@ export default function NotasScreen() {
   const duplicarNota = async (id: string) => {
     await StorageService.duplicarNota(id);
     await carregar();
+  };
+
+  const compartilharNotaJson = async (nota: Nota) => {
+    try {
+      const result = await localSyncService.shareNote(nota);
+      if (!result.success) {
+        Alert.alert('Erro', result.message);
+      }
+    } catch (e) {
+      Alert.alert('Erro', 'Não foi possível compartilhar a nota em JSON');
+    }
   };
 
   const abrirEditar = (n: Nota) => {
@@ -222,6 +234,9 @@ export default function NotasScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.btn, { backgroundColor: colors.accent }]} onPress={() => duplicarNota(n.id)}>
                     <MaterialIcons name="content-copy" size={18} color={colors.secondary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.btn, { backgroundColor: colors.accent }]} onPress={() => compartilharNotaJson(n)}>
+                    <MaterialIcons name="share" size={18} color={colors.primary} />
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.btnDanger} onPress={() => removerNota(n.id)}>
                     <MaterialIcons name="delete" size={18} color="#FF3B30" />
@@ -411,9 +426,9 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 18, fontWeight: '600' },
   cardDesc: { marginTop: 2, fontSize: 14 },
   cardMeta: { marginTop: 2, fontSize: 12 },
-  cardActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  btn: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
-  btnDanger: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, backgroundColor: 'transparent' },
+  cardActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  btn: { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8 },
+  btnDanger: { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8, backgroundColor: 'transparent' },
   fab: { position: 'absolute', right: 16, bottom: 24, width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 3 },
   modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', padding: 16 },
   modalContent: { width: '92%', borderRadius: 12, padding: 16 },

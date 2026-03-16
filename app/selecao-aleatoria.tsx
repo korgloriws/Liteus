@@ -229,19 +229,31 @@ export default function SelecaoAleatoriaScreen() {
             </View>
 
               <TouchableOpacity
-              style={[styles.btnNovaSelecao, { backgroundColor: colors.primary }]}
+                style={[styles.btnNovaSelecao, { backgroundColor: colors.primary }]}
                 onPress={reiniciarSelecao}
               >
-              <Text style={[styles.btnNovaSelecaoText, typography.body]}>
-                Nova Seleção
-              </Text>
+                <Text
+                  style={[
+                    styles.btnNovaSelecaoText,
+                    typography.body,
+                    { color: isDarkMode ? colors.background : '#fff' },
+                  ]}
+                >
+                  Nova Seleção
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.btnLimparSelecao, { backgroundColor: colors.secondary }]}
                 onPress={reiniciarSelecao}
               >
-                <Text style={[styles.btnLimparSelecaoText, typography.body]}>
+                <Text
+                  style={[
+                    styles.btnLimparSelecaoText,
+                    typography.body,
+                    { color: isDarkMode ? colors.background : '#fff' },
+                  ]}
+                >
                   Limpar Seleção
                 </Text>
               </TouchableOpacity>

@@ -22,6 +22,7 @@ import { UtilsService } from '../services/utils';
 import { DocumentProcessor } from '../services/documentProcessor';
 import { useTheme } from '../services/ThemeContext';
 import { SyncService } from '../services/syncService';
+import { localSyncService } from '../services/localSyncService';
 import { getPlaceholderColor } from '../services/theme';
 import SyncStatus from '../components/SyncStatus';
 import QuillInlineEditor from '../components/QuillInlineEditor';
@@ -150,6 +151,17 @@ export default function ListasScreen() {
       Alert.alert('Sucesso', 'Lista duplicada com sucesso!');
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível duplicar a lista');
+    }
+  };
+
+  const compartilharListaJson = async (lista: Lista) => {
+    try {
+      const result = await localSyncService.shareList(lista);
+      if (!result.success) {
+        Alert.alert('Erro', result.message);
+      }
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível compartilhar a lista em JSON');
     }
   };
 
@@ -573,6 +585,12 @@ export default function ListasScreen() {
                           onPress={() => duplicarLista(e.lista.id)}
                         >
                           <MaterialIcons name="content-copy" size={20} color={colors.secondary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.btnDuplicar, { backgroundColor: colors.accent }]}
+                          onPress={() => compartilharListaJson(e.lista)}
+                        >
+                          <MaterialIcons name="share" size={20} color={colors.primary} />
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={styles.btnExcluir}
@@ -1481,25 +1499,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   btnAleatorio: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginRight: 6,
   },
   btnDuplicar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginRight: 6,
   },
   btnExcluir: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: '#FFE5E5',
     alignItems: 'center',
     justifyContent: 'center',
