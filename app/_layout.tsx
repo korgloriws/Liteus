@@ -96,6 +96,12 @@ function TabLayoutContent() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="tags-globais"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
     </AuthGate>
   );

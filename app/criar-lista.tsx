@@ -16,21 +16,15 @@ import { StorageService } from '../services/storage';
 import { useTheme } from '../services/ThemeContext';
 import { getPlaceholderColor } from '../services/theme';
 import QuillInlineEditor from '../components/QuillInlineEditor';
-
-const CORES = [
-  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
-  '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
-  '#F8C471', '#82E0AA', '#F1948A', '#D7BDE2', '#FF9F43'
-];
+import ColorWheelPicker from '../components/ColorWheelPicker';
 
 export default function CriarListaScreen() {
   const { isDarkMode, colors, typography } = useTheme();
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
   const [descricaoHtml, setDescricaoHtml] = useState<string>('');
-  const [corSelecionada, setCorSelecionada] = useState(CORES[0]);
+  const [corSelecionada, setCorSelecionada] = useState('#007AFF');
   const [permiteSelecaoAleatoria, setPermiteSelecaoAleatoria] = useState(false);
-  const [modalCores, setModalCores] = useState(false);
 
   const handleSalvar = async () => {
     try {
@@ -67,7 +61,7 @@ export default function CriarListaScreen() {
     setNome('');
     setDescricao('');
     setDescricaoHtml('');
-    setCorSelecionada(CORES[0]);
+    setCorSelecionada('#007AFF');
     setPermiteSelecaoAleatoria(false);
   };
 
@@ -134,18 +128,13 @@ export default function CriarListaScreen() {
           <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>Personalização</Text>
           
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.text }, typography.body]}>Cor</Text>
-                  <TouchableOpacity
-              style={[styles.colorPicker, { borderColor: colors.border }]}
-              onPress={() => setModalCores(true)}
-            >
-              <View style={[styles.colorPreview, { backgroundColor: corSelecionada }]} />
-              <Text style={[styles.colorText, { color: colors.text }, typography.body]}>
-                {corSelecionada}
-              </Text>
-              <MaterialIcons name="arrow-drop-down" size={24} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                </View>
+            <ColorWheelPicker
+              label="Cor"
+              title="Cor da lista"
+              value={corSelecionada}
+              onChange={setCorSelecionada}
+            />
+          </View>
             </View>
 
         <View style={styles.section}>
@@ -188,50 +177,6 @@ export default function CriarListaScreen() {
       </View>
 
     </ScrollView>
-
-      {/* Modal de Cores */}
-      <Modal
-        visible={modalCores}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setModalCores(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }, typography.titleLarge]}>
-              Escolher Cor
-            </Text>
-            
-            <View style={styles.colorsGrid}>
-              {CORES.map((cor) => (
-                <TouchableOpacity
-                  key={cor}
-                  style={[
-                    styles.colorOption,
-                    { backgroundColor: cor },
-                    corSelecionada === cor && styles.colorOptionSelecionada
-                  ]}
-                  onPress={() => {
-                    setCorSelecionada(cor);
-                    setModalCores(false);
-                  }}
-                >
-                  {corSelecionada === cor && (
-                    <MaterialIcons name="check" size={20} color="#fff" />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-
-              <TouchableOpacity
-                style={styles.btnCancelar}
-              onPress={() => setModalCores(false)}
-              >
-                <Text style={styles.btnCancelarText}>Cancelar</Text>
-              </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -303,24 +248,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
   },
-  colorPicker: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  colorPreview: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    marginRight: 12,
-  },
-  colorText: {
-    flex: 1,
-    fontSize: 16,
-  },
   optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -357,52 +284,5 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    width: '90%',
-    maxHeight: '80%',
-    borderRadius: 16,
-    padding: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  colorsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  colorOption: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    margin: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  colorOptionSelecionada: {
-    borderWidth: 3,
-    borderColor: '#fff',
-  },
-  btnCancelar: {
-    backgroundColor: '#FF3B30',
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  btnCancelarText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
 }); 

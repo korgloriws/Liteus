@@ -1,10 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Lista, Item, Categoria, Nota } from '../types';
+import { Lista, Item, Categoria, Nota, GlobalTag } from '../types';
 import { localSyncService } from './localSyncService';
 
 const LISTAS_KEY = '@liteus_listas';
 const NOTAS_KEY = '@liteus_notas';
 const TRASH_KEY = '@liteus_trash';
+const TAGS_KEY = '@liteus_tags';
 
 type TrashType = 'lista' | 'nota';
 interface TrashEntry {
@@ -15,6 +16,220 @@ interface TrashEntry {
 }
 
 export class StorageService {
+  private static tagsMigrated = false;
+
+  static async carregarTags(): Promise<GlobalTag[]> {
+    try {
+      const data = await AsyncStorage.getItem(TAGS_KEY);
+      const tags: GlobalTag[] = data ? JSON.parse(data) : [];
+      return tags.map((t: any) => ({
+        id: String(t.id),
+        nome: t.nome || '',
+        cor: t.cor,
+        createdAt: t.createdAt || new Date().toISOString(),
+        updatedAt: t.updatedAt || new Date().toISOString(),
+        ownerListId: t.ownerListId,
+        listIds: Array.isArray(t.listIds) ? t.listIds.map(String) : [],
+      }));
+    } catch (error) {
+      console.error('Erro ao carregar tags globais:', error);
+      return [];
+    }
+  }
+
+  static async salvarTags(tags: GlobalTag[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(TAGS_KEY, JSON.stringify(tags));
+    } catch (error) {
+      console.error('Erro ao salvar tags globais:', error);
+      throw error;
+    }
+  }
+
+  static async atualizarTagGlobal(tagId: string, dados: Partial<Pick<GlobalTag, 'nome' | 'cor'>>): Promise<GlobalTag | null> {
+    try {
+      const tags = await this.carregarTags();
+      const idx = tags.findIndex((t) => t.id === tagId);
+      if (idx === -1) return null;
+
+      tags[idx] = {
+        ...tags[idx],
+        ...dados,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await this.salvarTags(tags);
+      return tags[idx];
+    } catch (error) {
+      console.error('Erro ao atualizar tag global:', error);
+      throw error;
+    }
+  }
+
+  static async removerTagGlobal(tagId: string): Promise<boolean> {
+    try {
+      const [tags, listas] = await Promise.all([this.carregarTags(), this.carregarListas()]);
+      const idx = tags.findIndex((t) => t.id === tagId);
+      if (idx === -1) return false;
+
+      tags.splice(idx, 1);
+
+      const listasAtualizadas = listas.map((lista) => ({
+        ...lista,
+        tagIds: (lista.tagIds || []).filter((id) => id !== tagId),
+        categorias: (lista.categorias || []).filter((cat) => cat.id !== tagId),
+        itens: (lista.itens || []).map((item) => ({
+          ...item,
+          categoria: item.categoria === tagId ? undefined : item.categoria,
+          categorias: Array.isArray(item.categorias)
+            ? item.categorias.filter((id) => id !== tagId)
+            : item.categorias,
+        })),
+      }));
+
+      await Promise.all([
+        this.salvarTags(tags),
+        this.salvarListas(listasAtualizadas),
+      ]);
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao remover tag global:', error);
+      throw error;
+    }
+  }
+
+  private static buildTagKey(nome?: string, cor?: string): string {
+    return `${(nome || '').trim().toLowerCase()}::${(cor || '').trim().toLowerCase()}`;
+  }
+
+  private static async ensureGlobalTagsMigrated(): Promise<void> {
+    if (this.tagsMigrated) return;
+
+    const [rawListasData, existingTags] = await Promise.all([
+      AsyncStorage.getItem(LISTAS_KEY),
+      this.carregarTags(),
+    ]);
+
+    const rawListas: Lista[] = rawListasData ? JSON.parse(rawListasData) : [];
+    if (!Array.isArray(rawListas) || rawListas.length === 0) {
+      this.tagsMigrated = true;
+      return;
+    }
+
+    let tags = [...existingTags];
+    const byKey = new Map<string, GlobalTag>();
+    tags.forEach((t) => byKey.set(this.buildTagKey(t.nome, t.cor), t));
+    let changed = false;
+
+    const migratedListas = rawListas.map((lista: any) => {
+      const categorias: Categoria[] = Array.isArray(lista.categorias) ? lista.categorias : [];
+      const tagIds = new Set<string>(Array.isArray(lista.tagIds) ? lista.tagIds : []);
+      const oldToGlobal = new Map<string, string>();
+
+      for (const cat of categorias) {
+        const key = this.buildTagKey(cat.nome, cat.cor);
+        let tag = byKey.get(key);
+        if (!tag) {
+          tag = {
+            id: `tag_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            nome: cat.nome,
+            cor: cat.cor,
+            createdAt: cat.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            ownerListId: lista.id,
+            listIds: [lista.id],
+          };
+          byKey.set(key, tag);
+          tags.push(tag);
+          changed = true;
+        } else if (!tag.listIds.includes(lista.id)) {
+          tag.listIds.push(lista.id);
+          tag.updatedAt = new Date().toISOString();
+          changed = true;
+        }
+
+        oldToGlobal.set(String(cat.id), tag.id);
+        tagIds.add(tag.id);
+      }
+
+      const itens = Array.isArray(lista.itens) ? lista.itens.map((item: any) => {
+        const catIds = Array.isArray(item.categorias) ? item.categorias.map((id: string) => oldToGlobal.get(String(id)) || String(id)) : [];
+        const single = item.categoria ? (oldToGlobal.get(String(item.categoria)) || String(item.categoria)) : item.categoria;
+        return {
+          ...item,
+          categorias: catIds.length > 0 ? catIds : item.categorias,
+          categoria: single,
+        };
+      }) : [];
+
+      return {
+        ...lista,
+        itens,
+        tagIds: Array.from(tagIds),
+      };
+    });
+
+    if (changed || migratedListas.some((l: any) => !Array.isArray(l.tagIds))) {
+      await Promise.all([
+        AsyncStorage.setItem(LISTAS_KEY, JSON.stringify(migratedListas)),
+        this.salvarTags(tags),
+      ]);
+    }
+
+    this.tagsMigrated = true;
+  }
+
+  private static async syncCategoriasToGlobal(listaId: string, categorias: Categoria[]): Promise<{ categorias: Categoria[]; tagIds: string[] }> {
+    const tags = await this.carregarTags();
+    const byKey = new Map<string, GlobalTag>();
+    tags.forEach((t) => byKey.set(this.buildTagKey(t.nome, t.cor), t));
+
+    const normalizedCats: Categoria[] = [];
+    const tagIds: string[] = [];
+
+    for (const cat of categorias || []) {
+      const key = this.buildTagKey(cat.nome, cat.cor);
+      let tag = byKey.get(key);
+
+      if (!tag) {
+        tag = {
+          id: cat.id || `tag_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          nome: cat.nome,
+          cor: cat.cor,
+          createdAt: cat.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          ownerListId: listaId,
+          listIds: [listaId],
+        };
+        tags.push(tag);
+        byKey.set(key, tag);
+      } else {
+        if (!tag.listIds.includes(listaId)) {
+          tag.listIds.push(listaId);
+        }
+        tag.updatedAt = new Date().toISOString();
+      }
+
+      tagIds.push(tag.id);
+      normalizedCats.push({
+        id: tag.id,
+        nome: tag.nome,
+        cor: tag.cor,
+        createdAt: tag.createdAt,
+      });
+    }
+
+    for (const tag of tags) {
+      if (tag.listIds.includes(listaId) && !tagIds.includes(tag.id)) {
+        tag.listIds = tag.listIds.filter((id) => id !== listaId);
+        tag.updatedAt = new Date().toISOString();
+      }
+    }
+
+    await this.salvarTags(tags);
+    return { categorias: normalizedCats, tagIds: Array.from(new Set(tagIds)) };
+  }
   // =============================
   // Lixeira - 30 dias
   // =============================
@@ -114,15 +329,32 @@ export class StorageService {
 
   static async carregarListas(): Promise<Lista[]> {
     try {
+      await this.ensureGlobalTagsMigrated();
       const data = await AsyncStorage.getItem(LISTAS_KEY);
       const listas = data ? JSON.parse(data) : [];
-      
 
-      return listas.map((lista: any) => ({
-        ...lista,
-        categorias: lista.categorias || [],
-        itens: lista.itens || [],
-      }));
+      const tags = await this.carregarTags();
+      const tagsById = new Map(tags.map((t) => [t.id, t]));
+
+      return listas.map((lista: any) => {
+        const tagIds: string[] = Array.isArray(lista.tagIds) ? lista.tagIds : [];
+        const categoriasFromTags: Categoria[] = tagIds
+          .map((tagId) => tagsById.get(String(tagId)))
+          .filter(Boolean)
+          .map((tag) => ({
+            id: tag!.id,
+            nome: tag!.nome,
+            cor: tag!.cor,
+            createdAt: tag!.createdAt,
+          }));
+
+        return {
+          ...lista,
+          tagIds,
+          categorias: categoriasFromTags.length > 0 ? categoriasFromTags : (lista.categorias || []),
+          itens: lista.itens || [],
+        };
+      });
     } catch (error) {
       console.error('Erro ao carregar listas:', error);
       return [];
@@ -141,10 +373,17 @@ export class StorageService {
       const novaLista: Lista = {
         ...lista,
         categorias: lista.categorias || [],
+        tagIds: lista.tagIds || [],
         id: Date.now().toString(),
         dataCriacao: Date.now(),
         dataModificacao: Date.now(),
       };
+
+      if (novaLista.categorias.length > 0) {
+        const synced = await this.syncCategoriasToGlobal(novaLista.id, novaLista.categorias);
+        novaLista.categorias = synced.categorias;
+        novaLista.tagIds = synced.tagIds;
+      }
       
       listas.push(novaLista);
       await this.salvarListas(listas);
@@ -176,6 +415,12 @@ export class StorageService {
         ...dados,
         dataModificacao: Date.now(),
       };
+
+      if (dados.categorias) {
+        const synced = await this.syncCategoriasToGlobal(id, dados.categorias);
+        listas[index].categorias = synced.categorias;
+        listas[index].tagIds = synced.tagIds;
+      }
       
       await this.salvarListas(listas);
       
@@ -323,6 +568,7 @@ export class StorageService {
         nome: listaOriginal.nome,
         dataCriacao: Date.now(),
         dataModificacao: Date.now(),
+        tagIds: listaOriginal.tagIds || listaOriginal.categorias.map((c) => c.id),
         itens: listaOriginal.itens.map(item => ({
           ...item,
           id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
@@ -333,6 +579,11 @@ export class StorageService {
 
       const listas = await this.carregarListas();
       listas.push(listaDuplicada);
+      if (listaDuplicada.categorias.length > 0) {
+        const synced = await this.syncCategoriasToGlobal(listaDuplicada.id, listaDuplicada.categorias);
+        listaDuplicada.categorias = synced.categorias;
+        listaDuplicada.tagIds = synced.tagIds;
+      }
       await this.salvarListas(listas);
       
       // Adicionar à fila de sincronização
@@ -354,6 +605,11 @@ export class StorageService {
     try {
       const listas = await this.carregarListas();
       listas.push(lista);
+      if (lista.categorias.length > 0) {
+        const synced = await this.syncCategoriasToGlobal(lista.id, lista.categorias);
+        lista.categorias = synced.categorias;
+        lista.tagIds = synced.tagIds;
+      }
       await this.salvarListas(listas);
     } catch (error) {
       console.error('Erro ao criar lista:', error);

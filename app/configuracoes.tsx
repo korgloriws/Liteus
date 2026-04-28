@@ -27,7 +27,7 @@ const isDevelopment = __DEV__;
 
 export default function ConfiguracoesScreen() {
   const { isDarkMode, setDarkMode, colors, typography } = useTheme();
-  const [versao] = useState('1.1.4');
+  const [versao] = useState('1.1.5');
   const [listas, setListas] = useState<Lista[]>([]);
   const [modalSincronizacao, setModalSincronizacao] = useState(false);
   const [dadosSincronizacao, setDadosSincronizacao] = useState('');
@@ -66,28 +66,7 @@ export default function ConfiguracoesScreen() {
     }
   };
 
-  const handleSyncData = async () => {
-    setIsSyncing(true);
-    setSyncError(null);
-
-    try {
-      const result = await localSyncService.syncData();
-      await checkSyncStatus();
-      
-      if (result.success) {
-        Alert.alert('Sucesso', result.message);
-      } else {
-        setSyncError(result.message);
-        Alert.alert('Aviso', result.message);
-      }
-    } catch (error) {
-      console.error('Erro na sincronização:', error);
-      setSyncError('Falha na sincronização. Tente novamente.');
-      Alert.alert('Erro', 'Falha na sincronização. Verifique sua conexão e tente novamente.');
-    } finally {
-      setIsSyncing(false);
-    }
-  };
+  // Sync agora é automático após alterações locais.
 
   const handleClearSyncData = async () => {
     Alert.alert(
@@ -269,13 +248,13 @@ export default function ConfiguracoesScreen() {
             </Text>
           )}
           
-          {/* Botão de Sincronização */}
-          <TouchableOpacity style={styles.optionItem} onPress={handleSyncData} disabled={isSyncing}>
+          {/* Status de sincronização automática */}
+          <View style={styles.optionItem}>
             <MaterialIcons name="sync" size={24} color="#34C759" />
             <Text style={[styles.optionText, { color: colors.text }, typography.body]}>
-              {isSyncing ? 'Sincronizando...' : 'Sincronizar Dados'}
+              Sincronização automática ativada
             </Text>
-          </TouchableOpacity>
+          </View>
 
           {/* Botão de Exportar Backup */}
           <TouchableOpacity style={styles.optionItem} onPress={handleExportBackup}>
@@ -300,7 +279,7 @@ export default function ConfiguracoesScreen() {
                 Última sincronização: {syncStatus.lastSync ? new Date(syncStatus.lastSync).toLocaleString() : 'Nunca'}
               </Text>
               <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
-                Status: {syncStatus.isOnline ? 'Online' : 'Offline'} • {syncStatus.pendingChanges} mudanças pendentes
+                Status local: {syncStatus.pendingChanges === 0 ? 'Sincronizado' : 'Sincronizando...'} • {syncStatus.pendingChanges} mudanças pendentes
               </Text>
               {syncStatus.lastExport && (
                 <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
@@ -364,6 +343,17 @@ export default function ConfiguracoesScreen() {
             <View style={styles.optionInfo}>
               <MaterialIcons name="analytics" size={24} color={colors.primary} />
               <Text style={[styles.optionText, { color: colors.text }, typography.body]}>Estatísticas</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.optionItem}
+            onPress={() => router.push('/tags-globais')}
+          >
+            <View style={styles.optionInfo}>
+              <MaterialIcons name="sell" size={24} color={colors.primary} />
+              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>Tags Globais</Text>
             </View>
             <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
           </TouchableOpacity>

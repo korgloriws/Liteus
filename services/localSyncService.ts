@@ -2,12 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import { Lista, Item, Categoria, Nota } from '../types';
+import { Lista, Item, Categoria, Nota, GlobalTag } from '../types';
 import { StorageService } from './storage';
 
 export interface SyncData {
   lists: Lista[];
   notes?: Nota[];
+  tags?: GlobalTag[];
   metadata: {
     exportadoEm: string;
     versao: string;
@@ -15,6 +16,7 @@ export interface SyncData {
     totalListas: number;
     totalItens: number;
     totalNotas?: number;
+    totalTags?: number;
   };
 }
 
@@ -31,6 +33,8 @@ class LocalSyncService {
   private syncQueue: Array<{ type: 'create' | 'update' | 'delete'; data: any; timestamp: number }> = [];
   private deviceId: string | null = null;
   private isInitialized = false;
+  private autoSyncTimer: ReturnType<typeof setTimeout> | null = null;
+  private isSyncInProgress = false;
 
   static getInstance(): LocalSyncService {
     if (!LocalSyncService.instance) {
@@ -48,6 +52,7 @@ class LocalSyncService {
       
      
       await this.loadSyncQueue();
+      this.scheduleAutoSync();
       
       this.isInitialized = true;
       console.log('LocalSyncService inicializado');
@@ -98,6 +103,18 @@ class LocalSyncService {
       timestamp: Date.now()
     });
     await this.saveSyncQueue();
+    this.scheduleAutoSync();
+  }
+
+  private scheduleAutoSync(delayMs: number = 700): void {
+    if (this.autoSyncTimer) {
+      clearTimeout(this.autoSyncTimer);
+    }
+    this.autoSyncTimer = setTimeout(() => {
+      this.syncData().catch((error) => {
+        console.error('Erro no auto-sync:', error);
+      });
+    }, delayMs);
   }
 
 
@@ -129,17 +146,20 @@ class LocalSyncService {
     try {
       const listas = await StorageService.carregarListas();
       const notas = await StorageService.carregarNotas();
+      const tags = await StorageService.carregarTags();
       
       const syncData: SyncData = {
         lists: listas,
         notes: notas,
+        tags,
         metadata: {
           exportadoEm: new Date().toISOString(),
           versao: '1.0.0',
           dispositivo: this.deviceId || 'unknown',
           totalListas: listas.length,
           totalItens: listas.reduce((total, lista) => total + lista.itens.length, 0),
-          totalNotas: notas.length
+          totalNotas: notas.length,
+          totalTags: tags.length,
         }
       };
 
@@ -155,7 +175,7 @@ class LocalSyncService {
       return {
         success: true,
         filePath,
-        message: `Backup criado com ${listas.length} listas e ${notas.length} notas`
+        message: `Backup criado com ${listas.length} listas, ${notas.length} notas e ${tags.length} tags`
       };
     } catch (error) {
       console.error('Erro ao exportar dados:', error);
@@ -170,10 +190,14 @@ class LocalSyncService {
   async exportSingleList(lista: Lista): Promise<{ success: boolean; filePath?: string; message: string }> {
     try {
       const notasVazias: Nota[] = [];
+      const tags = await StorageService.carregarTags();
+      const tagIds = new Set<string>((lista.tagIds || []).concat((lista.categorias || []).map((c) => c.id)));
+      const tagsDaLista = tags.filter((t) => tagIds.has(t.id));
 
       const syncData: SyncData = {
         lists: [lista],
         notes: notasVazias,
+        tags: tagsDaLista,
         metadata: {
           exportadoEm: new Date().toISOString(),
           versao: '1.0.0',
@@ -181,6 +205,7 @@ class LocalSyncService {
           totalListas: 1,
           totalItens: lista.itens.length,
           totalNotas: 0,
+          totalTags: tagsDaLista.length,
         },
       };
 
@@ -221,10 +246,12 @@ class LocalSyncService {
   async exportSingleNote(nota: Nota): Promise<{ success: boolean; filePath?: string; message: string }> {
     try {
       const listasVazias: Lista[] = [];
+      const tags = await StorageService.carregarTags();
 
       const syncData: SyncData = {
         lists: listasVazias,
         notes: [nota],
+        tags,
         metadata: {
           exportadoEm: new Date().toISOString(),
           versao: '1.0.0',
@@ -232,6 +259,7 @@ class LocalSyncService {
           totalListas: 0,
           totalItens: 0,
           totalNotas: 1,
+          totalTags: tags.length,
         },
       };
 
@@ -377,6 +405,30 @@ class LocalSyncService {
       const notasExistentes = await StorageService.carregarNotas();
       let imported = 0;
       const conflitos: string[] = [];
+
+      if (Array.isArray(syncData.tags)) {
+        const atuais = await StorageService.carregarTags();
+        const map = new Map(atuais.map((t) => [t.id, t]));
+        for (const tag of syncData.tags) {
+          const existing = map.get(tag.id);
+          if (!existing) {
+            map.set(tag.id, {
+              ...tag,
+              listIds: Array.isArray(tag.listIds) ? tag.listIds : [],
+              updatedAt: tag.updatedAt || new Date().toISOString(),
+              createdAt: tag.createdAt || new Date().toISOString(),
+            });
+          } else {
+            map.set(tag.id, {
+              ...existing,
+              ...tag,
+              listIds: Array.from(new Set([...(existing.listIds || []), ...((tag.listIds || []))])),
+              updatedAt: new Date().toISOString(),
+            });
+          }
+        }
+        await StorageService.salvarTags(Array.from(map.values()));
+      }
       
       for (const lista of syncData.lists) {
         const listaExistente = listasExistentes.find(l => l.nome === lista.nome);
@@ -446,7 +498,16 @@ class LocalSyncService {
 
   // Sincronizar dados (processar fila)
   async syncData(): Promise<{ success: boolean; message: string; changes: number }> {
+    if (this.isSyncInProgress) {
+      return {
+        success: true,
+        message: 'Sincronização já em andamento',
+        changes: 0,
+      };
+    }
+
     try {
+      this.isSyncInProgress = true;
       const queue = await this.getSyncQueue();
       
       if (queue.length === 0) {
@@ -477,6 +538,8 @@ class LocalSyncService {
         message: 'Erro na sincronização',
         changes: 0
       };
+    } finally {
+      this.isSyncInProgress = false;
     }
   }
 

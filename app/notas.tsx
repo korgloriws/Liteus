@@ -8,6 +8,7 @@ import { Nota } from '../types';
 import { router } from 'expo-router';
 import SyncStatus from '../components/SyncStatus';
 import { localSyncService } from '../services/localSyncService';
+import ColorWheelPicker from '../components/ColorWheelPicker';
 
 export default function NotasScreen() {
   const { isDarkMode, colors, typography } = useTheme();
@@ -19,12 +20,6 @@ export default function NotasScreen() {
   const [modalOrdenacao, setModalOrdenacao] = useState(false);
   const [ordenacaoTipo, setOrdenacaoTipo] = useState<'alfabetica' | 'data' | 'ultimoModificado'>('ultimoModificado');
   const [ordenacaoDirecao, setOrdenacaoDirecao] = useState<'asc' | 'desc'>('desc');
-
-  const CORES = [
-    '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
-    '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
-    '#F8C471', '#82E0AA', '#F1948A', '#D7BDE2', '#FF9F43'
-  ];
 
   useEffect(() => {
     carregar();
@@ -381,16 +376,12 @@ export default function NotasScreen() {
               placeholder="Título"
               placeholderTextColor={getPlaceholderColor(isDarkMode)}
             />
-            <Text style={[styles.sectionLabel, { color: colors.text }]}>Cor</Text>
-            <View style={styles.colorsRow}>
-              {CORES.map(c => (
-                <TouchableOpacity
-                  key={c}
-                  style={[styles.colorDot, { backgroundColor: c, borderColor: colors.border }, editCor === c && styles.colorDotSel]}
-                  onPress={() => setEditCor(c)}
-                />
-              ))}
-            </View>
+            <ColorWheelPicker
+              label="Cor"
+              title="Cor da nota"
+              value={editCor}
+              onChange={setEditCor}
+            />
             <View style={styles.modalActions}>
               <TouchableOpacity style={[styles.modalBtn, { borderColor: colors.border }]} onPress={() => setModalEdit({ visible: false, nota: null })}>
                 <Text style={{ color: colors.text }}>Cancelar</Text>

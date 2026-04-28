@@ -12,6 +12,7 @@ export interface Item {
   html?: string;
   textoFormatado?: FormatoTexto[];
   descricao?: string;
+  descricaoHtml?: string;
   imagem?: string;
   data?: string;
   prioridade?: number;
@@ -41,8 +42,19 @@ export interface Lista {
   dataModificacao: number;
   itens: Item[];
   categorias: Categoria[];
+  tagIds?: string[];
   permiteSelecaoAleatoria?: boolean;
   tipoAnimacao?: 'simples';
+}
+
+export interface GlobalTag {
+  id: string;
+  nome: string;
+  cor?: string;
+  createdAt: string;
+  updatedAt: string;
+  ownerListId?: string;
+  listIds: string[];
 }
 
 export type OrdenacaoTipo = 'alfabetica' | 'data' | 'prioridade' | 'categoria' | 'ultimoModificado';

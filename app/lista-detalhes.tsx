@@ -35,6 +35,7 @@ export default function ListaDetalhesScreen() {
   const [novoTextoFormatado, setNovoTextoFormatado] = useState<FormatoTexto[]>([]);
   const [novoTextoHtml, setNovoTextoHtml] = useState<string>('');
   const [novaDescricao, setNovaDescricao] = useState('');
+  const [novaDescricaoHtml, setNovaDescricaoHtml] = useState<string>('');
   const [novasCategorias, setNovasCategorias] = useState<string[]>([]);
   const [textoBusca, setTextoBusca] = useState('');
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
@@ -76,6 +77,7 @@ export default function ListaDetalhesScreen() {
         html: novoTextoHtml || undefined,
         textoFormatado: novoTextoFormatado,
         descricao: novaDescricao.trim() || undefined,
+        descricaoHtml: novaDescricaoHtml || undefined,
         categorias: novasCategorias.length > 0 ? novasCategorias : undefined,
       });
 
@@ -94,6 +96,7 @@ export default function ListaDetalhesScreen() {
     setNovoTextoFormatado([]);
     setNovoTextoHtml('');
     setNovaDescricao('');
+    setNovaDescricaoHtml('');
     setNovasCategorias([]);
   };
 
@@ -109,6 +112,7 @@ export default function ListaDetalhesScreen() {
         html: novoTextoHtml || undefined,
         textoFormatado: novoTextoFormatado,
         descricao: novaDescricao.trim() || undefined,
+        descricaoHtml: novaDescricaoHtml || undefined,
         categorias: novasCategorias.length > 0 ? novasCategorias : undefined,
       });
 
@@ -153,6 +157,7 @@ export default function ListaDetalhesScreen() {
           texto: item.texto,
           textoFormatado: item.textoFormatado,
           descricao: item.descricao,
+          descricaoHtml: item.descricaoHtml,
           categoria: item.categoria,
         });
         await carregarLista();
@@ -183,6 +188,7 @@ export default function ListaDetalhesScreen() {
     setNovoTextoFormatado(item.textoFormatado || []);
     setNovoTextoHtml(item.html || (item.texto ? `<p>${item.texto}</p>` : ''));
     setNovaDescricao(item.descricao || '');
+    setNovaDescricaoHtml(item.descricaoHtml || (item.descricao ? `<p>${item.descricao}</p>` : ''));
     setNovasCategorias(item.categorias || (item.categoria ? [item.categoria] : []));
     setModalEditar(true);
   };
@@ -192,6 +198,7 @@ export default function ListaDetalhesScreen() {
     setNovoTextoFormatado([]);
     setNovoTextoHtml('');
     setNovaDescricao('');
+    setNovaDescricaoHtml('');
     setNovasCategorias([]);
     setModalAdicionar(true);
   };
@@ -648,16 +655,14 @@ export default function ListaDetalhesScreen() {
               <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
                 Descrição (opcional)
               </Text>
-              <TextInput
-                style={[styles.textInput, { 
-                  backgroundColor: colors.accent, 
-                  color: colors.text,
-                  borderColor: colors.border
-                }]}
-                value={novaDescricao}
-                onChangeText={setNovaDescricao}
+              <QuillInlineEditor
+                initialHtml={novaDescricaoHtml}
                 placeholder="Descrição do item..."
-                placeholderTextColor={getPlaceholderColor(isDarkMode)}
+                onChange={(text, html) => {
+                  setNovaDescricao(text);
+                  setNovaDescricaoHtml(html);
+                }}
+                minHeight={120}
               />
 
               <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
@@ -744,16 +749,14 @@ export default function ListaDetalhesScreen() {
               <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>
                 Descrição (opcional)
               </Text>
-              <TextInput
-                style={[styles.textInput, { 
-                  backgroundColor: colors.accent, 
-                  color: colors.text,
-                  borderColor: colors.border
-                }]}
-                value={novaDescricao}
-                onChangeText={setNovaDescricao}
+              <QuillInlineEditor
+                initialHtml={novaDescricaoHtml}
                 placeholder="Descrição do item..."
-                placeholderTextColor={getPlaceholderColor(isDarkMode)}
+                onChange={(text, html) => {
+                  setNovaDescricao(text);
+                  setNovaDescricaoHtml(html);
+                }}
+                minHeight={120}
               />
 
               <Text style={[styles.label, { color: colors.text }, typography.subtitleBold]}>

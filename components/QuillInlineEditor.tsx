@@ -3,6 +3,7 @@ import { View, StyleSheet, Modal, Text, TouchableOpacity, ScrollView } from 'rea
 import { WebView } from 'react-native-webview';
 import { useTheme } from '../services/ThemeContext';
 import { getPlaceholderColor } from '../services/theme';
+import ColorWheelPicker from './ColorWheelPicker';
 
 type QuillInlineEditorProps = {
   initialHtml?: string;
@@ -20,11 +21,8 @@ export default function QuillInlineEditor({
   const { isDarkMode, colors } = useTheme();
   const webviewRef = useRef<WebView | null>(null);
   const [showMoreModal, setShowMoreModal] = useState(false);
-  const COLOR_PALETTE = [
-    '#000000', '#444444', '#666666', '#999999', '#C7C7CC',
-    '#FF3B30', '#FF9500', '#FFCC02', '#34C759',
-    '#007AFF', '#5856D6', '#AF52DE', '#FF2D92'
-  ];
+  const [textColor, setTextColor] = useState('#000000');
+  const [backgroundColor, setBackgroundColor] = useState('#FFCC02');
 
   const html = useMemo(() => {
     const h = `
@@ -375,30 +373,25 @@ export default function QuillInlineEditor({
           <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>Mais Ferramentas</Text>
             <ScrollView>
-              <Text style={[styles.sectionLabel, { color: colors.text }]}>Cor do texto</Text>
-              <View style={styles.colorsRow}>
-                {COLOR_PALETTE.map(c => (
-                  <TouchableOpacity
-                    key={c}
-                    style={[styles.colorDot, { backgroundColor: c, borderColor: colors.border }]}
-                    onPress={() => {
-                      webviewRef.current?.postMessage(JSON.stringify({ type: 'format', key: 'color', value: c }));
-                    }}
-                  />
-                ))}
-              </View>
-              <Text style={[styles.sectionLabel, { color: colors.text }]}>Destaque</Text>
-              <View style={styles.colorsRow}>
-                {COLOR_PALETTE.map(c => (
-                  <TouchableOpacity
-                    key={'bg-'+c}
-                    style={[styles.colorDot, { backgroundColor: c, borderColor: colors.border }]}
-                    onPress={() => {
-                      webviewRef.current?.postMessage(JSON.stringify({ type: 'format', key: 'background', value: c }));
-                    }}
-                  />
-                ))}
-              </View>
+              <ColorWheelPicker
+                label="Cor do texto"
+                title="Cor do texto"
+                value={textColor}
+                onChange={(c) => {
+                  setTextColor(c);
+                  webviewRef.current?.postMessage(JSON.stringify({ type: 'format', key: 'color', value: c }));
+                }}
+              />
+              <View style={{ height: 8 }} />
+              <ColorWheelPicker
+                label="Destaque"
+                title="Cor de destaque"
+                value={backgroundColor}
+                onChange={(c) => {
+                  setBackgroundColor(c);
+                  webviewRef.current?.postMessage(JSON.stringify({ type: 'format', key: 'background', value: c }));
+                }}
+              />
               <Text style={[styles.sectionLabel, { color: colors.text }]}>Títulos</Text>
               <View style={styles.optionRow}>
                 {[{label:'Normal', value:null},{label:'H1',value:1},{label:'H2',value:2},{label:'H3',value:3}].map(opt => (

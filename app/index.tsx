@@ -26,6 +26,7 @@ import { localSyncService } from '../services/localSyncService';
 import { getPlaceholderColor } from '../services/theme';
 import SyncStatus from '../components/SyncStatus';
 import QuillInlineEditor from '../components/QuillInlineEditor';
+import ColorWheelPicker from '../components/ColorWheelPicker';
 
 export default function ListasScreen() {
   const { isDarkMode, colors, typography } = useTheme();
@@ -51,6 +52,7 @@ export default function ListasScreen() {
   const [modalCategoria, setModalCategoria] = useState(false);
   const [novaCategoriaNome, setNovaCategoriaNome] = useState('');
   const [novaCategoriaCor, setNovaCategoriaCor] = useState('#007AFF');
+  const [globalTags, setGlobalTags] = useState<any[]>([]);
   
 
   const [categoriaEditando, setCategoriaEditando] = useState<any | null>(null);
@@ -83,8 +85,10 @@ export default function ListasScreen() {
       setLoading(true);
       const listasCarregadas = await StorageService.carregarListas();
       const notasCarregadas = await StorageService.carregarNotas();
+      const tagsCarregadas = await StorageService.carregarTags();
       setListas(listasCarregadas);
       setNotas(notasCarregadas);
+      setGlobalTags(tagsCarregadas);
       aplicarFiltrosEOrdenacao(listasCarregadas, textoBusca, ordenacaoTipo, ordenacaoDirecao);
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível carregar as listas');
@@ -285,11 +289,15 @@ export default function ListasScreen() {
       return;
     }
 
+    const existente = globalTags.find(
+      (tag) => tag.nome?.trim().toLowerCase() === novaCategoriaNome.trim().toLowerCase()
+    );
+
     const novaCategoria = {
-      id: Date.now().toString(),
-      nome: novaCategoriaNome.trim(),
-      cor: novaCategoriaCor,
-      createdAt: new Date().toISOString(),
+      id: existente?.id || Date.now().toString(),
+      nome: existente?.nome || novaCategoriaNome.trim(),
+      cor: existente?.cor || novaCategoriaCor,
+      createdAt: existente?.createdAt || new Date().toISOString(),
     };
 
     setEditandoCategorias([...editandoCategorias, novaCategoria]);
@@ -799,20 +807,12 @@ export default function ListasScreen() {
             </View>
 
             <View style={styles.editarGrupo}>
-              <Text style={[styles.editarLabel, { color: colors.text }]}>Cor</Text>
-              <View style={styles.coresContainer}>
-                {['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#AF52DE', '#5856D6', '#FF2D92', '#5AC8FA', '#FFCC02', '#FF6B35'].map((cor) => (
-                  <TouchableOpacity
-                    key={cor}
-                    style={[styles.corItem, { backgroundColor: cor }, editandoNotaCor === cor && styles.corSelecionada]}
-                    onPress={() => setEditandoNotaCor(cor)}
-                  >
-                    {editandoNotaCor === cor && (
-                      <MaterialIcons name="check" size={16} color="#fff" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <ColorWheelPicker
+                label="Cor"
+                title="Cor da nota"
+                value={editandoNotaCor}
+                onChange={setEditandoNotaCor}
+              />
             </View>
 
             <View style={styles.modalEditarBotoes}>
@@ -886,24 +886,12 @@ export default function ListasScreen() {
 
               {/* Cor */}
               <View style={styles.editarGrupo}>
-                <Text style={[styles.editarLabel, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>Cor da Lista</Text>
-                <View style={styles.coresContainer}>
-                  {['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#AF52DE', '#5856D6', '#FF2D92', '#5AC8FA', '#FFCC02', '#FF6B35'].map((cor) => (
-                    <TouchableOpacity
-                      key={cor}
-                      style={[
-                        styles.corItem,
-                        { backgroundColor: cor },
-                        editandoCor === cor && styles.corSelecionada,
-                      ]}
-                      onPress={() => setEditandoCor(cor)}
-                    >
-                      {editandoCor === cor && (
-                        <MaterialIcons name="check" size={16} color="#fff" />
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <ColorWheelPicker
+                  label="Cor da Lista"
+                  title="Cor da lista"
+                  value={editandoCor}
+                  onChange={setEditandoCor}
+                />
               </View>
 
               {/* Categorias */}
@@ -997,46 +985,69 @@ export default function ListasScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }, typography.titleMedium]}>
-              Adicionar Categoria
-            </Text>
-            
-            <Text style={[styles.editarLabel, { color: colors.text }, typography.subtitleBold]}>
-              Nome da Categoria
-            </Text>
-            <TextInput
-              style={[styles.editarInput, { 
-                backgroundColor: colors.accent,
-                color: colors.text,
-                borderColor: colors.border
-              }]}
-              placeholder="Digite o nome da categoria"
-              placeholderTextColor={getPlaceholderColor(isDarkMode)}
-              value={novaCategoriaNome}
-              onChangeText={setNovaCategoriaNome}
-              maxLength={30}
-            />
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalCategoriaScrollContent}>
+              <Text style={[styles.modalTitle, { color: colors.text }, typography.titleMedium]}>
+                Adicionar Categoria
+              </Text>
+              
+              <Text style={[styles.editarLabel, { color: colors.text }, typography.subtitleBold]}>
+                Nome da Categoria
+              </Text>
+              <TextInput
+                style={[styles.editarInput, { 
+                  backgroundColor: colors.accent,
+                  color: colors.text,
+                  borderColor: colors.border
+                }]}
+                placeholder="Digite o nome da categoria"
+                placeholderTextColor={getPlaceholderColor(isDarkMode)}
+                value={novaCategoriaNome}
+                onChangeText={setNovaCategoriaNome}
+                maxLength={30}
+              />
 
-            <Text style={[styles.editarLabel, { color: colors.text }, typography.subtitleBold]}>
-              Cor da Categoria
-            </Text>
-            <View style={styles.coresContainer}>
-              {['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#AF52DE', '#5856D6', '#FF2D92', '#5AC8FA', '#FFCC02', '#FF6B35'].map((cor) => (
-                <TouchableOpacity
-                  key={cor}
-                  style={[
-                    styles.corItem,
-                    { backgroundColor: cor },
-                    novaCategoriaCor === cor && styles.corSelecionada,
-                  ]}
-                  onPress={() => setNovaCategoriaCor(cor)}
-                >
-                  {novaCategoriaCor === cor && (
-                    <MaterialIcons name="check" size={16} color="#fff" />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
+              <Text style={[styles.editarLabel, { color: colors.text }, typography.subtitleBold]}>
+                Cor da Categoria
+              </Text>
+              <ColorWheelPicker
+                label="Cor da Categoria"
+                title="Cor da categoria"
+                value={novaCategoriaCor}
+                onChange={setNovaCategoriaCor}
+              />
+
+              {globalTags.length > 0 && (
+                <>
+                  <Text style={[styles.editarLabel, { color: colors.text, marginTop: 14 }, typography.subtitleBold]}>
+                    Usar tag global existente
+                  </Text>
+                  <View style={styles.globalTagsWrap}>
+                    {globalTags
+                      .filter((tag) => !editandoCategorias.some((cat) => cat.id === tag.id))
+                      .slice(0, 24)
+                      .map((tag) => (
+                        <TouchableOpacity
+                          key={tag.id}
+                          style={[styles.globalTagChip, { backgroundColor: colors.accent, borderColor: colors.border }]}
+                          onPress={() => {
+                            setEditandoCategorias([
+                              ...editandoCategorias,
+                              { id: tag.id, nome: tag.nome, cor: tag.cor, createdAt: tag.createdAt },
+                            ]);
+                            setModalCategoria(false);
+                            limparFormularioCategoria();
+                          }}
+                        >
+                          <View style={[styles.categoriaCor, { backgroundColor: tag.cor || '#007AFF' }]} />
+                          <Text style={[styles.globalTagText, { color: colors.text }]} numberOfLines={1}>
+                            {tag.nome}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                  </View>
+                </>
+              )}
+            </ScrollView>
 
             <View style={styles.modalBotoes}>
               <TouchableOpacity
@@ -1144,23 +1155,12 @@ export default function ListasScreen() {
             <Text style={[styles.editarLabel, { color: colors.text }, typography.subtitleBold]}>
               Cor da Categoria
             </Text>
-            <View style={styles.coresContainer}>
-              {['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#AF52DE', '#5856D6', '#FF2D92', '#5AC8FA', '#FFCC02', '#FF6B35'].map((cor) => (
-                <TouchableOpacity
-                  key={cor}
-                  style={[
-                    styles.corItem,
-                    { backgroundColor: cor },
-                    corCategoriaEditando === cor && styles.corSelecionada,
-                  ]}
-                  onPress={() => setCorCategoriaEditando(cor)}
-                >
-                  {corCategoriaEditando === cor && (
-                    <MaterialIcons name="check" size={16} color="#fff" />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
+            <ColorWheelPicker
+              label="Cor da Categoria"
+              title="Cor da categoria"
+              value={corCategoriaEditando}
+              onChange={setCorCategoriaEditando}
+            />
             <View style={styles.modalBotoes}>
               <TouchableOpacity
                 style={styles.btnCancelar}
@@ -1783,6 +1783,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
     marginTop: 20,
+  },
+  modalCategoriaScrollContent: {
+    paddingBottom: 8,
+  },
+  globalTagsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  globalTagChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    maxWidth: '100%',
+  },
+  globalTagText: {
+    fontSize: 13,
+    fontWeight: '600',
+    maxWidth: 180,
   },
   btnCancelar: {
     flex: 1,
