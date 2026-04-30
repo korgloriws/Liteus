@@ -11,6 +11,8 @@ import {
   ScrollView,
   Switch,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
@@ -24,7 +26,6 @@ import { useTheme } from '../services/ThemeContext';
 import { SyncService } from '../services/syncService';
 import { localSyncService } from '../services/localSyncService';
 import { getPlaceholderColor } from '../services/theme';
-import SyncStatus from '../components/SyncStatus';
 import QuillInlineEditor from '../components/QuillInlineEditor';
 import ColorWheelPicker from '../components/ColorWheelPicker';
 
@@ -38,6 +39,8 @@ export default function ListasScreen() {
   const [ordenacaoTipo, setOrdenacaoTipo] = useState<OrdenacaoTipo>('ultimoModificado');
   const [ordenacaoDirecao, setOrdenacaoDirecao] = useState<OrdenacaoDirecao>('desc');
   const [modalOrdenacao, setModalOrdenacao] = useState(false);
+  const [filtroTagListaId, setFiltroTagListaId] = useState('');
+  const [buscaFiltroTagLista, setBuscaFiltroTagLista] = useState('');
   
 
   const [modalEditarLista, setModalEditarLista] = useState(false);
@@ -53,6 +56,7 @@ export default function ListasScreen() {
   const [novaCategoriaNome, setNovaCategoriaNome] = useState('');
   const [novaCategoriaCor, setNovaCategoriaCor] = useState('#007AFF');
   const [globalTags, setGlobalTags] = useState<any[]>([]);
+  const [buscaTagGlobal, setBuscaTagGlobal] = useState('');
   
 
   const [categoriaEditando, setCategoriaEditando] = useState<any | null>(null);
@@ -89,7 +93,7 @@ export default function ListasScreen() {
       setListas(listasCarregadas);
       setNotas(notasCarregadas);
       setGlobalTags(tagsCarregadas);
-      aplicarFiltrosEOrdenacao(listasCarregadas, textoBusca, ordenacaoTipo, ordenacaoDirecao);
+      aplicarFiltrosEOrdenacao(listasCarregadas, textoBusca, ordenacaoTipo, ordenacaoDirecao, filtroTagListaId);
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível carregar as listas');
     } finally {
@@ -101,12 +105,22 @@ export default function ListasScreen() {
     listasParaFiltrar: Lista[],
     busca: string,
     tipo: OrdenacaoTipo,
-    direcao: OrdenacaoDirecao
+    direcao: OrdenacaoDirecao,
+    tagId?: string
   ) => {
 
     let listasFiltradas = busca.trim() 
       ? UtilsService.buscarListas(listasParaFiltrar, busca)
       : listasParaFiltrar;
+
+    if (tagId) {
+      listasFiltradas = listasFiltradas.filter((lista) => {
+        const ids = (lista.tagIds && lista.tagIds.length > 0)
+          ? lista.tagIds
+          : (lista.categorias || []).map((c) => c.id);
+        return ids.includes(tagId);
+      });
+    }
 
 
     listasFiltradas = UtilsService.ordenarListas(listasFiltradas, tipo, direcao);
@@ -116,15 +130,18 @@ export default function ListasScreen() {
 
   const handleBusca = (texto: string) => {
     setTextoBusca(texto);
-    aplicarFiltrosEOrdenacao(listas, texto, ordenacaoTipo, ordenacaoDirecao);
+    aplicarFiltrosEOrdenacao(listas, texto, ordenacaoTipo, ordenacaoDirecao, filtroTagListaId);
   };
 
   const handleOrdenacao = (tipo: OrdenacaoTipo, direcao: OrdenacaoDirecao) => {
     setOrdenacaoTipo(tipo);
     setOrdenacaoDirecao(direcao);
-    aplicarFiltrosEOrdenacao(listas, textoBusca, tipo, direcao);
-    setModalOrdenacao(false);
+    aplicarFiltrosEOrdenacao(listas, textoBusca, tipo, direcao, filtroTagListaId);
   };
+
+  useEffect(() => {
+    aplicarFiltrosEOrdenacao(listas, textoBusca, ordenacaoTipo, ordenacaoDirecao, filtroTagListaId);
+  }, [filtroTagListaId]);
 
   const removerLista = async (id: string) => {
     Alert.alert(
@@ -281,6 +298,7 @@ export default function ListasScreen() {
   const limparFormularioCategoria = () => {
     setNovaCategoriaNome('');
     setNovaCategoriaCor('#007AFF');
+    setBuscaTagGlobal('');
   };
 
   const adicionarCategoria = () => {
@@ -455,9 +473,6 @@ export default function ListasScreen() {
         </View>
       </View>
 
-      {/* Status de Sincronização */}
-      <SyncStatus onPress={() => router.push('/configuracoes')} />
-      
       {/* Conteúdo com scroll */}
       <ScrollView 
         style={styles.scrollContainer}
@@ -501,10 +516,10 @@ export default function ListasScreen() {
                 )}
               </View>
               <TouchableOpacity
-                style={[styles.btnOrdenar, { backgroundColor: colors.accent }]}
+                style={[styles.btnOrdenar, { backgroundColor: filtroTagListaId ? colors.primary : colors.accent }]}
                 onPress={() => setModalOrdenacao(true)}
               >
-                <MaterialIcons name="sort" size={20} color={colors.primary} />
+                <MaterialIcons name="sort" size={20} color={filtroTagListaId ? '#fff' : colors.primary} />
               </TouchableOpacity>
             </View>
 
@@ -632,11 +647,20 @@ export default function ListasScreen() {
         onRequestClose={() => setModalOrdenacao(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalResponsiveWrap}
+          >
+          <View style={[styles.modalContent, styles.modalFiltrosContent, { backgroundColor: colors.surface }]}>
             <Text style={[styles.modalTitle, { color: colors.text }, typography.titleMedium]}>
-              Ordenar Listas
+              Filtros e ordenação
             </Text>
-            
+            <ScrollView
+              style={styles.modalFiltrosScroll}
+              contentContainerStyle={styles.modalFiltrosScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
             <View style={styles.opcoesOrdenacao}>
               <TouchableOpacity
                 style={[
@@ -770,6 +794,55 @@ export default function ListasScreen() {
               </TouchableOpacity>
             </View>
 
+            <View style={styles.direcaoContainer}>
+              <Text style={[styles.direcaoLabel, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+                Filtro por tag
+              </Text>
+              <View style={[styles.filtroTagBuscaContainer, { backgroundColor: colors.accent, borderColor: colors.border }]}>
+                <MaterialIcons name="search" size={18} color={colors.textSecondary} />
+                <TextInput
+                  style={[styles.filtroTagBuscaInput, { color: colors.text }]}
+                  value={buscaFiltroTagLista}
+                  onChangeText={setBuscaFiltroTagLista}
+                  placeholder="Buscar tag..."
+                  placeholderTextColor={getPlaceholderColor(isDarkMode)}
+                />
+                {buscaFiltroTagLista.length > 0 && (
+                  <TouchableOpacity onPress={() => setBuscaFiltroTagLista('')}>
+                    <MaterialIcons name="close" size={18} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <ScrollView style={styles.filtroTagLista} showsVerticalScrollIndicator={false}>
+                <TouchableOpacity
+                  style={[
+                    styles.opcaoOrdenacao,
+                    !filtroTagListaId && { backgroundColor: colors.accent }
+                  ]}
+                  onPress={() => setFiltroTagListaId('')}
+                >
+                  <MaterialIcons name="clear" size={20} color={colors.textSecondary} />
+                  <Text style={[styles.opcaoTexto, { color: colors.text }]}>Sem filtro</Text>
+                </TouchableOpacity>
+                {globalTags
+                  .filter((tag) => tag.nome?.toLowerCase().includes(buscaFiltroTagLista.trim().toLowerCase()))
+                  .map((tag) => (
+                    <TouchableOpacity
+                      key={tag.id}
+                      style={[
+                        styles.opcaoOrdenacao,
+                        filtroTagListaId === tag.id && { backgroundColor: colors.accent }
+                      ]}
+                      onPress={() => setFiltroTagListaId(tag.id)}
+                    >
+                      <View style={[styles.categoriaCor, { backgroundColor: tag.cor || '#007AFF' }]} />
+                      <Text style={[styles.opcaoTexto, { color: colors.text }]}>{tag.nome}</Text>
+                    </TouchableOpacity>
+                  ))}
+              </ScrollView>
+            </View>
+            </ScrollView>
+
             <TouchableOpacity
               style={styles.btnFechar}
               onPress={() => setModalOrdenacao(false)}
@@ -777,6 +850,7 @@ export default function ListasScreen() {
               <Text style={styles.btnFecharTexto}>Fechar</Text>
             </TouchableOpacity>
           </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
 
@@ -984,7 +1058,12 @@ export default function ListasScreen() {
         }}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+          <KeyboardAvoidingView
+            style={styles.modalCategoriaKeyboard}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
+          >
+          <View style={[styles.modalContent, styles.modalCategoriaContent, { backgroundColor: colors.surface }]}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalCategoriaScrollContent}>
               <Text style={[styles.modalTitle, { color: colors.text }, typography.titleMedium]}>
                 Adicionar Categoria
@@ -1021,9 +1100,27 @@ export default function ListasScreen() {
                   <Text style={[styles.editarLabel, { color: colors.text, marginTop: 14 }, typography.subtitleBold]}>
                     Usar tag global existente
                   </Text>
+                  <TextInput
+                    style={[styles.editarInput, {
+                      backgroundColor: colors.accent,
+                      color: colors.text,
+                      borderColor: colors.border,
+                      marginBottom: 10,
+                    }]}
+                    placeholder="Buscar tag global..."
+                    placeholderTextColor={getPlaceholderColor(isDarkMode)}
+                    value={buscaTagGlobal}
+                    onChangeText={setBuscaTagGlobal}
+                    maxLength={40}
+                  />
                   <View style={styles.globalTagsWrap}>
                     {globalTags
                       .filter((tag) => !editandoCategorias.some((cat) => cat.id === tag.id))
+                      .filter((tag) =>
+                        !buscaTagGlobal.trim()
+                          ? true
+                          : (tag.nome || '').toLowerCase().includes(buscaTagGlobal.trim().toLowerCase())
+                      )
                       .slice(0, 24)
                       .map((tag) => (
                         <TouchableOpacity
@@ -1045,6 +1142,17 @@ export default function ListasScreen() {
                         </TouchableOpacity>
                       ))}
                   </View>
+                  {globalTags
+                    .filter((tag) => !editandoCategorias.some((cat) => cat.id === tag.id))
+                    .filter((tag) =>
+                      !buscaTagGlobal.trim()
+                        ? true
+                        : (tag.nome || '').toLowerCase().includes(buscaTagGlobal.trim().toLowerCase())
+                    ).length === 0 && (
+                    <Text style={[styles.globalTagEmptyText, { color: colors.textSecondary }, typography.caption]}>
+                      Nenhuma tag global encontrada.
+                    </Text>
+                  )}
                 </>
               )}
             </ScrollView>
@@ -1067,6 +1175,7 @@ export default function ListasScreen() {
               </TouchableOpacity>
             </View>
           </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
 
@@ -1568,6 +1677,23 @@ const styles = StyleSheet.create({
     width: '90%',
     maxWidth: 400,
   },
+  modalResponsiveWrap: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  modalFiltrosContent: {
+    width: '94%',
+    maxWidth: 460,
+    maxHeight: '88%',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  modalFiltrosScroll: {
+    flexGrow: 0,
+  },
+  modalFiltrosScrollContent: {
+    paddingBottom: 8,
+  },
   modalTitle: {
     marginBottom: 20,
     textAlign: 'center',
@@ -1594,6 +1720,22 @@ const styles = StyleSheet.create({
   },
   direcaoContainer: {
     marginBottom: 20,
+  },
+  filtroTagBuscaContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  filtroTagBuscaInput: {
+    flex: 1,
+    marginLeft: 8,
+    paddingVertical: 8,
+  },
+  filtroTagLista: {
+    maxHeight: 180,
   },
   direcaoLabel: {
     fontSize: 16,
@@ -1784,6 +1926,17 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 20,
   },
+  modalCategoriaKeyboard: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCategoriaContent: {
+    width: '94%',
+    maxWidth: 460,
+    maxHeight: '90%',
+    paddingBottom: 12,
+  },
   modalCategoriaScrollContent: {
     paddingBottom: 8,
   },
@@ -1805,6 +1958,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     maxWidth: 180,
+  },
+  globalTagEmptyText: {
+    marginTop: 8,
   },
   btnCancelar: {
     flex: 1,

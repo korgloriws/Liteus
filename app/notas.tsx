@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, Image, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, Image, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../services/ThemeContext';
 import { getPlaceholderColor } from '../services/theme';
 import { StorageService } from '../services/storage';
-import { Nota } from '../types';
+import { GlobalTag, Nota } from '../types';
 import { router } from 'expo-router';
-import SyncStatus from '../components/SyncStatus';
 import { localSyncService } from '../services/localSyncService';
 import ColorWheelPicker from '../components/ColorWheelPicker';
 
@@ -20,6 +19,9 @@ export default function NotasScreen() {
   const [modalOrdenacao, setModalOrdenacao] = useState(false);
   const [ordenacaoTipo, setOrdenacaoTipo] = useState<'alfabetica' | 'data' | 'ultimoModificado'>('ultimoModificado');
   const [ordenacaoDirecao, setOrdenacaoDirecao] = useState<'asc' | 'desc'>('desc');
+  const [globalTags, setGlobalTags] = useState<GlobalTag[]>([]);
+  const [filtroTagId, setFiltroTagId] = useState('');
+  const [buscaFiltroTag, setBuscaFiltroTag] = useState('');
 
   useEffect(() => {
     carregar();
@@ -28,7 +30,9 @@ export default function NotasScreen() {
   const carregar = async () => {
     try {
       const ns = await StorageService.carregarNotas();
+      const tags = await StorageService.carregarTags();
       setNotas(ns);
+      setGlobalTags(tags);
     } catch (e) {
       // noop
     }
@@ -97,10 +101,19 @@ export default function NotasScreen() {
     await carregar();
   };
 
-  const filtradas = (busca.trim().length > 0
-    ? notas.filter(n => (n.titulo || '').toLowerCase().includes(busca.toLowerCase()) || (n.conteudo || '').toLowerCase().includes(busca.toLowerCase()))
-    : notas
-  ).slice().sort((a, b) => {
+  const tagSelecionada = globalTags.find((tag) => tag.id === filtroTagId);
+
+  const filtradas = notas
+  .filter((n) => {
+    if (!busca.trim()) return true;
+    return (n.titulo || '').toLowerCase().includes(busca.toLowerCase()) || (n.conteudo || '').toLowerCase().includes(busca.toLowerCase());
+  })
+  .filter((n) => {
+    if (!filtroTagId || !tagSelecionada) return true;
+    const tagsNota = n.tags || [];
+    return tagsNota.includes(tagSelecionada.id) || tagsNota.includes(tagSelecionada.nome);
+  })
+  .slice().sort((a, b) => {
     const alphaA = (a.titulo || '').toLowerCase();
     const alphaB = (b.titulo || '').toLowerCase();
     const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -146,9 +159,6 @@ export default function NotasScreen() {
         </View>
       </View>
 
-      {/* Status de Sincronização */}
-      <SyncStatus onPress={() => router.push('/configuracoes')} />
-
       {/* Conteúdo com scroll (padrão da tela principal) */}
       <ScrollView
         style={styles.scrollContainer}
@@ -162,10 +172,10 @@ export default function NotasScreen() {
               <Text style={[styles.contentTitle, { color: colors.text }, typography.titleMedium]}>Suas Notas</Text>
               <View style={styles.headerAcoes}>
                 <TouchableOpacity
-                  style={[styles.btnOrdenar, { backgroundColor: colors.accent }]}
+                  style={[styles.btnOrdenar, { backgroundColor: filtroTagId ? colors.primary : colors.accent }]}
                   onPress={() => setModalOrdenacao(true)}
                 >
-                  <MaterialIcons name="sort" size={20} color={colors.primary} />
+                  <MaterialIcons name="sort" size={20} color={filtroTagId ? '#fff' : colors.primary} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -255,11 +265,20 @@ export default function NotasScreen() {
         onRequestClose={() => setModalOrdenacao(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalResponsiveWrap}
+          >
+          <View style={[styles.modalContent, styles.modalFiltrosContent, { backgroundColor: colors.surface }]}>
             <Text style={[styles.modalTitle, { color: colors.text }, typography.titleMedium]}>
-              Ordenar Notas
+              Filtros e ordenação
             </Text>
-            
+            <ScrollView
+              style={styles.modalFiltrosScroll}
+              contentContainerStyle={styles.modalFiltrosScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
             <View style={styles.opcoesOrdenacao}>
               <TouchableOpacity
                 style={[
@@ -355,6 +374,53 @@ export default function NotasScreen() {
               </TouchableOpacity>
             </View>
 
+            <View style={styles.direcaoContainer}>
+              <Text style={[styles.direcaoLabel, { color: colors.text }]}>Filtro por tag</Text>
+              <View style={[styles.filtroTagBuscaContainer, { backgroundColor: colors.accent, borderColor: colors.border }]}>
+                <MaterialIcons name="search" size={18} color={colors.textSecondary} />
+                <TextInput
+                  style={[styles.filtroTagBuscaInput, { color: colors.text }]}
+                  value={buscaFiltroTag}
+                  onChangeText={setBuscaFiltroTag}
+                  placeholder="Buscar tag..."
+                  placeholderTextColor={getPlaceholderColor(isDarkMode)}
+                />
+                {buscaFiltroTag.length > 0 && (
+                  <TouchableOpacity onPress={() => setBuscaFiltroTag('')}>
+                    <MaterialIcons name="close" size={18} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <ScrollView style={styles.filtroTagLista} showsVerticalScrollIndicator={false}>
+                <TouchableOpacity
+                  style={[
+                    styles.opcaoOrdenacao,
+                    !filtroTagId && { backgroundColor: colors.accent }
+                  ]}
+                  onPress={() => setFiltroTagId('')}
+                >
+                  <MaterialIcons name="clear" size={20} color={colors.textSecondary} />
+                  <Text style={[styles.opcaoTexto, { color: colors.text }]}>Sem filtro</Text>
+                </TouchableOpacity>
+                {globalTags
+                  .filter((tag) => tag.nome?.toLowerCase().includes(buscaFiltroTag.trim().toLowerCase()))
+                  .map((tag) => (
+                    <TouchableOpacity
+                      key={tag.id}
+                      style={[
+                        styles.opcaoOrdenacao,
+                        filtroTagId === tag.id && { backgroundColor: colors.accent }
+                      ]}
+                      onPress={() => setFiltroTagId(tag.id)}
+                    >
+                      <View style={[styles.colorDot, { backgroundColor: tag.cor || '#007AFF' }]} />
+                      <Text style={[styles.opcaoTexto, { color: colors.text }]}>{tag.nome}</Text>
+                    </TouchableOpacity>
+                  ))}
+              </ScrollView>
+            </View>
+            </ScrollView>
+
             <TouchableOpacity
               style={[styles.btnFechar, { backgroundColor: colors.primary }]}
               onPress={() => setModalOrdenacao(false)}
@@ -362,6 +428,7 @@ export default function NotasScreen() {
               <Text style={[styles.btnFecharTexto, { color: colors.white }]}>Fechar</Text>
             </TouchableOpacity>
           </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
 
@@ -423,6 +490,10 @@ const styles = StyleSheet.create({
   fab: { position: 'absolute', right: 16, bottom: 24, width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 3 },
   modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', padding: 16 },
   modalContent: { width: '92%', borderRadius: 12, padding: 16 },
+  modalResponsiveWrap: { width: '100%', alignItems: 'center' },
+  modalFiltrosContent: { width: '94%', maxWidth: 460, maxHeight: '88%', paddingHorizontal: 16, paddingVertical: 16 },
+  modalFiltrosScroll: { flexGrow: 0 },
+  modalFiltrosScrollContent: { paddingBottom: 8 },
   modalTitle: { marginBottom: 12, fontSize: 18, fontWeight: '600' },
   input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12 },
   sectionLabel: { marginBottom: 8, fontSize: 14, fontWeight: '600' },
@@ -443,6 +514,9 @@ const styles = StyleSheet.create({
   opcaoTexto: { marginLeft: 12 },
   opcaoTextoSelecionada: { fontWeight: '600' },
   direcaoContainer: { marginBottom: 20 },
+  filtroTagBuscaContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, marginBottom: 10 },
+  filtroTagBuscaInput: { flex: 1, marginLeft: 8, paddingVertical: 8 },
+  filtroTagLista: { maxHeight: 180 },
   direcaoLabel: { fontSize: 16, fontWeight: '600', marginBottom: 12 },
   btnDirecao: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 6, marginBottom: 8 },
   btnDirecaoSelecionada: { backgroundColor: '#007AFF' },

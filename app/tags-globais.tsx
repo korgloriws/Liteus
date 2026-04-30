@@ -26,6 +26,10 @@ export default function TagsGlobaisScreen() {
   const [tagEditando, setTagEditando] = useState<GlobalTag | null>(null);
   const [nomeTag, setNomeTag] = useState('');
   const [corTag, setCorTag] = useState('#007AFF');
+  const [buscaTags, setBuscaTags] = useState('');
+  const [renameModal, setRenameModal] = useState(false);
+  const [buscarLote, setBuscarLote] = useState('');
+  const [substituirLote, setSubstituirLote] = useState('');
 
   const carregarDados = async () => {
     try {
@@ -126,6 +130,51 @@ export default function TagsGlobaisScreen() {
     );
   };
 
+  const mesclarDuplicadas = () => {
+    Alert.alert(
+      'Mesclar tags duplicadas',
+      'Esta ação vai unir tags com o mesmo nome (ignorando maiúsculas/minúsculas). Deseja continuar?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Mesclar',
+          onPress: async () => {
+            try {
+              const result = await StorageService.mesclarTagsDuplicadas();
+              await carregarDados();
+              Alert.alert(
+                'Concluído',
+                `${result.mergedTags} tag(s) mesclada(s) em ${result.affectedLists} lista(s).`
+              );
+            } catch {
+              Alert.alert('Erro', 'Não foi possível mesclar tags duplicadas.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const renomearEmLote = async () => {
+    if (!buscarLote.trim()) {
+      Alert.alert('Aviso', 'Informe o texto para buscar.');
+      return;
+    }
+    try {
+      const result = await StorageService.renomearTagsEmLote(buscarLote, substituirLote);
+      await carregarDados();
+      setRenameModal(false);
+      setBuscarLote('');
+      setSubstituirLote('');
+      Alert.alert(
+        'Concluído',
+        `${result.updatedTags} tag(s) renomeada(s) em ${result.affectedLists} lista(s).`
+      );
+    } catch {
+      Alert.alert('Erro', 'Não foi possível renomear tags em lote.');
+    }
+  };
+
   const listasDaTag = (tag: GlobalTag) =>
     (tag.listIds || [])
       .map((id) => {
@@ -134,6 +183,12 @@ export default function TagsGlobaisScreen() {
         return { id: lista.id, nome: lista.nome };
       })
       .filter(Boolean) as Array<{ id: string; nome: string }>;
+
+  const tagsFiltradas = tags.filter((tag) =>
+    !buscaTags.trim()
+      ? true
+      : (tag.nome || '').toLowerCase().includes(buscaTags.trim().toLowerCase())
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -154,14 +209,41 @@ export default function TagsGlobaisScreen() {
           Tags reutilizáveis entre listas. Edite uma vez e reflita em todas.
         </Text>
 
+        <View style={styles.toolsRow}>
+          <TouchableOpacity
+            style={[styles.toolBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
+            onPress={mesclarDuplicadas}
+          >
+            <MaterialIcons name="merge-type" size={18} color={colors.primary} />
+            <Text style={[styles.toolBtnText, { color: colors.text }]}>Mesclar duplicadas</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toolBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
+            onPress={() => setRenameModal(true)}
+          >
+            <MaterialIcons name="drive-file-rename-outline" size={18} color={colors.primary} />
+            <Text style={[styles.toolBtnText, { color: colors.text }]}>Renomear em lote</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TextInput
+          style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surface, marginBottom: 12 }]}
+          value={buscaTags}
+          onChangeText={setBuscaTags}
+          placeholder="Buscar tags globais..."
+          placeholderTextColor={getPlaceholderColor(isDarkMode)}
+        />
+
         {loading ? (
           <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Carregando...</Text>
-        ) : tags.length === 0 ? (
+        ) : tagsFiltradas.length === 0 ? (
           <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-            Nenhuma tag global disponível ainda.
+            {tags.length === 0
+              ? 'Nenhuma tag global disponível ainda.'
+              : 'Nenhuma tag encontrada para essa busca.'}
           </Text>
         ) : (
-          tags.map((tag) => {
+          tagsFiltradas.map((tag) => {
             const listasAssociadas = listasDaTag(tag);
             return (
               <View key={tag.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -224,6 +306,13 @@ export default function TagsGlobaisScreen() {
               placeholder="Nome da tag"
               placeholderTextColor={getPlaceholderColor(isDarkMode)}
             />
+            {!tagEditando &&
+              tags.some((t) => t.nome.trim().toLowerCase() === nomeTag.trim().toLowerCase()) &&
+              nomeTag.trim().length > 0 && (
+                <Text style={{ color: '#FF9500', marginBottom: 8 }}>
+                  Já existe uma tag com este nome.
+                </Text>
+              )}
 
             <ColorWheelPicker
               label="Cor da Tag"
@@ -238,6 +327,43 @@ export default function TagsGlobaisScreen() {
               </TouchableOpacity>
               <TouchableOpacity style={[styles.btn, { backgroundColor: colors.primary, borderColor: colors.primary }]} onPress={salvarEdicao}>
                 <Text style={{ color: '#fff', fontWeight: '700' }}>Salvar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={renameModal} transparent animationType="fade" onRequestClose={() => setRenameModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }, typography.titleMedium]}>
+              Renomear Tags em Lote
+            </Text>
+
+            <Text style={[styles.label, { color: colors.text }, typography.body]}>Buscar</Text>
+            <TextInput
+              style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.accent }]}
+              value={buscarLote}
+              onChangeText={setBuscarLote}
+              placeholder="Texto atual"
+              placeholderTextColor={getPlaceholderColor(isDarkMode)}
+            />
+
+            <Text style={[styles.label, { color: colors.text }, typography.body]}>Substituir por</Text>
+            <TextInput
+              style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.accent }]}
+              value={substituirLote}
+              onChangeText={setSubstituirLote}
+              placeholder="Novo texto"
+              placeholderTextColor={getPlaceholderColor(isDarkMode)}
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={[styles.btn, { borderColor: colors.border }]} onPress={() => setRenameModal(false)}>
+                <Text style={{ color: colors.text }}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.btn, { backgroundColor: colors.primary, borderColor: colors.primary }]} onPress={renomearEmLote}>
+                <Text style={{ color: '#fff', fontWeight: '700' }}>Aplicar</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -262,6 +388,19 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18 },
   content: { padding: 16, paddingBottom: 30 },
   subtitle: { marginBottom: 12 },
+  toolsRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  toolBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  toolBtnText: { fontSize: 12, fontWeight: '700' },
   emptyText: { textAlign: 'center', marginTop: 30 },
   card: { borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 10 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

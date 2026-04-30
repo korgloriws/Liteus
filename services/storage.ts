@@ -99,6 +99,144 @@ export class StorageService {
     }
   }
 
+  static async mesclarTagsDuplicadas(): Promise<{ mergedTags: number; affectedLists: number }> {
+    try {
+      const [tags, listas] = await Promise.all([this.carregarTags(), this.carregarListas()]);
+      if (tags.length === 0) return { mergedTags: 0, affectedLists: 0 };
+
+      const byName = new Map<string, GlobalTag[]>();
+      for (const tag of tags) {
+        const key = (tag.nome || '').trim().toLowerCase();
+        if (!byName.has(key)) byName.set(key, []);
+        byName.get(key)!.push(tag);
+      }
+
+      const keepById = new Map<string, string>(); // oldId -> keptId
+      let mergedTags = 0;
+      const nextTags: GlobalTag[] = [];
+
+      for (const group of byName.values()) {
+        if (group.length === 1) {
+          nextTags.push(group[0]);
+          continue;
+        }
+
+        const sorted = [...group].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        const keeper = sorted[0];
+        const mergedListIds = Array.from(new Set(sorted.flatMap((t) => t.listIds || [])));
+
+        keeper.listIds = mergedListIds;
+        keeper.updatedAt = new Date().toISOString();
+        nextTags.push(keeper);
+
+        for (let i = 1; i < sorted.length; i++) {
+          keepById.set(sorted[i].id, keeper.id);
+          mergedTags++;
+        }
+      }
+
+      if (mergedTags === 0) {
+        return { mergedTags: 0, affectedLists: 0 };
+      }
+
+      const listasAtualizadas = listas.map((lista) => {
+        const oldTagIds = lista.tagIds || [];
+        const remappedTagIds = oldTagIds.map((id) => keepById.get(id) || id);
+        const uniqueTagIds = Array.from(new Set(remappedTagIds));
+
+        const itensAtualizados = (lista.itens || []).map((item) => {
+          const remappedCategorias = Array.isArray(item.categorias)
+            ? Array.from(new Set(item.categorias.map((id) => keepById.get(id) || id)))
+            : item.categorias;
+          const remappedCategoria = item.categoria ? (keepById.get(item.categoria) || item.categoria) : item.categoria;
+          return {
+            ...item,
+            categorias: remappedCategorias,
+            categoria: remappedCategoria,
+          };
+        });
+
+        const tagsById = new Map(nextTags.map((t) => [t.id, t]));
+        const categoriasAtualizadas = uniqueTagIds
+          .map((tagId) => tagsById.get(tagId))
+          .filter(Boolean)
+          .map((tag) => ({
+            id: tag!.id,
+            nome: tag!.nome,
+            cor: tag!.cor,
+            createdAt: tag!.createdAt,
+          }));
+
+        return {
+          ...lista,
+          tagIds: uniqueTagIds,
+          categorias: categoriasAtualizadas,
+          itens: itensAtualizados,
+        };
+      });
+
+      const affectedLists = listasAtualizadas.filter((l, idx) => {
+        const prev = listas[idx];
+        return JSON.stringify(prev.tagIds || []) !== JSON.stringify(l.tagIds || []);
+      }).length;
+
+      await Promise.all([this.salvarTags(nextTags), this.salvarListas(listasAtualizadas)]);
+      return { mergedTags, affectedLists };
+    } catch (error) {
+      console.error('Erro ao mesclar tags duplicadas:', error);
+      throw error;
+    }
+  }
+
+  static async renomearTagsEmLote(
+    buscar: string,
+    substituirPor: string
+  ): Promise<{ updatedTags: number; affectedLists: number }> {
+    const termo = buscar.trim();
+    if (!termo) return { updatedTags: 0, affectedLists: 0 };
+
+    try {
+      const [tags, listas] = await Promise.all([this.carregarTags(), this.carregarListas()]);
+      if (tags.length === 0) return { updatedTags: 0, affectedLists: 0 };
+
+      const escaped = termo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escaped, 'gi');
+
+      let updatedTags = 0;
+      const nextTags = tags.map((tag) => {
+        const novoNome = (tag.nome || '').replace(regex, substituirPor);
+        if (novoNome !== tag.nome) {
+          updatedTags++;
+          return { ...tag, nome: novoNome, updatedAt: new Date().toISOString() };
+        }
+        return tag;
+      });
+
+      if (updatedTags === 0) return { updatedTags: 0, affectedLists: 0 };
+
+      const tagById = new Map(nextTags.map((t) => [t.id, t]));
+      let affectedLists = 0;
+      const listasAtualizadas = listas.map((lista) => {
+        const categoriasAtualizadas = (lista.categorias || []).map((cat) => {
+          const tag = tagById.get(cat.id);
+          return tag
+            ? { ...cat, nome: tag.nome, cor: tag.cor }
+            : cat;
+        });
+        if (JSON.stringify(categoriasAtualizadas) !== JSON.stringify(lista.categorias || [])) {
+          affectedLists++;
+        }
+        return { ...lista, categorias: categoriasAtualizadas };
+      });
+
+      await Promise.all([this.salvarTags(nextTags), this.salvarListas(listasAtualizadas)]);
+      return { updatedTags, affectedLists };
+    } catch (error) {
+      console.error('Erro ao renomear tags em lote:', error);
+      throw error;
+    }
+  }
+
   private static buildTagKey(nome?: string, cor?: string): string {
     return `${(nome || '').trim().toLowerCase()}::${(cor || '').trim().toLowerCase()}`;
   }
