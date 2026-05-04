@@ -27,7 +27,7 @@ const isDevelopment = __DEV__;
 
 export default function ConfiguracoesScreen() {
   const { isDarkMode, setDarkMode, colors, typography } = useTheme();
-  const [versao] = useState('1.1.5');
+  const [versao] = useState('1.1.6');
   const [listas, setListas] = useState<Lista[]>([]);
   const [modalSincronizacao, setModalSincronizacao] = useState(false);
   const [dadosSincronizacao, setDadosSincronizacao] = useState('');
@@ -522,10 +522,10 @@ export default function ConfiguracoesScreen() {
 
           <View style={styles.modalButtons}>
             <TouchableOpacity
-              style={styles.btnCancelar}
+              style={[styles.btnCancelar, { borderColor: colors.border, backgroundColor: colors.accent }]}
               onPress={() => setModalSincronizacao(false)}
             >
-              <Text style={styles.btnCancelarText}>Fechar</Text>
+              <Text style={[styles.btnCancelarText, { color: colors.text }]}>Fechar</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
@@ -651,10 +651,10 @@ export default function ConfiguracoesScreen() {
 
           <View style={styles.modalButtons}>
             <TouchableOpacity
-              style={styles.btnCancelar}
+              style={[styles.btnCancelar, { borderColor: colors.border, backgroundColor: colors.accent }]}
               onPress={() => setModalImportacaoGoogleDocs(false)}
             >
-              <Text style={styles.btnCancelarText}>Cancelar</Text>
+              <Text style={[styles.btnCancelarText, { color: colors.text }]}>Cancelar</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
@@ -701,10 +701,10 @@ export default function ConfiguracoesScreen() {
 
           <View style={styles.modalButtons}>
             <TouchableOpacity
-              style={styles.btnCancelar}
+              style={[styles.btnCancelar, { borderColor: colors.border, backgroundColor: colors.accent }]}
               onPress={() => setModalImportacaoJSON(false)}
             >
-              <Text style={styles.btnCancelarText}>Cancelar</Text>
+              <Text style={[styles.btnCancelarText, { color: colors.text }]}>Cancelar</Text>
             </TouchableOpacity>
             
             <TouchableOpacity

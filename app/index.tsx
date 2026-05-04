@@ -665,7 +665,7 @@ export default function ListasScreen() {
               <TouchableOpacity
                 style={[
                   styles.opcaoOrdenacao,
-                  ordenacaoTipo === 'alfabetica' && styles.opcaoSelecionada
+                  ordenacaoTipo === 'alfabetica' && { backgroundColor: colors.accent }
                 ]}
                 onPress={() => handleOrdenacao('alfabetica', ordenacaoDirecao)}
               >
@@ -687,7 +687,7 @@ export default function ListasScreen() {
               <TouchableOpacity
                 style={[
                   styles.opcaoOrdenacao,
-                  ordenacaoTipo === 'data' && styles.opcaoSelecionada
+                  ordenacaoTipo === 'data' && { backgroundColor: colors.accent }
                 ]}
                 onPress={() => handleOrdenacao('data', ordenacaoDirecao)}
               >
@@ -709,7 +709,7 @@ export default function ListasScreen() {
               <TouchableOpacity
                 style={[
                   styles.opcaoOrdenacao,
-                  ordenacaoTipo === 'categoria' && styles.opcaoSelecionada
+                  ordenacaoTipo === 'categoria' && { backgroundColor: colors.accent }
                 ]}
                 onPress={() => handleOrdenacao('categoria', ordenacaoDirecao)}
               >
@@ -720,7 +720,7 @@ export default function ListasScreen() {
                 />
                 <Text style={[
                   styles.opcaoTexto,
-                  { color: isDarkMode ? '#fff' : '#1C1C1E' },
+                  { color: colors.text },
                   ordenacaoTipo === 'categoria' && styles.opcaoTextoSelecionada
                 ]}>
                   Quantidade de Itens
@@ -730,7 +730,7 @@ export default function ListasScreen() {
               <TouchableOpacity
                 style={[
                   styles.opcaoOrdenacao,
-                  ordenacaoTipo === 'ultimoModificado' && styles.opcaoSelecionada
+                  ordenacaoTipo === 'ultimoModificado' && { backgroundColor: colors.accent }
                 ]}
                 onPress={() => handleOrdenacao('ultimoModificado', ordenacaoDirecao)}
               >
@@ -751,23 +751,24 @@ export default function ListasScreen() {
             </View>
 
             <View style={styles.direcaoContainer}>
-              <Text style={[styles.direcaoLabel, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+              <Text style={[styles.direcaoLabel, { color: colors.text }]}>
                 Direção:
               </Text>
               <TouchableOpacity
                 style={[
                   styles.btnDirecao,
-                  ordenacaoDirecao === 'asc' && styles.btnDirecaoSelecionada
+                  ordenacaoDirecao === 'asc' && { backgroundColor: colors.primary }
                 ]}
                 onPress={() => handleOrdenacao(ordenacaoTipo, 'asc')}
               >
                 <MaterialIcons 
                   name="arrow-upward" 
                   size={16} 
-                  color={ordenacaoDirecao === 'asc' ? '#fff' : '#8E8E93'} 
+                  color={ordenacaoDirecao === 'asc' ? colors.white : colors.textSecondary} 
                 />
                 <Text style={[
                   styles.btnDirecaoTexto,
+                  { color: ordenacaoDirecao === 'asc' ? colors.white : colors.textSecondary },
                   ordenacaoDirecao === 'asc' && styles.btnDirecaoTextoSelecionada
                 ]}>
                   Crescente
@@ -776,17 +777,18 @@ export default function ListasScreen() {
               <TouchableOpacity
                 style={[
                   styles.btnDirecao,
-                  ordenacaoDirecao === 'desc' && styles.btnDirecaoSelecionada
+                  ordenacaoDirecao === 'desc' && { backgroundColor: colors.primary }
                 ]}
                 onPress={() => handleOrdenacao(ordenacaoTipo, 'desc')}
               >
                 <MaterialIcons 
                   name="arrow-downward" 
                   size={16} 
-                  color={ordenacaoDirecao === 'desc' ? '#fff' : '#8E8E93'} 
+                  color={ordenacaoDirecao === 'desc' ? colors.white : colors.textSecondary} 
                 />
                 <Text style={[
                   styles.btnDirecaoTexto,
+                  { color: ordenacaoDirecao === 'desc' ? colors.white : colors.textSecondary },
                   ordenacaoDirecao === 'desc' && styles.btnDirecaoTextoSelecionada
                 ]}>
                   Decrescente
@@ -795,7 +797,7 @@ export default function ListasScreen() {
             </View>
 
             <View style={styles.direcaoContainer}>
-              <Text style={[styles.direcaoLabel, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
+              <Text style={[styles.direcaoLabel, { color: colors.text }]}>
                 Filtro por tag
               </Text>
               <View style={[styles.filtroTagBuscaContainer, { backgroundColor: colors.accent, borderColor: colors.border }]}>
@@ -844,10 +846,10 @@ export default function ListasScreen() {
             </ScrollView>
 
             <TouchableOpacity
-              style={styles.btnFechar}
+              style={[styles.btnFechar, { backgroundColor: colors.primary }]}
               onPress={() => setModalOrdenacao(false)}
             >
-              <Text style={styles.btnFecharTexto}>Fechar</Text>
+              <Text style={[styles.btnFecharTexto, { color: colors.white }]}>Fechar</Text>
             </TouchableOpacity>
           </View>
           </KeyboardAvoidingView>
@@ -891,19 +893,19 @@ export default function ListasScreen() {
 
             <View style={styles.modalEditarBotoes}>
               <TouchableOpacity
-                style={styles.btnCancelar}
+                style={[styles.btnCancelar, { borderColor: colors.border, backgroundColor: colors.accent }]}
                 onPress={() => {
                   setModalEditarNota(false);
                   setNotaEditando(null);
                 }}
               >
-                <Text style={styles.btnCancelarText}>Cancelar</Text>
+                <Text style={[styles.btnCancelarText, { color: colors.text }]}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.btnSalvar}
+                style={[styles.btnSalvar, { backgroundColor: colors.primary }]}
                 onPress={salvarEdicaoNota}
               >
-                <Text style={styles.btnSalvarText}>Salvar</Text>
+                <Text style={[styles.btnSalvarText, { color: colors.white }]}>Salvar</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -974,7 +976,10 @@ export default function ListasScreen() {
                 {editandoCategorias.length > 0 && (
                   <View style={styles.categoriasContainer}>
                     {editandoCategorias.map((categoria) => (
-                      <View key={categoria.id} style={styles.categoriaItem}>
+                      <View
+                        key={categoria.id}
+                        style={[styles.categoriaItem, { backgroundColor: colors.accent, borderColor: colors.border }]}
+                      >
                         <View style={[styles.categoriaCor, { backgroundColor: categoria.cor }]} />
                         <Text style={[styles.categoriaNome, { color: isDarkMode ? '#fff' : '#1C1C1E' }]}>
                           {categoria.nome}
@@ -1027,19 +1032,19 @@ export default function ListasScreen() {
               {/* Botões */}
               <View style={styles.modalEditarBotoes}>
                 <TouchableOpacity
-                  style={styles.btnCancelar}
+                  style={[styles.btnCancelar, { borderColor: colors.border, backgroundColor: colors.accent }]}
                   onPress={() => {
                     setModalEditarLista(false);
                     limparFormularioEdicao();
                   }}
                 >
-                  <Text style={styles.btnCancelarText}>Cancelar</Text>
+                  <Text style={[styles.btnCancelarText, { color: colors.text }]}>Cancelar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.btnSalvar}
+                  style={[styles.btnSalvar, { backgroundColor: colors.primary }]}
                   onPress={salvarEdicao}
                 >
-                  <Text style={styles.btnSalvarText}>Salvar</Text>
+                  <Text style={[styles.btnSalvarText, { color: colors.white }]}>Salvar</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1159,19 +1164,19 @@ export default function ListasScreen() {
 
             <View style={styles.modalBotoes}>
               <TouchableOpacity
-                style={styles.btnCancelar}
+                style={[styles.btnCancelar, { borderColor: colors.border, backgroundColor: colors.accent }]}
                 onPress={() => {
                   setModalCategoria(false);
                   limparFormularioCategoria();
                 }}
               >
-                <Text style={styles.btnCancelarText}>Cancelar</Text>
+                <Text style={[styles.btnCancelarText, { color: colors.text }]}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.btnSalvar}
+                style={[styles.btnSalvar, { backgroundColor: colors.primary }]}
                 onPress={adicionarCategoria}
               >
-                <Text style={styles.btnSalvarText}>Adicionar</Text>
+                <Text style={[styles.btnSalvarText, { color: colors.white }]}>Adicionar</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1220,17 +1225,17 @@ export default function ListasScreen() {
               {/* Botões */}
               <View style={styles.modalEditarBotoes}>
                 <TouchableOpacity
-                  style={styles.btnCancelar}
+                  style={[styles.btnCancelar, { borderColor: colors.border, backgroundColor: colors.accent }]}
                   onPress={() => {}} // Remover função de limpar importação
                 >
-                  <Text style={styles.btnCancelarText}>Cancelar</Text>
+                  <Text style={[styles.btnCancelarText, { color: colors.text }]}>Cancelar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.btnSalvar, { opacity: 0.5 }]} 
+                  style={[styles.btnSalvar, { backgroundColor: colors.primary, opacity: 0.5 }]} 
                   onPress={() => {}}
                   disabled={true}
                 >
-                  <Text style={styles.btnSalvarText}>Criar Lista</Text>
+                  <Text style={[styles.btnSalvarText, { color: colors.white }]}>Criar Lista</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1272,13 +1277,13 @@ export default function ListasScreen() {
             />
             <View style={styles.modalBotoes}>
               <TouchableOpacity
-                style={styles.btnCancelar}
+                style={[styles.btnCancelar, { borderColor: colors.border, backgroundColor: colors.accent }]}
                 onPress={() => setModalEditarCategoria(false)}
               >
-                <Text style={styles.btnCancelarText}>Cancelar</Text>
+                <Text style={[styles.btnCancelarText, { color: colors.text }]}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.btnSalvar}
+                style={[styles.btnSalvar, { backgroundColor: colors.primary }]}
                 onPress={async () => {
                   if (!nomeCategoriaEditando.trim() || !categoriaEditando || !listaEditando) return;
                   
@@ -1324,7 +1329,7 @@ export default function ListasScreen() {
                   }
                 }}
               >
-                <Text style={styles.btnSalvarText}>Salvar</Text>
+                <Text style={[styles.btnSalvarText, { color: colors.white }]}>Salvar</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1383,10 +1388,10 @@ export default function ListasScreen() {
             </View>
 
             <TouchableOpacity
-              style={styles.btnCancelar}
+              style={[styles.btnCancelar, { borderColor: colors.border, backgroundColor: colors.accent }]}
               onPress={() => setModalOpcoesAleatoria(false)}
             >
-              <Text style={styles.btnCancelarText}>Cancelar</Text>
+              <Text style={[styles.btnCancelarText, { color: colors.text }]}>Cancelar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1442,17 +1447,17 @@ export default function ListasScreen() {
 
             <View style={styles.modalBotoes}>
               <TouchableOpacity
-                style={[styles.btnCancelar, { flex: 1 }]}
+                style={[styles.btnCancelar, { flex: 1, borderColor: colors.border, backgroundColor: colors.accent }]}
                 onPress={() => {
                   setModalSelecaoAleatoria(false);
                   reiniciarSelecaoAleatoria();
                 }}
               >
-                <Text style={styles.btnCancelarText}>Fechar</Text>
+                <Text style={[styles.btnCancelarText, { color: colors.text }]}>Fechar</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[styles.btnSalvar, { flex: 1 }]}
+                style={[styles.btnSalvar, { flex: 1, backgroundColor: colors.primary }]}
                 onPress={() => {
                   setModalSelecaoAleatoria(false);
                   reiniciarSelecaoAleatoria();
@@ -1464,7 +1469,7 @@ export default function ListasScreen() {
                   }
                 }}
               >
-                <Text style={styles.btnSalvarText}>Ver na Lista</Text>
+                <Text style={[styles.btnSalvarText, { color: colors.white }]}>Ver na Lista</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1849,6 +1854,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F2F2F7',
+    borderWidth: 1,
+    borderColor: 'transparent',
     borderRadius: 8,
     padding: 12,
     marginBottom: 8,

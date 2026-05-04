@@ -283,7 +283,7 @@ export default function NotasScreen() {
               <TouchableOpacity
                 style={[
                   styles.opcaoOrdenacao,
-                  ordenacaoTipo === 'alfabetica' && styles.opcaoSelecionada
+                  ordenacaoTipo === 'alfabetica' && { backgroundColor: colors.accent }
                 ]}
                 onPress={() => handleOrdenacao('alfabetica', ordenacaoDirecao)}
               >
@@ -304,7 +304,7 @@ export default function NotasScreen() {
               <TouchableOpacity
                 style={[
                   styles.opcaoOrdenacao,
-                  ordenacaoTipo === 'data' && styles.opcaoSelecionada
+                  ordenacaoTipo === 'data' && { backgroundColor: colors.accent }
                 ]}
                 onPress={() => handleOrdenacao('data', ordenacaoDirecao)}
               >
@@ -325,7 +325,7 @@ export default function NotasScreen() {
               <TouchableOpacity
                 style={[
                   styles.opcaoOrdenacao,
-                  ordenacaoTipo === 'ultimoModificado' && styles.opcaoSelecionada
+                  ordenacaoTipo === 'ultimoModificado' && { backgroundColor: colors.accent }
                 ]}
                 onPress={() => handleOrdenacao('ultimoModificado', ordenacaoDirecao)}
               >
@@ -347,26 +347,26 @@ export default function NotasScreen() {
             <View style={styles.direcaoContainer}>
               <Text style={[styles.direcaoLabel, { color: colors.text }]}>Direção</Text>
               <TouchableOpacity
-                style={[styles.btnDirecao, { backgroundColor: ordenacaoDirecao === 'asc' ? colors.accent : 'transparent' }]}
+                style={[styles.btnDirecao, { backgroundColor: ordenacaoDirecao === 'asc' ? colors.primary : 'transparent' }]}
                 onPress={() => setOrdenacaoDirecao('asc')}
               >
-                <MaterialIcons name="arrow-upward" size={18} color={ordenacaoDirecao === 'asc' ? colors.primary : colors.textSecondary} />
+                <MaterialIcons name="arrow-upward" size={18} color={ordenacaoDirecao === 'asc' ? colors.white : colors.textSecondary} />
                 <Text style={[
                   styles.btnDirecaoTexto, 
-                  { color: ordenacaoDirecao === 'asc' ? colors.primary : colors.textSecondary },
+                  { color: ordenacaoDirecao === 'asc' ? colors.white : colors.textSecondary },
                   ordenacaoDirecao === 'asc' && styles.btnDirecaoTextoSelecionada
                 ]}>
                   Ascendente
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.btnDirecao, { backgroundColor: ordenacaoDirecao === 'desc' ? colors.accent : 'transparent' }]}
+                style={[styles.btnDirecao, { backgroundColor: ordenacaoDirecao === 'desc' ? colors.primary : 'transparent' }]}
                 onPress={() => setOrdenacaoDirecao('desc')}
               >
-                <MaterialIcons name="arrow-downward" size={18} color={ordenacaoDirecao === 'desc' ? colors.primary : colors.textSecondary} />
+                <MaterialIcons name="arrow-downward" size={18} color={ordenacaoDirecao === 'desc' ? colors.white : colors.textSecondary} />
                 <Text style={[
                   styles.btnDirecaoTexto, 
-                  { color: ordenacaoDirecao === 'desc' ? colors.primary : colors.textSecondary },
+                  { color: ordenacaoDirecao === 'desc' ? colors.white : colors.textSecondary },
                   ordenacaoDirecao === 'desc' && styles.btnDirecaoTextoSelecionada
                 ]}>
                   Descendente

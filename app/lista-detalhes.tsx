@@ -697,19 +697,19 @@ export default function ListaDetalhesScreen() {
             </ScrollView>
             <View style={styles.modalBotoes}>
               <TouchableOpacity
-                style={styles.btnCancelar}
+                style={[styles.btnCancelar, { borderColor: colors.border, backgroundColor: colors.accent }]}
                 onPress={() => {
                   setModalAdicionar(false);
                   limparFormularioItem();
                 }}
               >
-                <Text style={styles.btnCancelarText}>Cancelar</Text>
+                <Text style={[styles.btnCancelarText, { color: colors.text }]}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.btnSalvar}
+                style={[styles.btnSalvar, { backgroundColor: colors.primary }]}
                 onPress={adicionarItem}
               >
-                <Text style={styles.btnSalvarText}>Adicionar</Text>
+                <Text style={[styles.btnSalvarText, { color: colors.white }]}>Adicionar</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -791,19 +791,19 @@ export default function ListaDetalhesScreen() {
             </ScrollView>
             <View style={styles.modalBotoes}>
               <TouchableOpacity
-                style={styles.btnCancelar}
+                style={[styles.btnCancelar, { borderColor: colors.border, backgroundColor: colors.accent }]}
                 onPress={() => {
                   setModalEditar(false);
                   limparFormularioItem();
                 }}
               >
-                <Text style={styles.btnCancelarText}>Cancelar</Text>
+                <Text style={[styles.btnCancelarText, { color: colors.text }]}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.btnSalvar}
+                style={[styles.btnSalvar, { backgroundColor: colors.primary }]}
                 onPress={editarItem}
               >
-                <Text style={styles.btnSalvarText}>Salvar</Text>
+                <Text style={[styles.btnSalvarText, { color: colors.white }]}>Salvar</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -862,10 +862,10 @@ export default function ListaDetalhesScreen() {
             </View>
 
             <TouchableOpacity
-              style={styles.btnCancelar}
+              style={[styles.btnCancelar, { borderColor: colors.border, backgroundColor: colors.accent }]}
               onPress={() => setModalOpcoesAleatoria(false)}
             >
-              <Text style={styles.btnCancelarText}>Cancelar</Text>
+              <Text style={[styles.btnCancelarText, { color: colors.text }]}>Cancelar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -943,13 +943,13 @@ export default function ListaDetalhesScreen() {
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={styles.btnCancelar}
+                style={[styles.btnCancelar, { borderColor: colors.border, backgroundColor: colors.accent }]}
                 onPress={() => {
                   setModalSelecaoAleatoria(false);
                   reiniciarSelecaoAleatoria();
                 }}
               >
-                <Text style={styles.btnCancelarText}>Fechar</Text>
+                <Text style={[styles.btnCancelarText, { color: colors.text }]}>Fechar</Text>
               </TouchableOpacity>
               
               {!animandoSelecao && itemSelecionado && (

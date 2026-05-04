@@ -159,8 +159,8 @@ export default function SegurancaScreen() {
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Testar',
-          onPress: async (pinDigitado) => {
-            if (pinDigitado === config.pin) {
+          onPress: async (pinDigitado?: string) => {
+            if ((pinDigitado ?? '') === config.pin) {
               Alert.alert('Sucesso', 'PIN correto!');
             } else {
               Alert.alert('Erro', 'PIN incorreto');
