@@ -60,8 +60,10 @@ function mapNativeError(error: unknown, mod: GoogleSignInModule | null): string 
       case '10':
       case 'DEVELOPER_ERROR':
         return (
-          'DEVELOPER_ERROR: o SHA-1 do APK não confere com o Client Android no Google Cloud. ' +
-          'Veja o SHA-1 impresso no build do GitHub Actions e atualize a credencial Android.'
+          'DEVELOPER_ERROR: SHA-1 do APK diferente do Google Cloud. ' +
+          'No Client OAuth Android use package com.liteus.app e SHA-1: ' +
+          '6C:BC:28:13:88:20:25:79:DE:76:8C:0F:86:C1:F8:19:10:2E:4E:3A ' +
+          '(depois instale o APK novo assinado com o keystore do repositório).'
         );
       default:
         return error.message || `Erro Google (${error.code})`;

@@ -33,6 +33,11 @@ jobs:
     
     - name: Generate Android project
       run: npx expo prebuild --platform android
+
+    - name: Configure stable release signing
+      run: |
+        chmod +x scripts/setup-android-release-signing.sh
+        scripts/setup-android-release-signing.sh
     
     - name: Make gradlew executable
       run: chmod +x android/gradlew
@@ -43,11 +48,43 @@ jobs:
         ./gradlew assembleRelease
 
     - name: Print APK SHA-1 (obrigatório no Google Cloud)
+      if: always()
       run: |
+        set -e
         APK="android/app/build/outputs/apk/release/app-release.apk"
+        if [ ! -f "$APK" ]; then
+          echo "APK não encontrado em $APK"
+          ls -la android/app/build/outputs/apk/release/ || true
+          exit 1
+        fi
+
         echo "=== SHA-1 do APK (cole no Client OAuth Android) ==="
-        keytool -printcert -jarfile "$APK" | grep -E "SHA1:|SHA-1:" || true
+        {
+          keytool -printcert -jarfile "$APK" 2>/dev/null || true
+          echo "---- apksigner ----"
+          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --print-certs "$APK" 2>/dev/null || \
+          "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner" verify --print-certs "$APK" 2>/dev/null || \
+          find "$ANDROID_HOME" "$ANDROID_SDK_ROOT" -name apksigner -type f 2>/dev/null | head -1 | xargs -I{} {} verify --print-certs "$APK" || true
+        } | tee /tmp/apk-certs.txt
+
+        SHA1=$(grep -oE '([0-9A-Fa-f]{2}:){19}[0-9A-Fa-f]{2}' /tmp/apk-certs.txt | head -1 || true)
+        echo ""
+        echo "SHA1_EXTRAIDO=$SHA1"
+        echo "SHA-1 ESPERADO (keystore do repo)=6C:BC:28:13:88:20:25:79:DE:76:8C:0F:86:C1:F8:19:10:2E:4E:3A"
+        echo "SHA-1 do APK: \`$SHA1\`" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "Use no Google Cloud (package com.liteus.app): \`6C:BC:28:13:88:20:25:79:DE:76:8C:0F:86:C1:F8:19:10:2E:4E:3A\`" >> "$GITHUB_STEP_SUMMARY"
+        mkdir -p artifacts-meta
+        echo "$SHA1" > artifacts-meta/sha1.txt
         echo "===================================================="
+
+    - name: Upload SHA-1 text
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: apk-sha1
+        path: artifacts-meta/sha1.txt
+        if-no-files-found: ignore
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
