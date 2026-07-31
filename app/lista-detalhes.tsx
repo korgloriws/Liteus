@@ -9,6 +9,7 @@ import {
   Modal,
   Alert,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -231,11 +232,12 @@ export default function ListaDetalhesScreen() {
       filtrosAtivos.push(`Busca: "${textoBusca}"`);
     }
     
-    // Filtrar por categoria
+    // Filtrar por categoria (suporta campo legado e categorias/tags múltiplas)
     if (filtroCategoria) {
       const categoriaSelecionada = lista.categorias.find(cat => cat.id === filtroCategoria);
-      itensFiltrados = itensFiltrados.filter(item => 
-        item.categoria === filtroCategoria
+      itensFiltrados = itensFiltrados.filter(item =>
+        item.categoria === filtroCategoria ||
+        (Array.isArray(item.categorias) && item.categorias.includes(filtroCategoria))
       );
       if (categoriaSelecionada) {
         filtrosAtivos.push(`Categoria: ${categoriaSelecionada.nome}`);
@@ -817,56 +819,66 @@ export default function ListaDetalhesScreen() {
         transparent={true}
         onRequestClose={() => setModalOpcoesAleatoria(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+        <View style={[styles.modalOverlay, styles.modalAleatorioOverlay]}>
+          <View style={[styles.modalContent, styles.modalAleatorioContent, { backgroundColor: colors.surface }]}>
             <Text style={[styles.modalTitle, { color: colors.text }, typography.titleLarge]}>
               Opções de Seleção Aleatória
             </Text>
-            
-            <View style={styles.opcoesContainer}>
-              <TouchableOpacity
-                style={[styles.opcaoItem, { backgroundColor: colors.accent }]}
-                onPress={() => {
-                  setModalOpcoesAleatoria(false);
-                  selecionarAleatoriamente(false);
-                }}
-              >
-                <MaterialIcons name="casino" size={24} color={colors.primary} />
-                <View style={styles.opcaoContent}>
-                  <Text style={[styles.opcaoTitle, { color: colors.text }, typography.titleMedium]}>
-                    Incluir todos os itens
-                  </Text>
-                  <Text style={[styles.opcaoSubtitle, { color: colors.textSecondary }, typography.caption]}>
-                    Considerar itens concluídos e não concluídos
-                  </Text>
-                </View>
-              </TouchableOpacity>
 
+            <ScrollView
+              style={styles.modalAleatorioScroll}
+              contentContainerStyle={styles.modalAleatorioScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.opcoesContainer}>
+                <TouchableOpacity
+                  style={[styles.opcaoItem, { backgroundColor: colors.accent }]}
+                  onPress={() => {
+                    setModalOpcoesAleatoria(false);
+                    selecionarAleatoriamente(false);
+                  }}
+                >
+                  <MaterialIcons name="casino" size={24} color={colors.primary} />
+                  <View style={styles.opcaoContent}>
+                    <Text style={[styles.opcaoTitle, { color: colors.text }, typography.titleMedium]}>
+                      Incluir todos os itens
+                    </Text>
+                    <Text style={[styles.opcaoSubtitle, { color: colors.textSecondary }, typography.caption]}>
+                      Considerar itens concluídos e não concluídos
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.opcaoItem, { backgroundColor: colors.accent }]}
+                  onPress={() => {
+                    setModalOpcoesAleatoria(false);
+                    selecionarAleatoriamente(true);
+                  }}
+                >
+                  <MaterialIcons name="filter-list" size={24} color={colors.primary} />
+                  <View style={styles.opcaoContent}>
+                    <Text style={[styles.opcaoTitle, { color: colors.text }, typography.titleMedium]}>
+                      Excluir itens concluídos
+                    </Text>
+                    <Text style={[styles.opcaoSubtitle, { color: colors.textSecondary }, typography.caption]}>
+                      Selecionar apenas itens não concluídos
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalAleatorioFooter}>
               <TouchableOpacity
-                style={[styles.opcaoItem, { backgroundColor: colors.accent }]}
-                onPress={() => {
-                  setModalOpcoesAleatoria(false);
-                  selecionarAleatoriamente(true);
-                }}
+                style={[styles.btnCancelar, styles.btnAleatorioAcao, { borderColor: colors.border, backgroundColor: colors.accent }]}
+                onPress={() => setModalOpcoesAleatoria(false)}
               >
-                <MaterialIcons name="filter-list" size={24} color={colors.primary} />
-                <View style={styles.opcaoContent}>
-                  <Text style={[styles.opcaoTitle, { color: colors.text }, typography.titleMedium]}>
-                    Excluir itens concluídos
-                  </Text>
-                  <Text style={[styles.opcaoSubtitle, { color: colors.textSecondary }, typography.caption]}>
-                    Selecionar apenas itens não concluídos
-                  </Text>
-                </View>
+                <Text style={[styles.btnCancelarText, { color: colors.text }]} numberOfLines={1}>
+                  Cancelar
+                </Text>
               </TouchableOpacity>
             </View>
-
-            <TouchableOpacity
-              style={[styles.btnCancelar, { borderColor: colors.border, backgroundColor: colors.accent }]}
-              onPress={() => setModalOpcoesAleatoria(false)}
-            >
-              <Text style={[styles.btnCancelarText, { color: colors.text }]}>Cancelar</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -881,92 +893,112 @@ export default function ListaDetalhesScreen() {
           reiniciarSelecaoAleatoria();
         }}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+        <View style={[styles.modalOverlay, styles.modalAleatorioOverlay]}>
+          <View style={[styles.modalContent, styles.modalAleatorioContent, { backgroundColor: colors.surface }]}>
             <Text style={[styles.modalTitle, { color: colors.text }, typography.titleLarge]}>
               {animandoSelecao ? 'Selecionando...' : 'Item Selecionado!'}
             </Text>
-            
-            {/* Informações sobre filtros aplicados */}
-            {(textoBusca || filtroCategoria) && !animandoSelecao && (
-              <View style={[styles.filtrosInfoContainer, { backgroundColor: colors.accent }]}>
-                <MaterialIcons name="filter-list" size={16} color={colors.primary} />
-                <View style={styles.filtrosInfoContent}>
-                  <Text style={[styles.filtrosInfoText, { color: colors.textSecondary }, typography.caption]}>
-                    Filtros aplicados:
-                  </Text>
-                  {textoBusca && (
+
+            <ScrollView
+              style={styles.modalAleatorioScroll}
+              contentContainerStyle={styles.modalAleatorioScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {(textoBusca || filtroCategoria) && !animandoSelecao && (
+                <View style={[styles.filtrosInfoContainer, { backgroundColor: colors.accent }]}>
+                  <MaterialIcons name="filter-list" size={16} color={colors.primary} />
+                  <View style={styles.filtrosInfoContent}>
                     <Text style={[styles.filtrosInfoText, { color: colors.textSecondary }, typography.caption]}>
-                      • Busca: "{textoBusca}"
+                      Filtros aplicados:
                     </Text>
-                  )}
-                  {filtroCategoria && (
+                    {textoBusca && (
+                      <Text style={[styles.filtrosInfoText, { color: colors.textSecondary }, typography.caption]}>
+                        • Busca: "{textoBusca}"
+                      </Text>
+                    )}
+                    {filtroCategoria && (
+                      <Text style={[styles.filtrosInfoText, { color: colors.textSecondary }, typography.caption]}>
+                        • Categoria: {lista?.categorias.find(cat => cat.id === filtroCategoria)?.nome || filtroCategoria}
+                      </Text>
+                    )}
                     <Text style={[styles.filtrosInfoText, { color: colors.textSecondary }, typography.caption]}>
-                      • Categoria: {lista?.categorias.find(cat => cat.id === filtroCategoria)?.nome || filtroCategoria}
-                    </Text>
-                  )}
-                  <Text style={[styles.filtrosInfoText, { color: colors.textSecondary }, typography.caption]}>
-                    • Itens disponíveis: {itensFiltrados.length}
-                  </Text>
-                </View>
-              </View>
-            )}
-            
-            {itemSelecionado && (
-              <View style={[styles.itemSelecionadoContainer, { backgroundColor: colors.accent }]}>
-                <View style={styles.itemSelecionadoHeader}>
-                  <MaterialIcons 
-                    name="casino" 
-                    size={32} 
-                    color={colors.primary} 
-                  />
-                  <Text style={[styles.itemSelecionadoTitle, { color: colors.text }, typography.titleMedium]}>
-                    {itemSelecionado.texto}
-                  </Text>
-                </View>
-                
-                {itemSelecionado.descricao && (
-                  <Text style={[styles.itemSelecionadoDescricao, { color: colors.textSecondary }, typography.body]}>
-                    {itemSelecionado.descricao}
-                  </Text>
-                )}
-                
-                {itemSelecionado.categoria && (
-                  <View style={styles.itemSelecionadoCategoria}>
-                    <Text style={[styles.itemSelecionadoCategoriaText, { color: colors.textSecondary }, typography.caption]}>
-                      Categoria: {itemSelecionado.categoria}
+                      • Itens disponíveis: {itensFiltrados.length}
                     </Text>
                   </View>
-                )}
-              </View>
-            )}
+                </View>
+              )}
+              
+              {itemSelecionado && (
+                <View style={[styles.itemSelecionadoContainer, { backgroundColor: colors.accent }]}>
+                  <View style={styles.itemSelecionadoHeader}>
+                    <MaterialIcons 
+                      name="casino" 
+                      size={32} 
+                      color={colors.primary} 
+                    />
+                    <Text style={[styles.itemSelecionadoTitle, { color: colors.text }, typography.titleMedium]}>
+                      {itemSelecionado.texto}
+                    </Text>
+                  </View>
+                  
+                  {itemSelecionado.descricao && (
+                    <Text style={[styles.itemSelecionadoDescricao, { color: colors.textSecondary }, typography.body]}>
+                      {itemSelecionado.descricao}
+                    </Text>
+                  )}
+                  
+                  {(() => {
+                    const nomes = (itemSelecionado.categorias && itemSelecionado.categorias.length > 0
+                      ? itemSelecionado.categorias
+                          .map((id) => lista?.categorias.find((cat) => cat.id === id)?.nome)
+                          .filter(Boolean)
+                      : itemSelecionado.categoria
+                        ? [lista?.categorias.find((cat) => cat.id === itemSelecionado.categoria)?.nome || itemSelecionado.categoria]
+                        : []
+                    ) as string[];
 
-            <View style={styles.modalButtons}>
+                    if (nomes.length === 0) return null;
+
+                    return (
+                      <View style={styles.itemSelecionadoCategoria}>
+                        <Text style={[styles.itemSelecionadoCategoriaText, { color: colors.textSecondary }, typography.caption]}>
+                          Categoria: {nomes.join(', ')}
+                        </Text>
+                      </View>
+                    );
+                  })()}
+                </View>
+              )}
+            </ScrollView>
+
+            <View style={styles.modalAleatorioFooter}>
               <TouchableOpacity
-                style={[styles.btnCancelar, { borderColor: colors.border, backgroundColor: colors.accent }]}
+                style={[styles.btnCancelar, styles.btnAleatorioAcao, { borderColor: colors.border, backgroundColor: colors.accent }]}
                 onPress={() => {
                   setModalSelecaoAleatoria(false);
                   reiniciarSelecaoAleatoria();
                 }}
               >
-                <Text style={[styles.btnCancelarText, { color: colors.text }]}>Fechar</Text>
+                <Text style={[styles.btnCancelarText, { color: colors.text }]} numberOfLines={1}>
+                  Fechar
+                </Text>
               </TouchableOpacity>
               
               {!animandoSelecao && itemSelecionado && (
                 <TouchableOpacity
-                  style={styles.btnLimpar}
+                  style={[styles.btnLimpar, styles.btnAleatorioAcao]}
                   onPress={reiniciarSelecaoAleatoria}
                 >
-                  <Text style={styles.btnLimparText}>Limpar</Text>
+                  <Text style={styles.btnLimparText} numberOfLines={1}>Limpar</Text>
                 </TouchableOpacity>
               )}
               
               {!animandoSelecao && (
                 <TouchableOpacity
-                  style={styles.btnCopiar}
+                  style={[styles.btnCopiar, styles.btnAleatorioAcao]}
                   onPress={() => selecionarAleatoriamente()}
                 >
-                  <Text style={styles.btnCopiarText}>Nova Seleção</Text>
+                  <Text style={styles.btnCopiarText} numberOfLines={1}>Nova Seleção</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -1147,6 +1179,40 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     maxHeight: '85%',
   },
+  modalAleatorioOverlay: {
+    paddingHorizontal: 20,
+    paddingVertical: 32,
+  },
+  modalAleatorioContent: {
+    width: Dimensions.get('window').width - 40,
+    maxWidth: 420,
+    maxHeight: Dimensions.get('window').height * 0.75,
+    padding: 16,
+    paddingBottom: 20,
+    overflow: 'visible',
+  },
+  modalAleatorioScroll: {
+    maxHeight: Dimensions.get('window').height * 0.75 - 160,
+    flexGrow: 0,
+  },
+  modalAleatorioScrollContent: {
+    paddingBottom: 4,
+  },
+  modalAleatorioFooter: {
+    marginTop: 12,
+    paddingTop: 4,
+    paddingBottom: 4,
+    flexShrink: 0,
+    gap: 10,
+  },
+  btnAleatorioAcao: {
+    width: '100%',
+    flexGrow: 0,
+    flex: 0,
+    minWidth: 0,
+    minHeight: 48,
+    justifyContent: 'center',
+  },
   modalScroll: {
     maxHeight: '100%',
     width: '100%',
@@ -1190,16 +1256,20 @@ const styles = StyleSheet.create({
   },
   btnCancelar: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
+    minHeight: 48,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#e5e5ea',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   btnCancelarText: {
     color: '#8e8e93',
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
   },
   modalTitle: {
     fontSize: 18,
@@ -1214,28 +1284,36 @@ const styles = StyleSheet.create({
   },
   btnCopiar: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
+    minHeight: 48,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     backgroundColor: '#007AFF',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   btnCopiarText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
   },
 
   btnSalvar: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
+    minHeight: 48,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     backgroundColor: '#007AFF',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   btnSalvarText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
   },
   // Estilos para categorias
   categoriaContainer: {
@@ -1470,15 +1548,19 @@ const styles = StyleSheet.create({
   },
   btnLimpar: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
+    minHeight: 48,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     backgroundColor: '#FF3B30',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   btnLimparText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
   },
   categoriasReservado: {
     minHeight: 24, // Altura mínima reservada para as categorias

@@ -13,6 +13,7 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  Dimensions,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
@@ -646,9 +647,9 @@ export default function ListasScreen() {
         animationType="fade"
         onRequestClose={() => setModalOrdenacao(false)}
       >
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, styles.modalFiltrosOverlay]}>
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={styles.modalResponsiveWrap}
           >
           <View style={[styles.modalContent, styles.modalFiltrosContent, { backgroundColor: colors.surface }]}>
@@ -660,6 +661,7 @@ export default function ListasScreen() {
               contentContainerStyle={styles.modalFiltrosScrollContent}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
+              nestedScrollEnabled
             >
             <View style={styles.opcoesOrdenacao}>
               <TouchableOpacity
@@ -815,42 +817,42 @@ export default function ListasScreen() {
                   </TouchableOpacity>
                 )}
               </View>
-              <ScrollView style={styles.filtroTagLista} showsVerticalScrollIndicator={false}>
-                <TouchableOpacity
-                  style={[
-                    styles.opcaoOrdenacao,
-                    !filtroTagListaId && { backgroundColor: colors.accent }
-                  ]}
-                  onPress={() => setFiltroTagListaId('')}
-                >
-                  <MaterialIcons name="clear" size={20} color={colors.textSecondary} />
-                  <Text style={[styles.opcaoTexto, { color: colors.text }]}>Sem filtro</Text>
-                </TouchableOpacity>
-                {globalTags
-                  .filter((tag) => tag.nome?.toLowerCase().includes(buscaFiltroTagLista.trim().toLowerCase()))
-                  .map((tag) => (
-                    <TouchableOpacity
-                      key={tag.id}
-                      style={[
-                        styles.opcaoOrdenacao,
-                        filtroTagListaId === tag.id && { backgroundColor: colors.accent }
-                      ]}
-                      onPress={() => setFiltroTagListaId(tag.id)}
-                    >
-                      <View style={[styles.categoriaCor, { backgroundColor: tag.cor || '#007AFF' }]} />
-                      <Text style={[styles.opcaoTexto, { color: colors.text }]}>{tag.nome}</Text>
-                    </TouchableOpacity>
-                  ))}
-              </ScrollView>
+              <TouchableOpacity
+                style={[
+                  styles.opcaoOrdenacao,
+                  !filtroTagListaId && { backgroundColor: colors.accent }
+                ]}
+                onPress={() => setFiltroTagListaId('')}
+              >
+                <MaterialIcons name="clear" size={20} color={colors.textSecondary} />
+                <Text style={[styles.opcaoTexto, { color: colors.text }]}>Sem filtro</Text>
+              </TouchableOpacity>
+              {globalTags
+                .filter((tag) => tag.nome?.toLowerCase().includes(buscaFiltroTagLista.trim().toLowerCase()))
+                .map((tag) => (
+                  <TouchableOpacity
+                    key={tag.id}
+                    style={[
+                      styles.opcaoOrdenacao,
+                      filtroTagListaId === tag.id && { backgroundColor: colors.accent }
+                    ]}
+                    onPress={() => setFiltroTagListaId(tag.id)}
+                  >
+                    <View style={[styles.categoriaCor, { backgroundColor: tag.cor || '#007AFF' }]} />
+                    <Text style={[styles.opcaoTexto, { color: colors.text }]}>{tag.nome}</Text>
+                  </TouchableOpacity>
+                ))}
             </View>
             </ScrollView>
 
-            <TouchableOpacity
-              style={[styles.btnFechar, { backgroundColor: colors.primary }]}
-              onPress={() => setModalOrdenacao(false)}
-            >
-              <Text style={[styles.btnFecharTexto, { color: colors.white }]}>Fechar</Text>
-            </TouchableOpacity>
+            <View style={styles.modalFiltrosFooter}>
+              <TouchableOpacity
+                style={[styles.btnFechar, { backgroundColor: colors.primary }]}
+                onPress={() => setModalOrdenacao(false)}
+              >
+                <Text style={[styles.btnFecharTexto, { color: colors.white }]}>Fechar</Text>
+              </TouchableOpacity>
+            </View>
           </View>
           </KeyboardAvoidingView>
         </View>
@@ -1343,56 +1345,66 @@ export default function ListasScreen() {
         transparent={true}
         onRequestClose={() => setModalOpcoesAleatoria(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+        <View style={[styles.modalOverlay, styles.modalAleatorioOverlay]}>
+          <View style={[styles.modalContent, styles.modalAleatorioContent, { backgroundColor: colors.surface }]}>
             <Text style={[styles.modalTitle, { color: colors.text }, typography.titleLarge]}>
               Opções de Seleção Aleatória
             </Text>
-            
-            <View style={styles.opcoesContainer}>
-              <TouchableOpacity
-                style={[styles.opcaoItem, { backgroundColor: colors.accent }]}
-                onPress={() => {
-                  setModalOpcoesAleatoria(false);
-                  selecionarAleatoriamente(false);
-                }}
-              >
-                <MaterialIcons name="casino" size={24} color={colors.primary} />
-                <View style={styles.opcaoContent}>
-                  <Text style={[styles.opcaoTitle, { color: colors.text }, typography.titleMedium]}>
-                    Incluir todos os itens
-                  </Text>
-                  <Text style={[styles.opcaoSubtitle, { color: colors.textSecondary }, typography.caption]}>
-                    Considerar itens concluídos e não concluídos
-                  </Text>
-                </View>
-              </TouchableOpacity>
 
+            <ScrollView
+              style={styles.modalAleatorioScroll}
+              contentContainerStyle={styles.modalAleatorioScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.opcoesContainer}>
+                <TouchableOpacity
+                  style={[styles.opcaoItem, { backgroundColor: colors.accent }]}
+                  onPress={() => {
+                    setModalOpcoesAleatoria(false);
+                    selecionarAleatoriamente(false);
+                  }}
+                >
+                  <MaterialIcons name="casino" size={24} color={colors.primary} />
+                  <View style={styles.opcaoContent}>
+                    <Text style={[styles.opcaoTitle, { color: colors.text }, typography.titleMedium]}>
+                      Incluir todos os itens
+                    </Text>
+                    <Text style={[styles.opcaoSubtitle, { color: colors.textSecondary }, typography.caption]}>
+                      Considerar itens concluídos e não concluídos
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.opcaoItem, { backgroundColor: colors.accent }]}
+                  onPress={() => {
+                    setModalOpcoesAleatoria(false);
+                    selecionarAleatoriamente(true);
+                  }}
+                >
+                  <MaterialIcons name="filter-list" size={24} color={colors.primary} />
+                  <View style={styles.opcaoContent}>
+                    <Text style={[styles.opcaoTitle, { color: colors.text }, typography.titleMedium]}>
+                      Excluir itens concluídos
+                    </Text>
+                    <Text style={[styles.opcaoSubtitle, { color: colors.textSecondary }, typography.caption]}>
+                      Selecionar apenas itens não concluídos
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalAleatorioFooter}>
               <TouchableOpacity
-                style={[styles.opcaoItem, { backgroundColor: colors.accent }]}
-                onPress={() => {
-                  setModalOpcoesAleatoria(false);
-                  selecionarAleatoriamente(true);
-                }}
+                style={[styles.btnCancelar, styles.btnAleatorioAcao, { borderColor: colors.border, backgroundColor: colors.accent }]}
+                onPress={() => setModalOpcoesAleatoria(false)}
               >
-                <MaterialIcons name="filter-list" size={24} color={colors.primary} />
-                <View style={styles.opcaoContent}>
-                  <Text style={[styles.opcaoTitle, { color: colors.text }, typography.titleMedium]}>
-                    Excluir itens concluídos
-                  </Text>
-                  <Text style={[styles.opcaoSubtitle, { color: colors.textSecondary }, typography.caption]}>
-                    Selecionar apenas itens não concluídos
-                  </Text>
-                </View>
+                <Text style={[styles.btnCancelarText, { color: colors.text }]} numberOfLines={1}>
+                  Cancelar
+                </Text>
               </TouchableOpacity>
             </View>
-
-            <TouchableOpacity
-              style={[styles.btnCancelar, { borderColor: colors.border, backgroundColor: colors.accent }]}
-              onPress={() => setModalOpcoesAleatoria(false)}
-            >
-              <Text style={[styles.btnCancelarText, { color: colors.text }]}>Cancelar</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -1407,57 +1419,65 @@ export default function ListasScreen() {
           reiniciarSelecaoAleatoria();
         }}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+        <View style={[styles.modalOverlay, styles.modalAleatorioOverlay]}>
+          <View style={[styles.modalContent, styles.modalAleatorioContent, { backgroundColor: colors.surface }]}>
             <Text style={[styles.modalTitle, { color: colors.text }, typography.titleLarge]}>
               {animandoSelecao ? 'Selecionando...' : 'Item Selecionado!'}
             </Text>
-            
-            {itemSelecionado && (
-              <View style={[styles.itemSelecionadoContainer, { 
-                borderColor: colors.primary,
-                backgroundColor: colors.accent 
-              }]}>
-                <View style={styles.itemSelecionadoHeader}>
-                  <MaterialIcons 
-                    name="star" 
-                    size={24} 
-                    color={colors.primary} 
-                  />
-                  <Text style={[styles.itemSelecionadoTitle, { color: colors.text }, typography.titleMedium]}>
-                    {itemSelecionado.texto}
-                  </Text>
-                </View>
-                
-                {itemSelecionado.descricao && (
-                  <Text style={[styles.itemSelecionadoDescricao, { color: colors.textSecondary }, typography.body]}>
-                    {itemSelecionado.descricao}
-                  </Text>
-                )}
-                
-                {itemSelecionado.categoria && listaParaSelecao && (
-                  <View style={styles.itemSelecionadoCategoria}>
-                    <Text style={[styles.itemSelecionadoCategoriaText, { color: colors.primary }, typography.caption]}>
-                      Categoria: {listaParaSelecao.categorias.find(cat => cat.id === itemSelecionado.categoria)?.nome || itemSelecionado.categoria}
+
+            <ScrollView
+              style={styles.modalAleatorioScroll}
+              contentContainerStyle={styles.modalAleatorioScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {itemSelecionado && (
+                <View style={[styles.itemSelecionadoContainer, { 
+                  borderColor: colors.primary,
+                  backgroundColor: colors.accent 
+                }]}>
+                  <View style={styles.itemSelecionadoHeader}>
+                    <MaterialIcons 
+                      name="star" 
+                      size={24} 
+                      color={colors.primary} 
+                    />
+                    <Text style={[styles.itemSelecionadoTitle, { color: colors.text }, typography.titleMedium]}>
+                      {itemSelecionado.texto}
                     </Text>
                   </View>
-                )}
-              </View>
-            )}
+                  
+                  {itemSelecionado.descricao && (
+                    <Text style={[styles.itemSelecionadoDescricao, { color: colors.textSecondary }, typography.body]}>
+                      {itemSelecionado.descricao}
+                    </Text>
+                  )}
+                  
+                  {itemSelecionado.categoria && listaParaSelecao && (
+                    <View style={styles.itemSelecionadoCategoria}>
+                      <Text style={[styles.itemSelecionadoCategoriaText, { color: colors.primary }, typography.caption]}>
+                        Categoria: {listaParaSelecao.categorias.find(cat => cat.id === itemSelecionado.categoria)?.nome || itemSelecionado.categoria}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </ScrollView>
 
-            <View style={styles.modalBotoes}>
+            <View style={[styles.modalAleatorioFooter]}>
               <TouchableOpacity
-                style={[styles.btnCancelar, { flex: 1, borderColor: colors.border, backgroundColor: colors.accent }]}
+                style={[styles.btnCancelar, styles.btnAleatorioAcao, { borderColor: colors.border, backgroundColor: colors.accent }]}
                 onPress={() => {
                   setModalSelecaoAleatoria(false);
                   reiniciarSelecaoAleatoria();
                 }}
               >
-                <Text style={[styles.btnCancelarText, { color: colors.text }]}>Fechar</Text>
+                <Text style={[styles.btnCancelarText, { color: colors.text }]} numberOfLines={1}>
+                  Fechar
+                </Text>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[styles.btnSalvar, { flex: 1, backgroundColor: colors.primary }]}
+                style={[styles.btnSalvar, styles.btnAleatorioAcao, { backgroundColor: colors.primary }]}
                 onPress={() => {
                   setModalSelecaoAleatoria(false);
                   reiniciarSelecaoAleatoria();
@@ -1469,7 +1489,9 @@ export default function ListasScreen() {
                   }
                 }}
               >
-                <Text style={[styles.btnSalvarText, { color: colors.white }]}>Ver na Lista</Text>
+                <Text style={[styles.btnSalvarText, { color: colors.white }]} numberOfLines={1}>
+                  Ver na Lista
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1684,23 +1706,36 @@ const styles = StyleSheet.create({
   },
   modalResponsiveWrap: {
     width: '100%',
+    maxWidth: 460,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalFiltrosOverlay: {
+    paddingHorizontal: 16,
+    paddingVertical: 24,
   },
   modalFiltrosContent: {
-    width: '94%',
+    width: '100%',
     maxWidth: 460,
-    maxHeight: '88%',
+    maxHeight: Dimensions.get('window').height * 0.85,
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    overflow: 'hidden',
   },
   modalFiltrosScroll: {
-    flexGrow: 0,
+    maxHeight: Dimensions.get('window').height * 0.58,
   },
   modalFiltrosScrollContent: {
-    paddingBottom: 8,
+    paddingBottom: 12,
+  },
+  modalFiltrosFooter: {
+    marginTop: 8,
+    paddingTop: 8,
+    flexShrink: 0,
   },
   modalTitle: {
-    marginBottom: 20,
+    marginBottom: 16,
     textAlign: 'center',
   },
   opcoesOrdenacao: {
@@ -1719,6 +1754,7 @@ const styles = StyleSheet.create({
   },
   opcaoTexto: {
     marginLeft: 12,
+    flexShrink: 1,
   },
   opcaoTextoSelecionada: {
     fontWeight: '600',
@@ -1767,13 +1803,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   btnFechar: {
-    paddingVertical: 12,
-    borderRadius: 8,
+    minHeight: 48,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   btnFecharTexto: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+    textAlign: 'center',
   },
   // Estilos para edição de lista
   btnEditar: {
@@ -1971,24 +2011,66 @@ const styles = StyleSheet.create({
   },
   btnCancelar: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
+    minHeight: 48,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   btnCancelarText: {
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
   },
   btnSalvar: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
+    minHeight: 48,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   btnSalvarText: {
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  modalAleatorioOverlay: {
+    paddingHorizontal: 20,
+    paddingVertical: 32,
+  },
+  modalAleatorioContent: {
+    width: Dimensions.get('window').width - 40,
+    maxWidth: 420,
+    maxHeight: Dimensions.get('window').height * 0.75,
+    padding: 16,
+    paddingBottom: 20,
+    overflow: 'visible',
+  },
+  modalAleatorioScroll: {
+    maxHeight: Dimensions.get('window').height * 0.75 - 160,
+    flexGrow: 0,
+  },
+  modalAleatorioScrollContent: {
+    paddingBottom: 4,
+  },
+  modalAleatorioFooter: {
+    marginTop: 12,
+    paddingTop: 4,
+    paddingBottom: 4,
+    flexShrink: 0,
+    gap: 10,
+  },
+  btnAleatorioAcao: {
+    width: '100%',
+    flexGrow: 0,
+    flex: 0,
+    minWidth: 0,
+    minHeight: 48,
+    marginRight: 0,
   },
   // Estilos para importação
   headerAcoes: {

@@ -35,6 +35,8 @@ class LocalSyncService {
   private isInitialized = false;
   private autoSyncTimer: ReturnType<typeof setTimeout> | null = null;
   private isSyncInProgress = false;
+  /** Evita reenfileirar mudanças geradas por merge remoto (Drive). */
+  private suppressSyncEnqueue = false;
 
   static getInstance(): LocalSyncService {
     if (!LocalSyncService.instance) {
@@ -97,6 +99,7 @@ class LocalSyncService {
 
   
   async addToSyncQueue(type: 'create' | 'update' | 'delete', data: any): Promise<void> {
+    if (this.suppressSyncEnqueue) return;
     this.syncQueue.push({
       type,
       data,
@@ -106,7 +109,7 @@ class LocalSyncService {
     this.scheduleAutoSync();
   }
 
-  private scheduleAutoSync(delayMs: number = 700): void {
+  private scheduleAutoSync(delayMs: number = 2500): void {
     if (this.autoSyncTimer) {
       clearTimeout(this.autoSyncTimer);
     }
@@ -141,27 +144,145 @@ class LocalSyncService {
     }
   }
 
+  private collectTagIdsFromLista(lista: Lista): Set<string> {
+    const ids = new Set<string>();
+    (lista.tagIds || []).forEach((id) => ids.add(String(id)));
+    (lista.categorias || []).forEach((cat) => {
+      if (cat?.id) ids.add(String(cat.id));
+    });
+    for (const item of lista.itens || []) {
+      if (item.categoria) ids.add(String(item.categoria));
+      (item.categorias || []).forEach((id) => ids.add(String(id)));
+    }
+    return ids;
+  }
+
+  private async resolveTagsForLista(lista: Lista): Promise<GlobalTag[]> {
+    const tags = await StorageService.carregarTags();
+    const byId = new Map(tags.map((t) => [t.id, t]));
+    const ids = this.collectTagIdsFromLista(lista);
+    const resolved: GlobalTag[] = [];
+
+    for (const id of ids) {
+      const fromStore = byId.get(id);
+      if (fromStore) {
+        resolved.push(fromStore);
+        continue;
+      }
+
+      const fromLista = (lista.categorias || []).find((c) => String(c.id) === id);
+      if (fromLista) {
+        resolved.push({
+          id: String(fromLista.id),
+          nome: fromLista.nome,
+          cor: fromLista.cor,
+          createdAt: fromLista.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          ownerListId: lista.id,
+          listIds: [lista.id],
+        });
+      }
+    }
+
+    return resolved;
+  }
+
+  private collectTagsFromImportPayload(syncData: SyncData): GlobalTag[] {
+    const map = new Map<string, GlobalTag>();
+
+    for (const tag of syncData.tags || []) {
+      if (!tag?.id) continue;
+      map.set(String(tag.id), {
+        ...tag,
+        id: String(tag.id),
+        listIds: Array.isArray(tag.listIds) ? tag.listIds.map(String) : [],
+        createdAt: tag.createdAt || new Date().toISOString(),
+        updatedAt: tag.updatedAt || new Date().toISOString(),
+      });
+    }
+
+    for (const lista of syncData.lists || []) {
+      for (const cat of lista.categorias || []) {
+        if (!cat?.id) continue;
+        const id = String(cat.id);
+        if (!map.has(id)) {
+          map.set(id, {
+            id,
+            nome: cat.nome,
+            cor: cat.cor,
+            createdAt: cat.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            ownerListId: lista.id,
+            listIds: [lista.id],
+          });
+        } else {
+          const existing = map.get(id)!;
+          if (!existing.listIds.includes(lista.id)) {
+            existing.listIds.push(lista.id);
+          }
+        }
+      }
+
+      // Tags referenciadas só nos itens, sem entrada em categorias/tags
+      for (const item of lista.itens || []) {
+        const refs = [
+          ...(item.categoria ? [item.categoria] : []),
+          ...(item.categorias || []),
+        ].map(String);
+
+        for (const refId of refs) {
+          if (map.has(refId)) continue;
+          const fromCat = (lista.categorias || []).find((c) => String(c.id) === refId);
+          if (fromCat) {
+            map.set(refId, {
+              id: refId,
+              nome: fromCat.nome,
+              cor: fromCat.cor,
+              createdAt: fromCat.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              ownerListId: lista.id,
+              listIds: [lista.id],
+            });
+          }
+        }
+      }
+    }
+
+    return Array.from(map.values());
+  }
+
+  async buildSyncPayload(): Promise<SyncData> {
+    const listas = await StorageService.carregarListas();
+    const notas = await StorageService.carregarNotas();
+    const tags = await StorageService.carregarTags();
+
+    const tagsMap = new Map(tags.map((t) => [t.id, t]));
+    for (const lista of listas) {
+      const resolved = await this.resolveTagsForLista(lista);
+      resolved.forEach((t) => tagsMap.set(t.id, t));
+    }
+    const tagsCompletas = Array.from(tagsMap.values());
+
+    return {
+      lists: listas,
+      notes: notas,
+      tags: tagsCompletas,
+      metadata: {
+        exportadoEm: new Date().toISOString(),
+        versao: '1.0.0',
+        dispositivo: this.deviceId || 'unknown',
+        totalListas: listas.length,
+        totalItens: listas.reduce((total, lista) => total + lista.itens.length, 0),
+        totalNotas: notas.length,
+        totalTags: tagsCompletas.length,
+      },
+    };
+  }
+
   // Exportar dados para arquivo local
   async exportData(): Promise<{ success: boolean; filePath?: string; message: string }> {
     try {
-      const listas = await StorageService.carregarListas();
-      const notas = await StorageService.carregarNotas();
-      const tags = await StorageService.carregarTags();
-      
-      const syncData: SyncData = {
-        lists: listas,
-        notes: notas,
-        tags,
-        metadata: {
-          exportadoEm: new Date().toISOString(),
-          versao: '1.0.0',
-          dispositivo: this.deviceId || 'unknown',
-          totalListas: listas.length,
-          totalItens: listas.reduce((total, lista) => total + lista.itens.length, 0),
-          totalNotas: notas.length,
-          totalTags: tags.length,
-        }
-      };
+      const syncData = await this.buildSyncPayload();
 
       const fileName = `liteus_backup_${new Date().toISOString().split('T')[0]}.json`;
       const dir: string = (FileSystemLegacy as any).documentDirectory || (FileSystemLegacy as any).cacheDirectory || '';
@@ -175,7 +296,7 @@ class LocalSyncService {
       return {
         success: true,
         filePath,
-        message: `Backup criado com ${listas.length} listas, ${notas.length} notas e ${tags.length} tags`
+        message: `Backup criado com ${syncData.lists.length} listas, ${syncData.notes?.length || 0} notas e ${syncData.tags?.length || 0} tags`
       };
     } catch (error) {
       console.error('Erro ao exportar dados:', error);
@@ -190,12 +311,28 @@ class LocalSyncService {
   async exportSingleList(lista: Lista): Promise<{ success: boolean; filePath?: string; message: string }> {
     try {
       const notasVazias: Nota[] = [];
-      const tags = await StorageService.carregarTags();
-      const tagIds = new Set<string>((lista.tagIds || []).concat((lista.categorias || []).map((c) => c.id)));
-      const tagsDaLista = tags.filter((t) => tagIds.has(t.id));
+      const tagsDaLista = await this.resolveTagsForLista(lista);
+      const tagIds = Array.from(this.collectTagIdsFromLista(lista));
+
+      // Garante categorias/tagIds embutidos no JSON da lista
+      const categoriasDaLista =
+        (lista.categorias || []).length > 0
+          ? lista.categorias
+          : tagsDaLista.map((t) => ({
+              id: t.id,
+              nome: t.nome,
+              cor: t.cor,
+              createdAt: t.createdAt,
+            }));
+
+      const listaExport: Lista = {
+        ...lista,
+        tagIds: tagIds.length > 0 ? tagIds : (lista.tagIds || categoriasDaLista.map((c) => c.id)),
+        categorias: categoriasDaLista,
+      };
 
       const syncData: SyncData = {
-        lists: [lista],
+        lists: [listaExport],
         notes: notasVazias,
         tags: tagsDaLista,
         metadata: {
@@ -231,7 +368,7 @@ class LocalSyncService {
       return {
         success: true,
         filePath,
-        message: `Backup criado para a lista "${lista.nome}" com ${lista.itens.length} itens`,
+        message: `Backup criado para a lista "${lista.nome}" com ${lista.itens.length} itens e ${tagsDaLista.length} tags`,
       };
     } catch (error) {
       console.error('Erro ao exportar lista individual:', error);
@@ -247,11 +384,15 @@ class LocalSyncService {
     try {
       const listasVazias: Lista[] = [];
       const tags = await StorageService.carregarTags();
+      const notaTagRefs = new Set((nota.tags || []).map(String));
+      const tagsDaNota = tags.filter(
+        (t) => notaTagRefs.has(t.id) || notaTagRefs.has(t.nome)
+      );
 
       const syncData: SyncData = {
         lists: listasVazias,
         notes: [nota],
-        tags,
+        tags: tagsDaNota,
         metadata: {
           exportadoEm: new Date().toISOString(),
           versao: '1.0.0',
@@ -259,7 +400,7 @@ class LocalSyncService {
           totalListas: 0,
           totalItens: 0,
           totalNotas: 1,
-          totalTags: tags.length,
+          totalTags: tagsDaNota.length,
         },
       };
 
@@ -380,6 +521,176 @@ class LocalSyncService {
     }
   }
 
+  /** Mescla payload SyncData no armazenamento local (last-write-wins por nome/id). */
+  async importFromSyncData(
+    syncData: SyncData
+  ): Promise<{ success: boolean; message: string; imported: number }> {
+    try {
+      if (!syncData.lists || !Array.isArray(syncData.lists)) {
+        return { success: false, message: 'Formato de arquivo inválido', imported: 0 };
+      }
+
+      const listasExistentes = await StorageService.carregarListas();
+      let imported = 0;
+      const conflitos: string[] = [];
+      let tagsImportadas = 0;
+
+      const tagsDoArquivo = this.collectTagsFromImportPayload(syncData);
+      if (tagsDoArquivo.length > 0) {
+        const atuais = await StorageService.carregarTags();
+        const map = new Map(atuais.map((t) => [t.id, t]));
+
+        for (const tag of tagsDoArquivo) {
+          const existing = map.get(tag.id);
+          if (!existing) {
+            map.set(tag.id, {
+              ...tag,
+              listIds: Array.isArray(tag.listIds) ? tag.listIds : [],
+              updatedAt: tag.updatedAt || new Date().toISOString(),
+              createdAt: tag.createdAt || new Date().toISOString(),
+            });
+            tagsImportadas++;
+          } else {
+            map.set(tag.id, {
+              ...existing,
+              nome: tag.nome || existing.nome,
+              cor: tag.cor || existing.cor,
+              listIds: Array.from(
+                new Set([...(existing.listIds || []), ...(tag.listIds || [])])
+              ),
+              updatedAt: new Date().toISOString(),
+            });
+          }
+        }
+
+        await StorageService.salvarTags(Array.from(map.values()));
+      }
+
+      for (const lista of syncData.lists) {
+        const listaExistente = listasExistentes.find((l) => l.nome === lista.nome);
+        const categorias = Array.isArray(lista.categorias) ? lista.categorias : [];
+        const tagIds =
+          Array.isArray(lista.tagIds) && lista.tagIds.length > 0
+            ? lista.tagIds
+            : categorias.map((c) => c.id);
+
+        const payloadLista: Lista = {
+          ...lista,
+          categorias,
+          tagIds,
+          itens: Array.isArray(lista.itens) ? lista.itens : [],
+        };
+
+        if (listaExistente) {
+          await StorageService.atualizarLista(listaExistente.id, {
+            ...payloadLista,
+            id: listaExistente.id,
+          });
+          conflitos.push(`Lista "${lista.nome}" foi atualizada`);
+        } else {
+          await StorageService.criarLista(payloadLista);
+          imported++;
+        }
+      }
+
+      if (Array.isArray(syncData.notes)) {
+        const notasAtuais = await StorageService.carregarNotas();
+        const matchedLocalIds = new Set<string>();
+        let notasAtualizadas = 0;
+        let notasCriadas = 0;
+
+        for (const nota of syncData.notes) {
+          const tituloNorm = (nota.titulo || '').trim().toLowerCase();
+          const byId = notasAtuais.find(
+            (n) => n.id === nota.id && !matchedLocalIds.has(n.id)
+          );
+          const byTitulo = !byId
+            ? notasAtuais.find(
+                (n) =>
+                  (n.titulo || '').trim().toLowerCase() === tituloNorm &&
+                  tituloNorm.length > 0 &&
+                  !matchedLocalIds.has(n.id)
+              )
+            : undefined;
+
+          const existente = byId || byTitulo;
+
+          if (existente) {
+            matchedLocalIds.add(existente.id);
+            await StorageService.atualizarNota(existente.id, {
+              titulo: nota.titulo,
+              conteudo: nota.conteudo,
+              html: nota.html,
+              cor: nota.cor,
+              tags: nota.tags,
+              textoFormatado: nota.textoFormatado,
+            });
+            const idx = notasAtuais.findIndex((n) => n.id === existente.id);
+            if (idx >= 0) {
+              notasAtuais[idx] = {
+                ...notasAtuais[idx],
+                titulo: nota.titulo,
+                conteudo: nota.conteudo,
+                html: nota.html,
+                cor: nota.cor,
+                tags: nota.tags,
+                textoFormatado: nota.textoFormatado,
+              };
+            }
+            notasAtualizadas++;
+          } else {
+            const novaId = String(
+              nota.id || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+            );
+            await StorageService.criarNota({
+              ...nota,
+              id: novaId,
+              titulo: nota.titulo || '',
+              conteudo: nota.conteudo || '',
+              createdAt: nota.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            });
+            matchedLocalIds.add(novaId);
+            notasAtuais.push({
+              ...nota,
+              id: novaId,
+              titulo: nota.titulo || '',
+              conteudo: nota.conteudo || '',
+              createdAt: nota.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            });
+            notasCriadas++;
+          }
+        }
+
+        if (notasAtualizadas > 0 || notasCriadas > 0) {
+          conflitos.push(
+            `${notasAtualizadas} notas atualizadas, ${notasCriadas} notas criadas`
+          );
+        }
+      }
+
+      if (tagsImportadas > 0) {
+        conflitos.push(`${tagsImportadas} tags globais criadas`);
+      }
+
+      await AsyncStorage.setItem('@liteus_last_import', new Date().toISOString());
+
+      return {
+        success: true,
+        message: `Importação concluída! ${imported} listas importadas. ${conflitos.join(' | ')}`,
+        imported,
+      };
+    } catch (error) {
+      console.error('Erro ao mesclar dados de sync:', error);
+      return {
+        success: false,
+        message: 'Falha ao importar dados. Verifique o formato do arquivo.',
+        imported: 0,
+      };
+    }
+  }
+
   // Importar dados de arquivo
   async importData(): Promise<{ success: boolean; message: string; imported: number }> {
     try {
@@ -394,98 +705,8 @@ class LocalSyncService {
 
       const fileUri = result.assets[0].uri;
       const fileContent = await FileSystemLegacy.readAsStringAsync(fileUri, { encoding: 'utf8' as any });
-      
       const syncData: SyncData = JSON.parse(fileContent);
-      
-      if (!syncData.lists || !Array.isArray(syncData.lists)) {
-        return { success: false, message: 'Formato de arquivo inválido', imported: 0 };
-      }
-
-      const listasExistentes = await StorageService.carregarListas();
-      const notasExistentes = await StorageService.carregarNotas();
-      let imported = 0;
-      const conflitos: string[] = [];
-
-      if (Array.isArray(syncData.tags)) {
-        const atuais = await StorageService.carregarTags();
-        const map = new Map(atuais.map((t) => [t.id, t]));
-        for (const tag of syncData.tags) {
-          const existing = map.get(tag.id);
-          if (!existing) {
-            map.set(tag.id, {
-              ...tag,
-              listIds: Array.isArray(tag.listIds) ? tag.listIds : [],
-              updatedAt: tag.updatedAt || new Date().toISOString(),
-              createdAt: tag.createdAt || new Date().toISOString(),
-            });
-          } else {
-            map.set(tag.id, {
-              ...existing,
-              ...tag,
-              listIds: Array.from(new Set([...(existing.listIds || []), ...((tag.listIds || []))])),
-              updatedAt: new Date().toISOString(),
-            });
-          }
-        }
-        await StorageService.salvarTags(Array.from(map.values()));
-      }
-      
-      for (const lista of syncData.lists) {
-        const listaExistente = listasExistentes.find(l => l.nome === lista.nome);
-        
-        if (listaExistente) {
-          // Atualizar lista existente
-          await StorageService.atualizarLista(listaExistente.id, lista);
-          conflitos.push(`Lista "${lista.nome}" foi atualizada`);
-        } else {
-          // Criar nova lista
-          await StorageService.criarLista(lista);
-          imported++;
-        }
-      }
-
-      // Importar notas (se houver no arquivo)
-      if (Array.isArray(syncData.notes)) {
-        const notasAtuais = await StorageService.carregarNotas();
-        let notasAlteradas = 0;
-        for (const nota of syncData.notes) {
-          const byId = notasAtuais.find(n => n.id === nota.id);
-          if (byId) {
-            // atualizar existente pelo id
-            await StorageService.atualizarNota(byId.id, {
-              titulo: nota.titulo,
-              conteudo: nota.conteudo,
-              html: nota.html,
-              cor: nota.cor,
-              tags: nota.tags,
-            });
-            notasAlteradas++;
-          } else {
-            // criar nova preservando conteúdo
-            await StorageService.adicionarNota({
-              titulo: nota.titulo,
-              conteudo: nota.conteudo,
-              html: nota.html,
-              cor: nota.cor,
-              tags: nota.tags,
-              textoFormatado: nota.textoFormatado,
-            });
-            notasAlteradas++;
-          }
-        }
-        if (notasAlteradas > 0) {
-          conflitos.push(`${notasAlteradas} notas importadas/atualizadas`);
-        }
-      }
-      
-      // Salvar timestamp do último import
-      await AsyncStorage.setItem('@liteus_last_import', new Date().toISOString());
-      
-      return {
-        success: true,
-        message: `Importação concluída! ${imported} listas importadas. ${conflitos.join(' | ')}`,
-        imported
-      };
+      return this.importFromSyncData(syncData);
     } catch (error) {
       console.error('Erro ao importar dados:', error);
       return {
@@ -496,7 +717,66 @@ class LocalSyncService {
     }
   }
 
-  // Sincronizar dados (processar fila)
+  /**
+   * Pull do Google Drive → merge local → push do estado mesclado.
+   * Usa a mesma conta Google do usuário (pasta Liteus / liteus_sync.json).
+   */
+  async syncWithGoogleDrive(): Promise<{ success: boolean; message: string }> {
+    try {
+      const { googleAuthService } = await import('./googleAuthService');
+      const { googleDriveService } = await import('./googleDriveService');
+
+      const connected = await googleAuthService.isConnected();
+      if (!connected) {
+        return { success: false, message: 'Conecte uma conta Google em Configurações' };
+      }
+
+      const remote = await googleDriveService.downloadSyncJson();
+      if (remote.content) {
+        try {
+          const remoteData = JSON.parse(remote.content) as SyncData;
+          this.suppressSyncEnqueue = true;
+          try {
+            const merge = await this.importFromSyncData(remoteData);
+            if (!merge.success) {
+              return { success: false, message: merge.message };
+            }
+          } finally {
+            this.suppressSyncEnqueue = false;
+          }
+        } catch {
+          this.suppressSyncEnqueue = false;
+          return {
+            success: false,
+            message: 'Arquivo de sync no Drive está inválido',
+          };
+        }
+      }
+
+      const payload = await this.buildSyncPayload();
+      await googleDriveService.uploadSyncJson(JSON.stringify(payload, null, 2));
+
+      await AsyncStorage.setItem('@liteus_last_google_sync', new Date().toISOString());
+      await this.updateLastSync();
+
+      const lists = payload.lists.length;
+      const notes = payload.notes?.length || 0;
+      return {
+        success: true,
+        message: remote.content
+          ? `Sincronizado com o Drive (${lists} listas, ${notes} notas)`
+          : `Primeiro sync enviado ao Drive (${lists} listas, ${notes} notas)`,
+      };
+    } catch (error: any) {
+      console.error('Erro no sync com Google Drive:', error);
+      return {
+        success: false,
+        message: error?.message || 'Falha ao sincronizar com o Google Drive',
+      };
+    }
+  }
+
+  // Sincronizar dados (processar fila + Drive se conectado e auto sync ligado)
   async syncData(): Promise<{ success: boolean; message: string; changes: number }> {
     if (this.isSyncInProgress) {
       return {
@@ -509,27 +789,46 @@ class LocalSyncService {
     try {
       this.isSyncInProgress = true;
       const queue = await this.getSyncQueue();
-      
-      if (queue.length === 0) {
+      const changes = queue.length;
+
+      if (changes > 0) {
+        console.log(`Processando ${changes} mudanças da fila`);
+        await this.clearSyncQueue();
+        await this.updateLastSync();
+      }
+
+      if (changes > 0) {
+        try {
+          const { googleAuthService } = await import('./googleAuthService');
+          const connected = await googleAuthService.isConnected();
+          const autoEnabled = await googleAuthService.getAutoSyncEnabled();
+          if (connected && autoEnabled) {
+            const drive = await this.syncWithGoogleDrive();
+            return {
+              success: drive.success,
+              message: drive.success
+                ? `${changes} mudanças locais. ${drive.message}`
+                : drive.message,
+              changes,
+            };
+          }
+        } catch (driveError) {
+          console.error('Auto-sync Drive ignorado:', driveError);
+        }
+      }
+
+      if (changes === 0) {
         return {
           success: true,
           message: 'Nenhuma mudança pendente para sincronizar',
-          changes: 0
+          changes: 0,
         };
       }
 
-      console.log(`Processando ${queue.length} mudanças da fila`);
-      
-      // Limpar fila após processamento
-      await this.clearSyncQueue();
-      
-      // Atualizar timestamp da última sincronização
-      await this.updateLastSync();
-      
       return {
         success: true,
-        message: `${queue.length} mudanças sincronizadas com sucesso`,
-        changes: queue.length
+        message: `${changes} mudanças sincronizadas com sucesso`,
+        changes,
       };
     } catch (error) {
       console.error('Erro ao sincronizar dados:', error);
@@ -552,12 +851,13 @@ class LocalSyncService {
   }
 
   // Obter status da sincronização
-  async getSyncStatus(): Promise<SyncStatus> {
+  async getSyncStatus(): Promise<SyncStatus & { lastGoogleSync?: string | null }> {
     try {
-      const [lastSync, lastExport, lastImport, queue] = await Promise.all([
+      const [lastSync, lastExport, lastImport, lastGoogleSync, queue] = await Promise.all([
         AsyncStorage.getItem('@liteus_last_sync'),
         AsyncStorage.getItem('@liteus_last_export'),
         AsyncStorage.getItem('@liteus_last_import'),
+        AsyncStorage.getItem('@liteus_last_google_sync'),
         this.getSyncQueue()
       ]);
 
@@ -566,7 +866,8 @@ class LocalSyncService {
         isOnline: await this.isOnline(),
         pendingChanges: queue.length,
         lastExport,
-        lastImport
+        lastImport,
+        lastGoogleSync,
       };
     } catch (error) {
       console.error('Erro ao obter status de sincronização:', error);
@@ -575,7 +876,8 @@ class LocalSyncService {
         isOnline: false,
         pendingChanges: 0,
         lastExport: null,
-        lastImport: null
+        lastImport: null,
+        lastGoogleSync: null,
       };
     }
   }

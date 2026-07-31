@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, Image, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, Image, Modal, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../services/ThemeContext';
 import { getPlaceholderColor } from '../services/theme';
@@ -264,9 +264,9 @@ export default function NotasScreen() {
         animationType="fade"
         onRequestClose={() => setModalOrdenacao(false)}
       >
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, styles.modalFiltrosOverlay]}>
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={styles.modalResponsiveWrap}
           >
           <View style={[styles.modalContent, styles.modalFiltrosContent, { backgroundColor: colors.surface }]}>
@@ -278,6 +278,7 @@ export default function NotasScreen() {
               contentContainerStyle={styles.modalFiltrosScrollContent}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
+              nestedScrollEnabled
             >
             <View style={styles.opcoesOrdenacao}>
               <TouchableOpacity
@@ -391,42 +392,42 @@ export default function NotasScreen() {
                   </TouchableOpacity>
                 )}
               </View>
-              <ScrollView style={styles.filtroTagLista} showsVerticalScrollIndicator={false}>
-                <TouchableOpacity
-                  style={[
-                    styles.opcaoOrdenacao,
-                    !filtroTagId && { backgroundColor: colors.accent }
-                  ]}
-                  onPress={() => setFiltroTagId('')}
-                >
-                  <MaterialIcons name="clear" size={20} color={colors.textSecondary} />
-                  <Text style={[styles.opcaoTexto, { color: colors.text }]}>Sem filtro</Text>
-                </TouchableOpacity>
-                {globalTags
-                  .filter((tag) => tag.nome?.toLowerCase().includes(buscaFiltroTag.trim().toLowerCase()))
-                  .map((tag) => (
-                    <TouchableOpacity
-                      key={tag.id}
-                      style={[
-                        styles.opcaoOrdenacao,
-                        filtroTagId === tag.id && { backgroundColor: colors.accent }
-                      ]}
-                      onPress={() => setFiltroTagId(tag.id)}
-                    >
-                      <View style={[styles.colorDot, { backgroundColor: tag.cor || '#007AFF' }]} />
-                      <Text style={[styles.opcaoTexto, { color: colors.text }]}>{tag.nome}</Text>
-                    </TouchableOpacity>
-                  ))}
-              </ScrollView>
+              <TouchableOpacity
+                style={[
+                  styles.opcaoOrdenacao,
+                  !filtroTagId && { backgroundColor: colors.accent }
+                ]}
+                onPress={() => setFiltroTagId('')}
+              >
+                <MaterialIcons name="clear" size={20} color={colors.textSecondary} />
+                <Text style={[styles.opcaoTexto, { color: colors.text }]}>Sem filtro</Text>
+              </TouchableOpacity>
+              {globalTags
+                .filter((tag) => tag.nome?.toLowerCase().includes(buscaFiltroTag.trim().toLowerCase()))
+                .map((tag) => (
+                  <TouchableOpacity
+                    key={tag.id}
+                    style={[
+                      styles.opcaoOrdenacao,
+                      filtroTagId === tag.id && { backgroundColor: colors.accent }
+                    ]}
+                    onPress={() => setFiltroTagId(tag.id)}
+                  >
+                    <View style={[styles.colorDot, { backgroundColor: tag.cor || '#007AFF' }]} />
+                    <Text style={[styles.opcaoTexto, { color: colors.text }]}>{tag.nome}</Text>
+                  </TouchableOpacity>
+                ))}
             </View>
             </ScrollView>
 
-            <TouchableOpacity
-              style={[styles.btnFechar, { backgroundColor: colors.primary }]}
-              onPress={() => setModalOrdenacao(false)}
-            >
-              <Text style={[styles.btnFecharTexto, { color: colors.white }]}>Fechar</Text>
-            </TouchableOpacity>
+            <View style={styles.modalFiltrosFooter}>
+              <TouchableOpacity
+                style={[styles.btnFechar, { backgroundColor: colors.primary }]}
+                onPress={() => setModalOrdenacao(false)}
+              >
+                <Text style={[styles.btnFecharTexto, { color: colors.white }]}>Fechar</Text>
+              </TouchableOpacity>
+            </View>
           </View>
           </KeyboardAvoidingView>
         </View>
@@ -490,10 +491,12 @@ const styles = StyleSheet.create({
   fab: { position: 'absolute', right: 16, bottom: 24, width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 3 },
   modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', padding: 16 },
   modalContent: { width: '92%', borderRadius: 12, padding: 16 },
-  modalResponsiveWrap: { width: '100%', alignItems: 'center' },
-  modalFiltrosContent: { width: '94%', maxWidth: 460, maxHeight: '88%', paddingHorizontal: 16, paddingVertical: 16 },
-  modalFiltrosScroll: { flexGrow: 0 },
-  modalFiltrosScrollContent: { paddingBottom: 8 },
+  modalResponsiveWrap: { width: '100%', maxWidth: 460, alignItems: 'center', justifyContent: 'center' },
+  modalFiltrosOverlay: { paddingHorizontal: 16, paddingVertical: 24 },
+  modalFiltrosContent: { width: '100%', maxWidth: 460, maxHeight: Dimensions.get('window').height * 0.85, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12, overflow: 'hidden' },
+  modalFiltrosScroll: { maxHeight: Dimensions.get('window').height * 0.58 },
+  modalFiltrosScrollContent: { paddingBottom: 12 },
+  modalFiltrosFooter: { marginTop: 8, paddingTop: 8, flexShrink: 0 },
   modalTitle: { marginBottom: 12, fontSize: 18, fontWeight: '600' },
   input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12 },
   sectionLabel: { marginBottom: 8, fontSize: 14, fontWeight: '600' },
@@ -511,7 +514,7 @@ const styles = StyleSheet.create({
   opcoesOrdenacao: { marginBottom: 20 },
   opcaoOrdenacao: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, marginBottom: 8 },
   opcaoSelecionada: { backgroundColor: '#F0F8FF' },
-  opcaoTexto: { marginLeft: 12 },
+  opcaoTexto: { marginLeft: 12, flexShrink: 1 },
   opcaoTextoSelecionada: { fontWeight: '600' },
   direcaoContainer: { marginBottom: 20 },
   filtroTagBuscaContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, marginBottom: 10 },
@@ -522,8 +525,8 @@ const styles = StyleSheet.create({
   btnDirecaoSelecionada: { backgroundColor: '#007AFF' },
   btnDirecaoTexto: { fontSize: 14, marginLeft: 8, color: '#8E8E93' },
   btnDirecaoTextoSelecionada: { fontWeight: '600' },
-  btnFechar: { paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
-  btnFecharTexto: { fontSize: 16, fontWeight: '600' },
+  btnFechar: { minHeight: 48, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  btnFecharTexto: { fontSize: 16, fontWeight: '700', textAlign: 'center' },
 });
 
 

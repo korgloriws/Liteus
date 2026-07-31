@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   Alert,
   Modal,
+  ScrollView,
+  Dimensions,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -268,56 +270,66 @@ export default function SelecaoAleatoriaScreen() {
         transparent={true}
         onRequestClose={() => setModalOpcoesAleatoria(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+        <View style={[styles.modalOverlay, styles.modalAleatorioOverlay]}>
+          <View style={[styles.modalContent, styles.modalAleatorioContent, { backgroundColor: colors.surface }]}>
             <Text style={[styles.modalTitle, { color: colors.text }, typography.titleLarge]}>
               Opções de Seleção Aleatória
             </Text>
-            
-            <View style={styles.opcoesContainer}>
-              <TouchableOpacity
-                style={[styles.opcaoItem, { backgroundColor: colors.accent }]}
-                onPress={() => {
-                  setModalOpcoesAleatoria(false);
-                  selecionarItemAleatorio(false);
-                }}
-              >
-                <MaterialIcons name="casino" size={24} color={colors.primary} />
-                <View style={styles.opcaoContent}>
-                  <Text style={[styles.opcaoTitle, { color: colors.text }, typography.titleMedium]}>
-                    Incluir todos os itens
-                  </Text>
-                  <Text style={[styles.opcaoSubtitle, { color: colors.textSecondary }, typography.caption]}>
-                    Considerar itens concluídos e não concluídos
-                  </Text>
-                </View>
-              </TouchableOpacity>
 
+            <ScrollView
+              style={styles.modalAleatorioScroll}
+              contentContainerStyle={styles.modalAleatorioScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.opcoesContainer}>
+                <TouchableOpacity
+                  style={[styles.opcaoItem, { backgroundColor: colors.accent }]}
+                  onPress={() => {
+                    setModalOpcoesAleatoria(false);
+                    selecionarItemAleatorio(false);
+                  }}
+                >
+                  <MaterialIcons name="casino" size={24} color={colors.primary} />
+                  <View style={styles.opcaoContent}>
+                    <Text style={[styles.opcaoTitle, { color: colors.text }, typography.titleMedium]}>
+                      Incluir todos os itens
+                    </Text>
+                    <Text style={[styles.opcaoSubtitle, { color: colors.textSecondary }, typography.caption]}>
+                      Considerar itens concluídos e não concluídos
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.opcaoItem, { backgroundColor: colors.accent }]}
+                  onPress={() => {
+                    setModalOpcoesAleatoria(false);
+                    selecionarItemAleatorio(true);
+                  }}
+                >
+                  <MaterialIcons name="filter-list" size={24} color={colors.primary} />
+                  <View style={styles.opcaoContent}>
+                    <Text style={[styles.opcaoTitle, { color: colors.text }, typography.titleMedium]}>
+                      Excluir itens concluídos
+                    </Text>
+                    <Text style={[styles.opcaoSubtitle, { color: colors.textSecondary }, typography.caption]}>
+                      Selecionar apenas itens não concluídos
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalAleatorioFooter}>
               <TouchableOpacity
-                style={[styles.opcaoItem, { backgroundColor: colors.accent }]}
-                onPress={() => {
-                  setModalOpcoesAleatoria(false);
-                  selecionarItemAleatorio(true);
-                }}
+                style={[styles.btnCancelar, styles.btnAleatorioAcao, { backgroundColor: colors.accent }]}
+                onPress={() => setModalOpcoesAleatoria(false)}
               >
-                <MaterialIcons name="filter-list" size={24} color={colors.primary} />
-                <View style={styles.opcaoContent}>
-                  <Text style={[styles.opcaoTitle, { color: colors.text }, typography.titleMedium]}>
-                    Excluir itens concluídos
-                  </Text>
-                  <Text style={[styles.opcaoSubtitle, { color: colors.textSecondary }, typography.caption]}>
-                    Selecionar apenas itens não concluídos
-                  </Text>
-                </View>
+                <Text style={[styles.btnCancelarText, { color: colors.text }]} numberOfLines={1}>
+                  Cancelar
+                </Text>
               </TouchableOpacity>
             </View>
-
-            <TouchableOpacity
-              style={styles.btnCancelar}
-              onPress={() => setModalOpcoesAleatoria(false)}
-            >
-              <Text style={styles.btnCancelarText}>Cancelar</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -332,67 +344,75 @@ export default function SelecaoAleatoriaScreen() {
           reiniciarSelecao();
         }}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+        <View style={[styles.modalOverlay, styles.modalAleatorioOverlay]}>
+          <View style={[styles.modalContent, styles.modalAleatorioContent, { backgroundColor: colors.surface }]}>
             <Text style={[styles.modalTitle, { color: colors.text }, typography.titleLarge]}>
               {animandoSelecao ? 'Selecionando...' : 'Item Selecionado!'}
             </Text>
-            
-            {itemSelecionado && (
-              <View style={[styles.itemSelecionadoContainer, { backgroundColor: colors.accent }]}>
-                <View style={styles.itemSelecionadoHeader}>
-                  <MaterialIcons 
-                    name="casino" 
-                    size={32} 
-                    color={colors.primary} 
-                  />
-                  <Text style={[styles.itemSelecionadoTitle, { color: colors.text }, typography.titleMedium]}>
-                    {itemSelecionado.texto}
-                  </Text>
-                </View>
-                
-                {itemSelecionado.descricao && (
-                  <Text style={[styles.itemSelecionadoDescricao, { color: colors.textSecondary }, typography.body]}>
-                    {itemSelecionado.descricao}
-                  </Text>
-                )}
-                
-                {getNomesCategorias(itemSelecionado) && (
-                  <View style={styles.itemSelecionadoCategoria}>
-                    <Text style={[styles.itemSelecionadoCategoriaText, { color: colors.textSecondary }, typography.caption]}>
-                      Categoria: {getNomesCategorias(itemSelecionado)}
+
+            <ScrollView
+              style={styles.modalAleatorioScroll}
+              contentContainerStyle={styles.modalAleatorioScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {itemSelecionado && (
+                <View style={[styles.itemSelecionadoContainer, { backgroundColor: colors.accent }]}>
+                  <View style={styles.itemSelecionadoHeader}>
+                    <MaterialIcons 
+                      name="casino" 
+                      size={32} 
+                      color={colors.primary} 
+                    />
+                    <Text style={[styles.itemSelecionadoTitle, { color: colors.text }, typography.titleMedium]}>
+                      {itemSelecionado.texto}
                     </Text>
                   </View>
-                )}
-              </View>
-            )}
+                  
+                  {itemSelecionado.descricao && (
+                    <Text style={[styles.itemSelecionadoDescricao, { color: colors.textSecondary }, typography.body]}>
+                      {itemSelecionado.descricao}
+                    </Text>
+                  )}
+                  
+                  {getNomesCategorias(itemSelecionado) && (
+                    <View style={styles.itemSelecionadoCategoria}>
+                      <Text style={[styles.itemSelecionadoCategoriaText, { color: colors.textSecondary }, typography.caption]}>
+                        Categoria: {getNomesCategorias(itemSelecionado)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </ScrollView>
 
-            <View style={styles.modalButtons}>
+            <View style={styles.modalAleatorioFooter}>
               <TouchableOpacity
-                style={styles.btnCancelar}
+                style={[styles.btnCancelar, styles.btnAleatorioAcao, { backgroundColor: colors.accent }]}
                 onPress={() => {
                   setModalSelecaoAleatoria(false);
                   reiniciarSelecao();
                 }}
               >
-                <Text style={styles.btnCancelarText}>Fechar</Text>
+                <Text style={[styles.btnCancelarText, { color: colors.text }]} numberOfLines={1}>
+                  Fechar
+                </Text>
               </TouchableOpacity>
               
               {!animandoSelecao && itemSelecionado && (
                 <TouchableOpacity
-                  style={styles.btnLimpar}
+                  style={[styles.btnLimpar, styles.btnAleatorioAcao]}
                   onPress={reiniciarSelecao}
                 >
-                  <Text style={styles.btnLimparText}>Limpar</Text>
+                  <Text style={styles.btnLimparText} numberOfLines={1}>Limpar</Text>
                 </TouchableOpacity>
               )}
               
               {!animandoSelecao && (
                 <TouchableOpacity
-                  style={styles.btnCopiar}
+                  style={[styles.btnCopiar, styles.btnAleatorioAcao]}
                   onPress={() => selecionarItemAleatorio()}
                 >
-                  <Text style={styles.btnCopiarText}>Nova Seleção</Text>
+                  <Text style={styles.btnCopiarText} numberOfLines={1}>Nova Seleção</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -570,61 +590,109 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  modalAleatorioOverlay: {
+    paddingHorizontal: 20,
+    paddingVertical: 32,
+  },
   modalContent: {
     width: '90%',
     maxHeight: '80%',
     borderRadius: 16,
     padding: 20,
   },
+  modalAleatorioContent: {
+    width: Dimensions.get('window').width - 40,
+    maxWidth: 420,
+    maxHeight: Dimensions.get('window').height * 0.75,
+    padding: 16,
+    paddingBottom: 20,
+    overflow: 'visible',
+  },
+  modalAleatorioScroll: {
+    maxHeight: Dimensions.get('window').height * 0.75 - 160,
+    flexGrow: 0,
+  },
+  modalAleatorioScrollContent: {
+    paddingBottom: 4,
+  },
+  modalAleatorioFooter: {
+    marginTop: 12,
+    paddingTop: 4,
+    paddingBottom: 4,
+    flexShrink: 0,
+    gap: 10,
+  },
+  btnAleatorioAcao: {
+    width: '100%',
+    flexGrow: 0,
+    flex: 0,
+    minWidth: 0,
+    minHeight: 48,
+    justifyContent: 'center',
+    marginRight: 0,
+    marginLeft: 0,
+  },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 16,
     textAlign: 'center',
   },
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 20,
+    marginTop: 8,
   },
   btnCancelar: {
     flex: 1,
+    minHeight: 48,
     backgroundColor: '#FF3B30',
-    paddingVertical: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 8,
   },
   btnCancelarText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
   },
   btnLimpar: {
     flex: 1,
+    minHeight: 48,
     backgroundColor: '#FF9500',
-    paddingVertical: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 8,
   },
   btnLimparText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
   },
   btnCopiar: {
     flex: 1,
+    minHeight: 48,
     backgroundColor: '#007AFF',
-    paddingVertical: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
     marginLeft: 8,
   },
   btnCopiarText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
   },
   // Estilos para modal de opções de seleção aleatória
   opcoesContainer: {

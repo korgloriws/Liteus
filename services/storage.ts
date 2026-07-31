@@ -318,17 +318,34 @@ export class StorageService {
     this.tagsMigrated = true;
   }
 
-  private static async syncCategoriasToGlobal(listaId: string, categorias: Categoria[]): Promise<{ categorias: Categoria[]; tagIds: string[] }> {
+  private static remapItemCategoryIds(itens: Item[], idMap: Record<string, string>): Item[] {
+    if (!itens || Object.keys(idMap).length === 0) return itens || [];
+    return itens.map((item) => ({
+      ...item,
+      categoria: item.categoria ? (idMap[item.categoria] || item.categoria) : item.categoria,
+      categorias: Array.isArray(item.categorias)
+        ? item.categorias.map((id) => idMap[id] || id)
+        : item.categorias,
+    }));
+  }
+
+  private static async syncCategoriasToGlobal(
+    listaId: string,
+    categorias: Categoria[]
+  ): Promise<{ categorias: Categoria[]; tagIds: string[]; idMap: Record<string, string> }> {
     const tags = await this.carregarTags();
+    const byId = new Map<string, GlobalTag>(tags.map((t) => [t.id, t]));
     const byKey = new Map<string, GlobalTag>();
     tags.forEach((t) => byKey.set(this.buildTagKey(t.nome, t.cor), t));
 
     const normalizedCats: Categoria[] = [];
     const tagIds: string[] = [];
+    const idMap: Record<string, string> = {};
 
     for (const cat of categorias || []) {
       const key = this.buildTagKey(cat.nome, cat.cor);
-      let tag = byKey.get(key);
+      // Prioriza o ID original (fidelidade no import/export); depois nome+cor
+      let tag = (cat.id && byId.get(cat.id)) || byKey.get(key);
 
       if (!tag) {
         tag = {
@@ -341,14 +358,21 @@ export class StorageService {
           listIds: [listaId],
         };
         tags.push(tag);
+        byId.set(tag.id, tag);
         byKey.set(key, tag);
       } else {
         if (!tag.listIds.includes(listaId)) {
           tag.listIds.push(listaId);
         }
+        // Atualiza nome/cor se vieram no payload exportado
+        if (cat.nome) tag.nome = cat.nome;
+        if (cat.cor) tag.cor = cat.cor;
         tag.updatedAt = new Date().toISOString();
       }
 
+      if (cat.id) {
+        idMap[cat.id] = tag.id;
+      }
       tagIds.push(tag.id);
       normalizedCats.push({
         id: tag.id,
@@ -366,7 +390,7 @@ export class StorageService {
     }
 
     await this.salvarTags(tags);
-    return { categorias: normalizedCats, tagIds: Array.from(new Set(tagIds)) };
+    return { categorias: normalizedCats, tagIds: Array.from(new Set(tagIds)), idMap };
   }
   // =============================
   // Lixeira - 30 dias
@@ -476,20 +500,35 @@ export class StorageService {
 
       return listas.map((lista: any) => {
         const tagIds: string[] = Array.isArray(lista.tagIds) ? lista.tagIds : [];
-        const categoriasFromTags: Categoria[] = tagIds
-          .map((tagId) => tagsById.get(String(tagId)))
-          .filter(Boolean)
-          .map((tag) => ({
-            id: tag!.id,
-            nome: tag!.nome,
-            cor: tag!.cor,
-            createdAt: tag!.createdAt,
-          }));
+        const storedCategorias: Categoria[] = Array.isArray(lista.categorias) ? lista.categorias : [];
+        const categorias: Categoria[] = [];
+        const seen = new Set<string>();
+
+        for (const tagId of tagIds) {
+          const tag = tagsById.get(String(tagId));
+          if (tag) {
+            categorias.push({
+              id: tag.id,
+              nome: tag.nome,
+              cor: tag.cor,
+              createdAt: tag.createdAt,
+            });
+            seen.add(tag.id);
+          }
+        }
+
+        // Preserva categorias embutidas na lista caso a tag global ainda não exista
+        for (const cat of storedCategorias) {
+          if (!seen.has(cat.id)) {
+            categorias.push(cat);
+            seen.add(cat.id);
+          }
+        }
 
         return {
           ...lista,
-          tagIds,
-          categorias: categoriasFromTags.length > 0 ? categoriasFromTags : (lista.categorias || []),
+          tagIds: tagIds.length > 0 ? tagIds : categorias.map((c) => c.id),
+          categorias,
           itens: lista.itens || [],
         };
       });
@@ -521,6 +560,7 @@ export class StorageService {
         const synced = await this.syncCategoriasToGlobal(novaLista.id, novaLista.categorias);
         novaLista.categorias = synced.categorias;
         novaLista.tagIds = synced.tagIds;
+        novaLista.itens = this.remapItemCategoryIds(novaLista.itens || [], synced.idMap);
       }
       
       listas.push(novaLista);
@@ -558,6 +598,8 @@ export class StorageService {
         const synced = await this.syncCategoriasToGlobal(id, dados.categorias);
         listas[index].categorias = synced.categorias;
         listas[index].tagIds = synced.tagIds;
+        const itensParaRemap = dados.itens || listas[index].itens || [];
+        listas[index].itens = this.remapItemCategoryIds(itensParaRemap, synced.idMap);
       }
       
       await this.salvarListas(listas);
@@ -721,6 +763,7 @@ export class StorageService {
         const synced = await this.syncCategoriasToGlobal(listaDuplicada.id, listaDuplicada.categorias);
         listaDuplicada.categorias = synced.categorias;
         listaDuplicada.tagIds = synced.tagIds;
+        listaDuplicada.itens = this.remapItemCategoryIds(listaDuplicada.itens || [], synced.idMap);
       }
       await this.salvarListas(listas);
       
@@ -742,12 +785,16 @@ export class StorageService {
   static async criarLista(lista: Lista): Promise<void> {
     try {
       const listas = await this.carregarListas();
-      listas.push(lista);
-      if (lista.categorias.length > 0) {
-        const synced = await this.syncCategoriasToGlobal(lista.id, lista.categorias);
+      if ((lista.categorias || []).length > 0) {
+        const synced = await this.syncCategoriasToGlobal(lista.id, lista.categorias || []);
         lista.categorias = synced.categorias;
         lista.tagIds = synced.tagIds;
+        lista.itens = this.remapItemCategoryIds(lista.itens || [], synced.idMap);
+      } else {
+        lista.categorias = lista.categorias || [];
+        lista.tagIds = lista.tagIds || [];
       }
+      listas.push(lista);
       await this.salvarListas(listas);
     } catch (error) {
       console.error('Erro ao criar lista:', error);
@@ -923,6 +970,7 @@ export class StorageService {
       notas[index] = {
         ...notas[index],
         ...dados,
+        id: notas[index].id,
         updatedAt: new Date().toISOString(),
       };
       await this.salvarNotas(notas);
@@ -934,6 +982,42 @@ export class StorageService {
       return notas[index];
     } catch (error) {
       console.error('Erro ao atualizar nota:', error);
+      throw error;
+    }
+  }
+
+  // Criar nota preservando id (para importação), sem gerar id novo
+  static async criarNota(nota: Nota): Promise<void> {
+    try {
+      const notas = await this.carregarNotas();
+      const id = String(nota.id || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+      const index = notas.findIndex((n) => n.id === id);
+
+      const normalizada: Nota = {
+        id,
+        titulo: nota.titulo || '',
+        conteudo: nota.conteudo || '',
+        html: nota.html,
+        cor: nota.cor,
+        tags: nota.tags,
+        textoFormatado: nota.textoFormatado,
+        createdAt: nota.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (index >= 0) {
+        notas[index] = {
+          ...notas[index],
+          ...normalizada,
+          id: notas[index].id,
+        };
+      } else {
+        notas.push(normalizada);
+      }
+
+      await this.salvarNotas(notas);
+    } catch (error) {
+      console.error('Erro ao criar nota:', error);
       throw error;
     }
   }

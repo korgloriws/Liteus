@@ -10,6 +10,7 @@ import {
   Modal,
   TextInput,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -21,13 +22,15 @@ import { useTheme } from '../services/ThemeContext';
 import { getPlaceholderColor } from '../services/theme';
 import Constants from 'expo-constants';
 import { localSyncService } from '../services/localSyncService';
+import { useGoogleAuth } from '../hooks/useGoogleAuth';
 
 
 const isDevelopment = __DEV__;
 
 export default function ConfiguracoesScreen() {
   const { isDarkMode, setDarkMode, colors, typography } = useTheme();
-  const [versao] = useState('1.1.6');
+  const googleAuth = useGoogleAuth();
+  const [versao] = useState('1.1.7');
   const [listas, setListas] = useState<Lista[]>([]);
   const [modalSincronizacao, setModalSincronizacao] = useState(false);
   const [dadosSincronizacao, setDadosSincronizacao] = useState('');
@@ -39,6 +42,7 @@ export default function ConfiguracoesScreen() {
   const [syncStatus, setSyncStatus] = useState<any>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [isGoogleSyncing, setIsGoogleSyncing] = useState(false);
 
   useEffect(() => {
     
@@ -121,6 +125,42 @@ export default function ConfiguracoesScreen() {
       console.error('Erro ao importar backup:', error);
       Alert.alert('Erro', 'Falha ao importar backup');
     }
+  };
+
+  const handleGoogleSyncNow = async () => {
+    if (!googleAuth.session) {
+      Alert.alert('Google Drive', 'Conecte uma conta Google antes de sincronizar.');
+      return;
+    }
+    try {
+      setIsGoogleSyncing(true);
+      const result = await localSyncService.syncWithGoogleDrive();
+      await checkSyncStatus();
+      await carregarListas();
+      Alert.alert(result.success ? 'Sucesso' : 'Erro', result.message);
+    } catch (error) {
+      console.error('Erro no sync Google:', error);
+      Alert.alert('Erro', 'Falha ao sincronizar com o Google Drive');
+    } finally {
+      setIsGoogleSyncing(false);
+    }
+  };
+
+  const handleGoogleDisconnect = () => {
+    Alert.alert(
+      'Desconectar Google',
+      'O app deixará de sincronizar com o Drive desta conta. Os dados locais permanecem intactos.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Desconectar',
+          style: 'destructive',
+          onPress: async () => {
+            await googleAuth.disconnect();
+          },
+        },
+      ]
+    );
   };
 
   const carregarListas = async () => {
@@ -234,12 +274,115 @@ export default function ConfiguracoesScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Seção Google Drive */}
+        <View style={[styles.section, {
+          backgroundColor: colors.surface,
+          shadowColor: colors.text,
+        }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>
+            Google Drive
+          </Text>
+          <Text style={[styles.modalSubtitle, { color: colors.textSecondary, marginBottom: 8 }, typography.caption]}>
+            Sincroniza listas e notas na sua conta Google (pasta Liteus).
+          </Text>
+
+          {!googleAuth.configured && (
+            <Text style={{ color: '#FF9500', fontSize: 12, marginBottom: 8, paddingHorizontal: 4 }}>
+              Configure os Client IDs do Google (app.json ou EXPO_PUBLIC_GOOGLE_*) para ativar o login.
+            </Text>
+          )}
+
+          {googleAuth.session?.user?.email ? (
+            <View style={styles.optionItem}>
+              <MaterialIcons name="check-circle" size={24} color="#34C759" />
+              <Text style={[styles.optionText, { color: colors.text, flex: 1 }, typography.body]}>
+                {googleAuth.session.user.email}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.optionItem}>
+              <MaterialIcons name="cloud-off" size={24} color={colors.textSecondary} />
+              <Text style={[styles.optionText, { color: colors.textSecondary }, typography.body]}>
+                Nenhuma conta conectada
+              </Text>
+            </View>
+          )}
+
+          {!googleAuth.session ? (
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={googleAuth.connect}
+              disabled={googleAuth.connecting || !googleAuth.configured}
+            >
+              {googleAuth.connecting ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <MaterialIcons name="login" size={24} color="#4285F4" />
+              )}
+              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>
+                Conectar conta Google
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <>
+              <TouchableOpacity
+                style={styles.optionItem}
+                onPress={handleGoogleSyncNow}
+                disabled={isGoogleSyncing}
+              >
+                {isGoogleSyncing ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <MaterialIcons name="cloud-sync" size={24} color="#4285F4" />
+                )}
+                <Text style={[styles.optionText, { color: colors.text }, typography.body]}>
+                  Sincronizar agora
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.optionItem}>
+                <View style={styles.optionInfo}>
+                  <MaterialIcons name="autorenew" size={24} color={colors.primary} />
+                  <Text style={[styles.optionText, { color: colors.text }, typography.body]}>
+                    Sync automático após editar
+                  </Text>
+                </View>
+                <Switch
+                  value={googleAuth.autoSync}
+                  onValueChange={googleAuth.setAutoSyncEnabled}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor={colors.white}
+                />
+              </View>
+
+              <TouchableOpacity style={styles.optionItem} onPress={handleGoogleDisconnect}>
+                <MaterialIcons name="logout" size={24} color="#FF3B30" />
+                <Text style={[styles.optionText, { color: colors.text }, typography.body]}>
+                  Desconectar Google
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {syncStatus?.lastGoogleSync && (
+            <Text style={{ color: colors.textSecondary, fontSize: 12, paddingHorizontal: 15 }}>
+              Último sync Drive: {new Date(syncStatus.lastGoogleSync).toLocaleString()}
+            </Text>
+          )}
+
+          {(googleAuth.error || null) && (
+            <Text style={{ color: '#FF3B30', fontSize: 12, marginTop: 5, paddingHorizontal: 4 }}>
+              {googleAuth.error}
+            </Text>
+          )}
+        </View>
+
         {/* Seção de Sincronização */}
         <View style={[styles.section, { 
           backgroundColor: colors.surface,
           shadowColor: colors.text,
         }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>Sincronização</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>Backup local</Text>
           
           {/* Status do ambiente */}
           {isDevelopment && (
@@ -252,7 +395,7 @@ export default function ConfiguracoesScreen() {
           <View style={styles.optionItem}>
             <MaterialIcons name="sync" size={24} color="#34C759" />
             <Text style={[styles.optionText, { color: colors.text }, typography.body]}>
-              Sincronização automática ativada
+              Fila local automática ativada
             </Text>
           </View>
 
@@ -453,7 +596,7 @@ export default function ConfiguracoesScreen() {
           
           <View style={styles.featureItem}>
             <MaterialIcons name="cloud-sync" size={20} color="#34C759" />
-            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Backup e sincronização local (exportar/importar JSON)</Text>
+            <Text style={[styles.featureText, { color: colors.text }, typography.body]}>Backup local e sync via Google Drive (sua conta)</Text>
           </View>
           
           <View style={styles.featureItem}>

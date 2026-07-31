@@ -51,7 +51,10 @@
       "router": {},
       "eas": {
         "projectId": "009fa374-f223-4b85-83e1-d939f81ad687"
-      }
+      },
+      "googleWebClientId": "230416682609-h3fu0chs6sjjlmvgbeem8sulj29ro5tp.apps.googleusercontent.com",
+      "googleAndroidClientId": "230416682609-joc8eira2ncs9ust2t7dop7igroigda8.apps.googleusercontent.com",
+      "googleIosClientId": ""
     },
     "owner": "mateusalgusto"
   }
