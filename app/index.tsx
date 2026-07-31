@@ -569,9 +569,9 @@ export default function ListasScreen() {
                   }
                 });
 
-                return sorted.map((e) => (
+                return sorted.map((e, index) => (
                   <TouchableOpacity
-                    key={e.id}
+                    key={`${e.id}_${index}`}
                     style={[styles.listaItem, { 
                       borderLeftColor: e.cor || colors.primary,
                       backgroundColor: colors.surface,

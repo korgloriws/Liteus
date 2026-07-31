@@ -41,7 +41,14 @@ jobs:
       run: |
         cd android
         ./gradlew assembleRelease
-    
+
+    - name: Print APK SHA-1 (obrigatório no Google Cloud)
+      run: |
+        APK="android/app/build/outputs/apk/release/app-release.apk"
+        echo "=== SHA-1 do APK (cole no Client OAuth Android) ==="
+        keytool -printcert -jarfile "$APK" | grep -E "SHA1:|SHA-1:" || true
+        echo "===================================================="
+
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:

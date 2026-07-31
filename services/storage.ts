@@ -551,7 +551,7 @@ export class StorageService {
         ...lista,
         categorias: lista.categorias || [],
         tagIds: lista.tagIds || [],
-        id: Date.now().toString(),
+        id: `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
         dataCriacao: Date.now(),
         dataModificacao: Date.now(),
       };

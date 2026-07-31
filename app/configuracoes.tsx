@@ -286,6 +286,12 @@ export default function ConfiguracoesScreen() {
             Sincroniza listas e notas na sua conta Google (pasta Liteus).
           </Text>
 
+          {!googleAuth.nativeAvailable && (
+            <Text style={{ color: '#FF9500', fontSize: 12, marginBottom: 8, paddingHorizontal: 4 }}>
+              Login Google roda no APK do GitHub Actions. No Expo Go a seção aparece, mas o conectar nativo não está disponível.
+            </Text>
+          )}
+
           {!googleAuth.configured && (
             <Text style={{ color: '#FF9500', fontSize: 12, marginBottom: 8, paddingHorizontal: 4 }}>
               Configure os Client IDs do Google (app.json ou EXPO_PUBLIC_GOOGLE_*) para ativar o login.

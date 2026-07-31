@@ -60,6 +60,32 @@ class GoogleAuthServiceClass {
   }
 
   async getValidAccessToken(): Promise<string | null> {
+    // Preferência: renovar via Google Sign-In nativo (indisponível no Expo Go)
+    try {
+      const Constants = (await import('expo-constants')).default;
+      if (Constants.appOwnership !== 'expo') {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const mod = require('@react-native-google-signin/google-signin') as typeof import('@react-native-google-signin/google-signin');
+        if (mod.GoogleSignin.hasPreviousSignIn()) {
+          const tokens = await mod.GoogleSignin.getTokens();
+          if (tokens.accessToken) {
+            const current = await this.loadSession();
+            if (current) {
+              await this.saveSession({
+                ...current,
+                accessToken: tokens.accessToken,
+                idToken: tokens.idToken || current.idToken,
+                expiresAt: Date.now() + 3500 * 1000,
+              });
+            }
+            return tokens.accessToken;
+          }
+        }
+      }
+    } catch {
+      // cai no fallback abaixo
+    }
+
     const session = await this.loadSession();
     if (!session?.accessToken) return null;
 
@@ -148,10 +174,12 @@ class GoogleAuthServiceClass {
     refreshToken?: string | null;
     expiresIn?: number | null;
     idToken?: string | null;
+    user?: GoogleUserInfo | null;
   }): Promise<GoogleSession | null> {
     if (!auth.accessToken) return null;
 
-    const user = await this.fetchUserInfo(auth.accessToken);
+    const user =
+      auth.user || (await this.fetchUserInfo(auth.accessToken));
     const session: GoogleSession = {
       accessToken: auth.accessToken,
       refreshToken: auth.refreshToken || null,
