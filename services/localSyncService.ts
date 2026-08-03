@@ -748,18 +748,41 @@ class LocalSyncService {
     }
   }
 
+  private async getLastAppliedHash(): Promise<string | null> {
+    return AsyncStorage.getItem('@liteus_drive_last_hash');
+  }
+
+  private async setLastAppliedHash(hash: string): Promise<void> {
+    await AsyncStorage.setItem('@liteus_drive_last_hash', hash);
+  }
+
+  private hashContent(content: string): string {
+    // Hash simples e estável o suficiente para detectar mudança de payload
+    let h = 0;
+    for (let i = 0; i < content.length; i++) {
+      h = (Math.imul(31, h) + content.charCodeAt(i)) | 0;
+    }
+    return `h${content.length}_${h}`;
+  }
+
   /**
    * Sync com Google Drive (mesma conta nos 2 aparelhos).
    *
-   * Regra last-write-wins:
-   * - Se há mudanças locais pendentes (dirty) → sobe o local (NÃO baixa o remoto antes).
-   * - Se não há mudanças locais e o remoto é mais novo → baixa e aplica.
-   * - Isso evita o bug de "voltar ao primeiro arquivo" ao editar e sincronizar.
+   * - Edições locais (dirty) → substitui o JSON compartilhado (push).
+   * - Sem edição local e Drive diferente do último aplicado → baixa (pull).
+   * - Os dois aparelhos usam o liteus_sync.json mais recente da conta.
    */
-  async syncWithGoogleDrive(): Promise<{ success: boolean; message: string }> {
+  async syncWithGoogleDrive(): Promise<{
+    success: boolean;
+    message: string;
+    direction?: 'push' | 'pull' | 'noop';
+  }> {
     try {
       const { googleAuthService } = await import('./googleAuthService');
-      const { googleDriveService } = await import('./googleDriveService');
+      const {
+        googleDriveService,
+        emitLiteusSyncEvent,
+      } = await import('./googleDriveService');
 
       const connected = await googleAuthService.isConnected();
       if (!connected) {
@@ -776,96 +799,82 @@ class LocalSyncService {
           new Date().toISOString()
         );
       }
-      const lastSeenRemote = await this.getLastSeenRemoteMtime();
-      const remote = await googleDriveService.downloadSyncJson();
 
-      // Primeiro sync: só sobe
+      const remote = await googleDriveService.downloadSyncJson();
+      const lastHash = await this.getLastAppliedHash();
+
+      // Sem arquivo remoto → sobe o local (cria a base compartilhada)
       if (!remote.content) {
         const payload = await this.buildSyncPayload();
-        const uploaded = await googleDriveService.uploadSyncJson(
-          JSON.stringify(payload, null, 2)
-        );
+        const serialized = JSON.stringify(payload, null, 2);
+        const uploaded = await googleDriveService.uploadSyncJson(serialized);
         await this.setLastSeenRemoteMtime(
           uploaded.modifiedTime || payload.metadata.exportadoEm
         );
+        await this.setLastAppliedHash(this.hashContent(serialized));
         await this.clearDriveDirty();
         await AsyncStorage.setItem('@liteus_last_google_sync', new Date().toISOString());
         await this.updateLastSync();
-        return {
-          success: true,
-          message: `Primeiro sync enviado ao Drive (${payload.lists.length} listas, ${payload.notes?.length || 0} notas)`,
-        };
+        const message = `Base criada no Drive (${payload.lists.length} listas, ${payload.notes?.length || 0} notas)`;
+        emitLiteusSyncEvent({ direction: 'push', message });
+        return { success: true, message, direction: 'push' };
       }
 
-      const remoteTs = Math.max(
-        this.toMillis(remote.modifiedTime),
-        this.toMillis((() => {
-          try {
-            return (JSON.parse(remote.content!) as SyncData)?.metadata?.exportadoEm;
-          } catch {
-            return null;
-          }
-        })())
-      );
-      const lastSeenTs = this.toMillis(lastSeenRemote);
+      const remoteHash = this.hashContent(remote.content);
 
-      // Só sobe quando há edição local pendente — NUNCA baixa antes nesse caso
-      // (era isso que voltava o JSON ao "primeiro arquivo")
+      // Edições locais → substitui o arquivo compartilhado
       if (dirty) {
         const payload = await this.buildSyncPayload();
-        const uploaded = await googleDriveService.uploadSyncJson(
-          JSON.stringify(payload, null, 2)
-        );
+        const serialized = JSON.stringify(payload, null, 2);
+        const uploaded = await googleDriveService.uploadSyncJson(serialized);
         await this.setLastSeenRemoteMtime(
           uploaded.modifiedTime || payload.metadata.exportadoEm
         );
+        await this.setLastAppliedHash(this.hashContent(serialized));
         await this.clearDriveDirty();
         await AsyncStorage.setItem('@liteus_last_google_sync', new Date().toISOString());
         await this.updateLastSync();
-        return {
-          success: true,
-          message: `Alterações enviadas ao Drive (${payload.lists.length} listas, ${payload.notes?.length || 0} notas)`,
-        };
+        const message = `Drive atualizado com este aparelho (${payload.lists.length} listas, ${payload.notes?.length || 0} notas)`;
+        emitLiteusSyncEvent({ direction: 'push', message });
+        return { success: true, message, direction: 'push' };
       }
 
-      // Sem mudanças locais: puxa só se o remoto mudou desde a última vez
-      const remoteIsNewer = remoteTs > lastSeenTs;
-      if (!remoteIsNewer) {
-        await AsyncStorage.setItem('@liteus_last_google_sync', new Date().toISOString());
-        return {
-          success: true,
-          message: 'Já sincronizado com o Drive',
-        };
-      }
-
-      try {
-        const remoteData = JSON.parse(remote.content) as SyncData;
-        this.suppressSyncEnqueue = true;
+      // Sem edição local: se o Drive mudou (outro aparelho), aplica aqui
+      if (remoteHash !== lastHash) {
         try {
-          const merge = await this.importFromSyncData(remoteData);
-          if (!merge.success) {
-            return { success: false, message: merge.message };
+          const remoteData = JSON.parse(remote.content) as SyncData;
+          this.suppressSyncEnqueue = true;
+          try {
+            const merge = await this.importFromSyncData(remoteData);
+            if (!merge.success) {
+              return { success: false, message: merge.message };
+            }
+          } finally {
+            this.suppressSyncEnqueue = false;
           }
-        } finally {
+        } catch {
           this.suppressSyncEnqueue = false;
+          return {
+            success: false,
+            message: 'Arquivo de sync no Drive está inválido',
+          };
         }
-      } catch {
-        this.suppressSyncEnqueue = false;
-        return {
-          success: false,
-          message: 'Arquivo de sync no Drive está inválido',
-        };
+
+        await this.setLastSeenRemoteMtime(remote.modifiedTime);
+        await this.setLastAppliedHash(remoteHash);
+        await this.clearDriveDirty();
+        await AsyncStorage.setItem('@liteus_last_google_sync', new Date().toISOString());
+        await this.updateLastSync();
+        const message =
+          'Dados recebidos do outro aparelho via Drive — listas/notas atualizadas';
+        emitLiteusSyncEvent({ direction: 'pull', message });
+        return { success: true, message, direction: 'pull' };
       }
 
-      await this.setLastSeenRemoteMtime(remote.modifiedTime);
-      await this.clearDriveDirty();
       await AsyncStorage.setItem('@liteus_last_google_sync', new Date().toISOString());
-      await this.updateLastSync();
-
-      return {
-        success: true,
-        message: 'Dados atualizados a partir do Drive',
-      };
+      const message = 'Já sincronizado com o Drive (nada novo)';
+      emitLiteusSyncEvent({ direction: 'noop', message });
+      return { success: true, message, direction: 'noop' };
     } catch (error: any) {
       console.error('Erro no sync com Google Drive:', error);
       return {
@@ -1026,6 +1035,8 @@ class LocalSyncService {
         AsyncStorage.removeItem('@liteus_drive_dirty'),
         AsyncStorage.removeItem('@liteus_drive_local_changed_at'),
         AsyncStorage.removeItem('@liteus_drive_last_remote_mtime'),
+        AsyncStorage.removeItem('@liteus_drive_last_hash'),
+        AsyncStorage.removeItem('@liteus_drive_sync_file_id'),
       ]);
       
       this.syncQueue = [];

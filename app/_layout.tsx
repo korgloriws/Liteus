@@ -6,34 +6,49 @@ import SplashScreen from '../components/SplashScreen';
 import { useFonts } from 'expo-font';
 import { Righteous_400Regular } from '@expo-google-fonts/righteous';
 import { NotoSans_400Regular, NotoSans_700Bold } from '@expo-google-fonts/noto-sans';
-import { View } from 'react-native';
-import { useEffect, useState } from 'react';
+import { AppState, AppStateStatus, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
 import { localSyncService } from '../services/localSyncService';
 import { googleAuthService } from '../services/googleAuthService';
 
 function TabLayoutContent() {
   const { isDarkMode, colors } = useTheme();
+  const appState = useRef(AppState.currentState);
+  const syncingRef = useRef(false);
+
+  const runDriveSync = async () => {
+    if (syncingRef.current) return;
+    try {
+      syncingRef.current = true;
+      await localSyncService.initialize();
+      const connected = await googleAuthService.isConnected();
+      const auto = await googleAuthService.getAutoSyncEnabled();
+      if (connected && auto) {
+        await localSyncService.syncWithGoogleDrive();
+      }
+    } catch (error) {
+      console.error('Sync Drive falhou:', error);
+    } finally {
+      syncingRef.current = false;
+    }
+  };
 
   useEffect(() => {
-    let cancelled = false;
+    runDriveSync();
 
-    const bootSync = async () => {
-      try {
-        await localSyncService.initialize();
-        const connected = await googleAuthService.isConnected();
-        const auto = await googleAuthService.getAutoSyncEnabled();
-        if (!cancelled && connected && auto) {
-          await localSyncService.syncWithGoogleDrive();
-        }
-      } catch (error) {
-        console.error('Sync na abertura do app falhou:', error);
+    const onChange = (next: AppStateStatus) => {
+      // Ao voltar ao app (2º celular), puxa/envia de novo
+      if (
+        appState.current.match(/inactive|background/) &&
+        next === 'active'
+      ) {
+        runDriveSync();
       }
+      appState.current = next;
     };
 
-    bootSync();
-    return () => {
-      cancelled = true;
-    };
+    const sub = AppState.addEventListener('change', onChange);
+    return () => sub.remove();
   }, []);
 
   return (
@@ -154,4 +169,4 @@ export default function TabLayout() {
       <TabLayoutContent />
     </ThemeProvider>
   );
-} 
+}

@@ -30,7 +30,7 @@ const isDevelopment = __DEV__;
 export default function ConfiguracoesScreen() {
   const { isDarkMode, setDarkMode, colors, typography } = useTheme();
   const googleAuth = useGoogleAuth();
-  const [versao] = useState('1.1.9');
+  const [versao] = useState('1.2.0');
   const [listas, setListas] = useState<Lista[]>([]);
   const [modalSincronizacao, setModalSincronizacao] = useState(false);
   const [dadosSincronizacao, setDadosSincronizacao] = useState('');
@@ -283,7 +283,7 @@ export default function ConfiguracoesScreen() {
             Google Drive
           </Text>
           <Text style={[styles.modalSubtitle, { color: colors.textSecondary, marginBottom: 8 }, typography.caption]}>
-            Sincroniza listas e notas na sua conta Google (pasta Liteus).
+            Mesma conta Google nos 2 aparelhos. Ao editar, o app substitui o arquivo Liteus/liteus_sync.json. No outro celular: abra o app ou toque em Sincronizar agora.
           </Text>
 
           {!googleAuth.nativeAvailable && (

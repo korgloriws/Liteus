@@ -1,13 +1,17 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DeviceEventEmitter } from 'react-native';
 import { GoogleConfig } from './googleConfig';
 import { googleAuthService } from './googleAuthService';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
+const FILE_ID_KEY = '@liteus_drive_sync_file_id';
 
 type DriveFile = {
   id: string;
   name?: string;
   modifiedTime?: string;
+  parents?: string[];
 };
 
 class GoogleDriveServiceClass {
@@ -30,7 +34,7 @@ class GoogleDriveServiceClass {
     );
 
     const listRes = await fetch(
-      `${DRIVE_API}/files?q=${q}&spaces=drive&fields=files(id,name)`,
+      `${DRIVE_API}/files?q=${q}&spaces=drive&fields=files(id,name,createdTime)&orderBy=createdTime`,
       { headers }
     );
 
@@ -40,6 +44,7 @@ class GoogleDriveServiceClass {
 
     const listData = await listRes.json();
     if (Array.isArray(listData.files) && listData.files.length > 0) {
+      // Sempre a pasta mais antiga — evita cada aparelho criar/usar pasta diferente
       return listData.files[0].id as string;
     }
 
@@ -63,15 +68,14 @@ class GoogleDriveServiceClass {
     return created.id as string;
   }
 
-  private async findSyncFile(folderId: string): Promise<DriveFile | null> {
+  /** Todos os liteus_sync.json da conta (mais recente primeiro). */
+  private async listSyncFiles(): Promise<DriveFile[]> {
     const headers = await this.authHeaders();
     const fileName = GoogleConfig.driveFileName;
-    const q = encodeURIComponent(
-      `name='${fileName}' and '${folderId}' in parents and trashed=false`
-    );
+    const q = encodeURIComponent(`name='${fileName}' and trashed=false`);
 
     const res = await fetch(
-      `${DRIVE_API}/files?q=${q}&spaces=drive&fields=files(id,name,modifiedTime)`,
+      `${DRIVE_API}/files?q=${q}&spaces=drive&fields=files(id,name,modifiedTime,parents)&orderBy=modifiedTime desc`,
       { headers }
     );
 
@@ -80,15 +84,25 @@ class GoogleDriveServiceClass {
     }
 
     const data = await res.json();
-    if (Array.isArray(data.files) && data.files.length > 0) {
-      return data.files[0] as DriveFile;
-    }
-    return null;
+    return Array.isArray(data.files) ? (data.files as DriveFile[]) : [];
   }
 
-  async downloadSyncJson(): Promise<{ content: string | null; fileId?: string; modifiedTime?: string }> {
-    const folderId = await this.ensureFolderId();
-    const file = await this.findSyncFile(folderId);
+  private async resolveSyncFile(): Promise<DriveFile | null> {
+    const files = await this.listSyncFiles();
+    if (files.length === 0) return null;
+
+    // Arquivo mais recentemente modificado = fonte da verdade entre aparelhos
+    const newest = files[0];
+    await AsyncStorage.setItem(FILE_ID_KEY, newest.id);
+    return newest;
+  }
+
+  async downloadSyncJson(): Promise<{
+    content: string | null;
+    fileId?: string;
+    modifiedTime?: string;
+  }> {
+    const file = await this.resolveSyncFile();
     if (!file) {
       return { content: null };
     }
@@ -97,7 +111,8 @@ class GoogleDriveServiceClass {
     const res = await fetch(`${DRIVE_API}/files/${file.id}?alt=media`, { headers });
 
     if (res.status === 404) {
-      return { content: null, fileId: file.id };
+      await AsyncStorage.removeItem(FILE_ID_KEY);
+      return { content: null };
     }
 
     if (!res.ok) {
@@ -113,10 +128,8 @@ class GoogleDriveServiceClass {
   }
 
   async uploadSyncJson(content: string): Promise<{ fileId: string; modifiedTime?: string }> {
-    const folderId = await this.ensureFolderId();
-    const existing = await this.findSyncFile(folderId);
     const headers = await this.authHeaders();
-    const fileName = GoogleConfig.driveFileName;
+    const existing = await this.resolveSyncFile();
 
     if (existing?.id) {
       const res = await fetch(
@@ -136,11 +149,13 @@ class GoogleDriveServiceClass {
       }
 
       const data = await res.json();
+      await AsyncStorage.setItem(FILE_ID_KEY, existing.id);
       return { fileId: existing.id, modifiedTime: data.modifiedTime };
     }
 
+    const folderId = await this.ensureFolderId();
     const metadata = {
-      name: fileName,
+      name: GoogleConfig.driveFileName,
       parents: [folderId],
       mimeType: 'application/json',
     };
@@ -172,8 +187,18 @@ class GoogleDriveServiceClass {
     }
 
     const data = await res.json();
+    await AsyncStorage.setItem(FILE_ID_KEY, data.id);
     return { fileId: data.id as string, modifiedTime: data.modifiedTime };
   }
+}
+
+export const LITEUS_SYNC_EVENT = 'liteus-data-synced';
+
+export function emitLiteusSyncEvent(payload: {
+  direction: 'push' | 'pull' | 'noop';
+  message: string;
+}) {
+  DeviceEventEmitter.emit(LITEUS_SYNC_EVENT, payload);
 }
 
 export const googleDriveService = new GoogleDriveServiceClass();

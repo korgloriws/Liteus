@@ -2,7 +2,7 @@
   "expo": {
     "name": "Liteus",
     "slug": "liteus",
-    "version": "1.0.9",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/iconLiteus.png",
     "userInterfaceStyle": "light",
@@ -19,7 +19,7 @@
     },
     "android": {
       "package": "com.liteus.app",
-      "versionCode": 2,
+      "versionCode": 10,
       "adaptiveIcon": {
         "foregroundImage": "./assets/iconeLiteus.png",
         "backgroundColor": "#2f4366"
