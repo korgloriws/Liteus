@@ -106,7 +106,38 @@ class LocalSyncService {
       timestamp: Date.now()
     });
     await this.saveSyncQueue();
+    await AsyncStorage.setItem('@liteus_drive_dirty', '1');
+    await AsyncStorage.setItem('@liteus_drive_local_changed_at', new Date().toISOString());
     this.scheduleAutoSync();
+  }
+
+  private async isDriveDirty(): Promise<boolean> {
+    return (await AsyncStorage.getItem('@liteus_drive_dirty')) === '1';
+  }
+
+  private async clearDriveDirty(): Promise<void> {
+    await AsyncStorage.multiSet([
+      ['@liteus_drive_dirty', '0'],
+    ]);
+  }
+
+  private async getDriveLocalChangedAt(): Promise<string | null> {
+    return AsyncStorage.getItem('@liteus_drive_local_changed_at');
+  }
+
+  private async getLastSeenRemoteMtime(): Promise<string | null> {
+    return AsyncStorage.getItem('@liteus_drive_last_remote_mtime');
+  }
+
+  private async setLastSeenRemoteMtime(mtime: string | null | undefined): Promise<void> {
+    if (!mtime) return;
+    await AsyncStorage.setItem('@liteus_drive_last_remote_mtime', mtime);
+  }
+
+  private toMillis(value?: string | null): number {
+    if (!value) return 0;
+    const ms = Date.parse(value);
+    return Number.isFinite(ms) ? ms : 0;
   }
 
   private scheduleAutoSync(delayMs: number = 2500): void {
@@ -718,8 +749,12 @@ class LocalSyncService {
   }
 
   /**
-   * Pull do Google Drive → merge local → push do estado mesclado.
-   * Usa a mesma conta Google do usuário (pasta Liteus / liteus_sync.json).
+   * Sync com Google Drive (mesma conta nos 2 aparelhos).
+   *
+   * Regra last-write-wins:
+   * - Se há mudanças locais pendentes (dirty) → sobe o local (NÃO baixa o remoto antes).
+   * - Se não há mudanças locais e o remoto é mais novo → baixa e aplica.
+   * - Isso evita o bug de "voltar ao primeiro arquivo" ao editar e sincronizar.
    */
   async syncWithGoogleDrive(): Promise<{ success: boolean; message: string }> {
     try {
@@ -731,41 +766,105 @@ class LocalSyncService {
         return { success: false, message: 'Conecte uma conta Google em Configurações' };
       }
 
+      const queueLen = (await this.getSyncQueue()).length;
+      const dirtyFlag = await this.isDriveDirty();
+      const dirty = dirtyFlag || queueLen > 0;
+      if (dirty && !dirtyFlag) {
+        await AsyncStorage.setItem('@liteus_drive_dirty', '1');
+        await AsyncStorage.setItem(
+          '@liteus_drive_local_changed_at',
+          new Date().toISOString()
+        );
+      }
+      const lastSeenRemote = await this.getLastSeenRemoteMtime();
       const remote = await googleDriveService.downloadSyncJson();
-      if (remote.content) {
-        try {
-          const remoteData = JSON.parse(remote.content) as SyncData;
-          this.suppressSyncEnqueue = true;
-          try {
-            const merge = await this.importFromSyncData(remoteData);
-            if (!merge.success) {
-              return { success: false, message: merge.message };
-            }
-          } finally {
-            this.suppressSyncEnqueue = false;
-          }
-        } catch {
-          this.suppressSyncEnqueue = false;
-          return {
-            success: false,
-            message: 'Arquivo de sync no Drive está inválido',
-          };
-        }
+
+      // Primeiro sync: só sobe
+      if (!remote.content) {
+        const payload = await this.buildSyncPayload();
+        const uploaded = await googleDriveService.uploadSyncJson(
+          JSON.stringify(payload, null, 2)
+        );
+        await this.setLastSeenRemoteMtime(
+          uploaded.modifiedTime || payload.metadata.exportadoEm
+        );
+        await this.clearDriveDirty();
+        await AsyncStorage.setItem('@liteus_last_google_sync', new Date().toISOString());
+        await this.updateLastSync();
+        return {
+          success: true,
+          message: `Primeiro sync enviado ao Drive (${payload.lists.length} listas, ${payload.notes?.length || 0} notas)`,
+        };
       }
 
-      const payload = await this.buildSyncPayload();
-      await googleDriveService.uploadSyncJson(JSON.stringify(payload, null, 2));
+      const remoteTs = Math.max(
+        this.toMillis(remote.modifiedTime),
+        this.toMillis((() => {
+          try {
+            return (JSON.parse(remote.content!) as SyncData)?.metadata?.exportadoEm;
+          } catch {
+            return null;
+          }
+        })())
+      );
+      const lastSeenTs = this.toMillis(lastSeenRemote);
 
+      // Só sobe quando há edição local pendente — NUNCA baixa antes nesse caso
+      // (era isso que voltava o JSON ao "primeiro arquivo")
+      if (dirty) {
+        const payload = await this.buildSyncPayload();
+        const uploaded = await googleDriveService.uploadSyncJson(
+          JSON.stringify(payload, null, 2)
+        );
+        await this.setLastSeenRemoteMtime(
+          uploaded.modifiedTime || payload.metadata.exportadoEm
+        );
+        await this.clearDriveDirty();
+        await AsyncStorage.setItem('@liteus_last_google_sync', new Date().toISOString());
+        await this.updateLastSync();
+        return {
+          success: true,
+          message: `Alterações enviadas ao Drive (${payload.lists.length} listas, ${payload.notes?.length || 0} notas)`,
+        };
+      }
+
+      // Sem mudanças locais: puxa só se o remoto mudou desde a última vez
+      const remoteIsNewer = remoteTs > lastSeenTs;
+      if (!remoteIsNewer) {
+        await AsyncStorage.setItem('@liteus_last_google_sync', new Date().toISOString());
+        return {
+          success: true,
+          message: 'Já sincronizado com o Drive',
+        };
+      }
+
+      try {
+        const remoteData = JSON.parse(remote.content) as SyncData;
+        this.suppressSyncEnqueue = true;
+        try {
+          const merge = await this.importFromSyncData(remoteData);
+          if (!merge.success) {
+            return { success: false, message: merge.message };
+          }
+        } finally {
+          this.suppressSyncEnqueue = false;
+        }
+      } catch {
+        this.suppressSyncEnqueue = false;
+        return {
+          success: false,
+          message: 'Arquivo de sync no Drive está inválido',
+        };
+      }
+
+      await this.setLastSeenRemoteMtime(remote.modifiedTime);
+      await this.clearDriveDirty();
       await AsyncStorage.setItem('@liteus_last_google_sync', new Date().toISOString());
       await this.updateLastSync();
 
-      const lists = payload.lists.length;
-      const notes = payload.notes?.length || 0;
       return {
         success: true,
-        message: remote.content
-          ? `Sincronizado com o Drive (${lists} listas, ${notes} notas)`
-          : `Primeiro sync enviado ao Drive (${lists} listas, ${notes} notas)`,
+        message: 'Dados atualizados a partir do Drive',
       };
     } catch (error: any) {
       console.error('Erro no sync com Google Drive:', error);
@@ -793,6 +892,12 @@ class LocalSyncService {
 
       if (changes > 0) {
         console.log(`Processando ${changes} mudanças da fila`);
+        // Garante dirty ANTES de limpar a fila — o Drive sync depende disso
+        await AsyncStorage.setItem('@liteus_drive_dirty', '1');
+        await AsyncStorage.setItem(
+          '@liteus_drive_local_changed_at',
+          new Date().toISOString()
+        );
         await this.clearSyncQueue();
         await this.updateLastSync();
       }
@@ -916,7 +1021,11 @@ class LocalSyncService {
         AsyncStorage.removeItem('@liteus_last_sync'),
         AsyncStorage.removeItem('@liteus_last_export'),
         AsyncStorage.removeItem('@liteus_last_import'),
-        AsyncStorage.removeItem('@liteus_device_id')
+        AsyncStorage.removeItem('@liteus_device_id'),
+        AsyncStorage.removeItem('@liteus_last_google_sync'),
+        AsyncStorage.removeItem('@liteus_drive_dirty'),
+        AsyncStorage.removeItem('@liteus_drive_local_changed_at'),
+        AsyncStorage.removeItem('@liteus_drive_last_remote_mtime'),
       ]);
       
       this.syncQueue = [];

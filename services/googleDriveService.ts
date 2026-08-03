@@ -112,7 +112,7 @@ class GoogleDriveServiceClass {
     };
   }
 
-  async uploadSyncJson(content: string): Promise<{ fileId: string }> {
+  async uploadSyncJson(content: string): Promise<{ fileId: string; modifiedTime?: string }> {
     const folderId = await this.ensureFolderId();
     const existing = await this.findSyncFile(folderId);
     const headers = await this.authHeaders();
@@ -120,7 +120,7 @@ class GoogleDriveServiceClass {
 
     if (existing?.id) {
       const res = await fetch(
-        `${UPLOAD_API}/files/${existing.id}?uploadType=media`,
+        `${UPLOAD_API}/files/${existing.id}?uploadType=media&fields=id,modifiedTime`,
         {
           method: 'PATCH',
           headers: {
@@ -135,7 +135,8 @@ class GoogleDriveServiceClass {
         throw new Error(`Falha ao atualizar sync no Drive (${res.status})`);
       }
 
-      return { fileId: existing.id };
+      const data = await res.json();
+      return { fileId: existing.id, modifiedTime: data.modifiedTime };
     }
 
     const metadata = {
@@ -154,21 +155,24 @@ class GoogleDriveServiceClass {
       `${content}\r\n` +
       `--${boundary}--`;
 
-    const res = await fetch(`${UPLOAD_API}/files?uploadType=multipart&fields=id`, {
-      method: 'POST',
-      headers: {
-        ...headers,
-        'Content-Type': `multipart/related; boundary=${boundary}`,
-      },
-      body,
-    });
+    const res = await fetch(
+      `${UPLOAD_API}/files?uploadType=multipart&fields=id,modifiedTime`,
+      {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': `multipart/related; boundary=${boundary}`,
+        },
+        body,
+      }
+    );
 
     if (!res.ok) {
       throw new Error(`Falha ao criar sync no Drive (${res.status})`);
     }
 
     const data = await res.json();
-    return { fileId: data.id as string };
+    return { fileId: data.id as string, modifiedTime: data.modifiedTime };
   }
 }
 

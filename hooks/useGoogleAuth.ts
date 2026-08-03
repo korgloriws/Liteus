@@ -49,6 +49,24 @@ function ensureNativeConfigured(mod: GoogleSignInModule) {
 }
 
 function mapNativeError(error: unknown, mod: GoogleSignInModule | null): string {
+  const raw =
+    (error instanceof Error && error.message) ||
+    (typeof error === 'string' ? error : '') ||
+    '';
+  const lower = raw.toLowerCase();
+
+  if (
+    lower.includes('access_denied') ||
+    lower.includes('acesso') && lower.includes('negad') ||
+    lower.includes('403')
+  ) {
+    return (
+      '403 access_denied: o app está em modo Testing no Google Cloud. ' +
+      'Em APIs e serviços → Tela de consentimento OAuth → Usuários de teste, ' +
+      'adicione o Gmail que você usa no celular e tente de novo.'
+    );
+  }
+
   if (mod && mod.isErrorWithCode(error)) {
     switch (error.code) {
       case mod.statusCodes.SIGN_IN_CANCELLED:
