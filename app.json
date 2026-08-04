@@ -2,7 +2,7 @@
   "expo": {
     "name": "Liteus",
     "slug": "liteus",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "orientation": "portrait",
     "icon": "./assets/iconLiteus.png",
     "userInterfaceStyle": "light",
@@ -19,7 +19,7 @@
     },
     "android": {
       "package": "com.liteus.app",
-      "versionCode": 10,
+      "versionCode": 11,
       "adaptiveIcon": {
         "foregroundImage": "./assets/iconeLiteus.png",
         "backgroundColor": "#2f4366"
@@ -45,22 +45,13 @@
           "iCloudContainerEnvironment": "Production"
         }
       ],
-      "expo-web-browser",
-      [
-        "@react-native-google-signin/google-signin",
-        {
-          "iosUrlScheme": "com.googleusercontent.apps.230416682609-joc8eira2ncs9ust2t7dop7igroigda8"
-        }
-      ]
+      "expo-web-browser"
     ],
     "extra": {
       "router": {},
       "eas": {
         "projectId": "009fa374-f223-4b85-83e1-d939f81ad687"
-      },
-      "googleWebClientId": "230416682609-h3fu0chs6sjjlmvgbeem8sulj29ro5tp.apps.googleusercontent.com",
-      "googleAndroidClientId": "230416682609-joc8eira2ncs9ust2t7dop7igroigda8.apps.googleusercontent.com",
-      "googleIosClientId": ""
+      }
     },
     "owner": "mateusalgusto"
   }

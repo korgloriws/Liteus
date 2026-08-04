@@ -14,7 +14,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Dimensions,
-  DeviceEventEmitter,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
@@ -30,7 +29,6 @@ import { localSyncService } from '../services/localSyncService';
 import { getPlaceholderColor } from '../services/theme';
 import QuillInlineEditor from '../components/QuillInlineEditor';
 import ColorWheelPicker from '../components/ColorWheelPicker';
-import { LITEUS_SYNC_EVENT } from '../services/googleDriveService';
 
 export default function ListasScreen() {
   const { isDarkMode, colors, typography } = useTheme();
@@ -86,15 +84,6 @@ export default function ListasScreen() {
     carregarListas();
     }, [])
   );
-
-  useEffect(() => {
-    const sub = DeviceEventEmitter.addListener(LITEUS_SYNC_EVENT, (payload) => {
-      if (payload?.direction === 'pull' || payload?.direction === 'push') {
-        carregarListas();
-      }
-    });
-    return () => sub.remove();
-  }, []);
 
   const carregarListas = async () => {
     try {

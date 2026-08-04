@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, Image, Modal, KeyboardAvoidingView, Platform, Dimensions, DeviceEventEmitter } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert, Image, Modal, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../services/ThemeContext';
 import { getPlaceholderColor } from '../services/theme';
@@ -8,7 +8,6 @@ import { GlobalTag, Nota } from '../types';
 import { router } from 'expo-router';
 import { localSyncService } from '../services/localSyncService';
 import ColorWheelPicker from '../components/ColorWheelPicker';
-import { LITEUS_SYNC_EVENT } from '../services/googleDriveService';
 
 export default function NotasScreen() {
   const { isDarkMode, colors, typography } = useTheme();
@@ -26,15 +25,6 @@ export default function NotasScreen() {
 
   useEffect(() => {
     carregar();
-  }, []);
-
-  useEffect(() => {
-    const sub = DeviceEventEmitter.addListener(LITEUS_SYNC_EVENT, (payload) => {
-      if (payload?.direction === 'pull' || payload?.direction === 'push') {
-        carregar();
-      }
-    });
-    return () => sub.remove();
   }, []);
 
   const carregar = async () => {
