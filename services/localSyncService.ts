@@ -547,9 +547,11 @@ class LocalSyncService {
   async importFromSyncData(
     syncData: SyncData
   ): Promise<{ success: boolean; message: string; imported: number }> {
-    CloudSyncService.pause();
+    // Para o polling e impede o pull de apagar o import antes do push
+    CloudSyncService.beginBulkLocalWrite();
     try {
       if (!syncData.lists || !Array.isArray(syncData.lists)) {
+        CloudSyncService.endBulkLocalWrite(false);
         return { success: false, message: 'Formato de arquivo inválido', imported: 0 };
       }
 
@@ -699,16 +701,19 @@ class LocalSyncService {
 
       await AsyncStorage.setItem('@liteus_last_import', new Date().toISOString());
 
-      // Um único push completo após o backup (evita sync parcial/falho no meio)
-      CloudSyncService.resume();
-      const cloud = await CloudSyncService.pushLocalSnapshot();
+      // Um único push completo (com retry) — só libera o pull se o servidor aceitou
+      const cloud = await CloudSyncService.pushLocalSnapshotWithRetry(3);
       if (cloud.ok && cloud.counts) {
         conflitos.push(
           `nuvem: ${cloud.counts.listas} listas, ${cloud.counts.itens} itens, ${cloud.counts.notas} notas`
         );
       } else if (cloud.error) {
-        conflitos.push(`nuvem: falhou (${cloud.error})`);
+        conflitos.push(
+          `nuvem: falhou (${cloud.error}) — dados ficaram neste aparelho; o sync tentará de novo`
+        );
       }
+
+      CloudSyncService.endBulkLocalWrite(Boolean(cloud.ok));
 
       return {
         success: true,
@@ -717,13 +722,12 @@ class LocalSyncService {
       };
     } catch (error) {
       console.error('Erro ao mesclar dados de sync:', error);
+      CloudSyncService.endBulkLocalWrite(false);
       return {
         success: false,
         message: 'Falha ao importar dados. Verifique o formato do arquivo.',
         imported: 0,
       };
-    } finally {
-      CloudSyncService.resume();
     }
   }
 
