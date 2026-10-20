@@ -1,9 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { Lista, Item, Categoria, Nota, GlobalTag } from '../types';
 import { StorageService } from './storage';
+import { CloudSyncService } from './cloudSyncService';
+
+const isWeb = Platform.OS === 'web';
 
 export interface SyncData {
   lists: Lista[];
@@ -437,9 +441,27 @@ class LocalSyncService {
     }
   }
 
+  private downloadJsonOnWeb(filename: string, data: unknown): void {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   // Compartilhar arquivo de backup
   async shareBackup(): Promise<{ success: boolean; message: string }> {
     try {
+      if (isWeb) {
+        const syncData = await this.buildSyncPayload();
+        const fileName = `liteus_backup_${new Date().toISOString().split('T')[0]}.json`;
+        this.downloadJsonOnWeb(fileName, syncData);
+        await AsyncStorage.setItem('@liteus_last_export', new Date().toISOString());
+        return { success: true, message: 'Backup baixado no navegador!' };
+      }
+
       const exportResult = await this.exportData();
       
       if (!exportResult.success || !exportResult.filePath) {
@@ -525,6 +547,7 @@ class LocalSyncService {
   async importFromSyncData(
     syncData: SyncData
   ): Promise<{ success: boolean; message: string; imported: number }> {
+    CloudSyncService.pause();
     try {
       if (!syncData.lists || !Array.isArray(syncData.lists)) {
         return { success: false, message: 'Formato de arquivo inválido', imported: 0 };
@@ -676,6 +699,17 @@ class LocalSyncService {
 
       await AsyncStorage.setItem('@liteus_last_import', new Date().toISOString());
 
+      // Um único push completo após o backup (evita sync parcial/falho no meio)
+      CloudSyncService.resume();
+      const cloud = await CloudSyncService.pushLocalSnapshot();
+      if (cloud.ok && cloud.counts) {
+        conflitos.push(
+          `nuvem: ${cloud.counts.listas} listas, ${cloud.counts.itens} itens, ${cloud.counts.notas} notas`
+        );
+      } else if (cloud.error) {
+        conflitos.push(`nuvem: falhou (${cloud.error})`);
+      }
+
       return {
         success: true,
         message: `Importação concluída! ${imported} listas importadas. ${conflitos.join(' | ')}`,
@@ -688,12 +722,44 @@ class LocalSyncService {
         message: 'Falha ao importar dados. Verifique o formato do arquivo.',
         imported: 0,
       };
+    } finally {
+      CloudSyncService.resume();
     }
+  }
+
+  private pickJsonFileOnWeb(): Promise<string | null> {
+    return new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/json,.json';
+      input.onchange = async () => {
+        const file = input.files?.[0];
+        if (!file) {
+          resolve(null);
+          return;
+        }
+        try {
+          resolve(await file.text());
+        } catch {
+          resolve(null);
+        }
+      };
+      input.click();
+    });
   }
 
   // Importar dados de arquivo
   async importData(): Promise<{ success: boolean; message: string; imported: number }> {
     try {
+      if (isWeb) {
+        const fileContent = await this.pickJsonFileOnWeb();
+        if (!fileContent) {
+          return { success: false, message: 'Nenhum arquivo selecionado', imported: 0 };
+        }
+        const syncData: SyncData = JSON.parse(fileContent);
+        return this.importFromSyncData(syncData);
+      }
+
       const result = await DocumentPicker.getDocumentAsync({
         type: 'application/json',
         copyToCacheDirectory: true

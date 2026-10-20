@@ -30,7 +30,8 @@ jobs:
         run: npm ci
 
       - name: Expo prebuild (Android)
-        run: npx expo prebuild --platform android --non-interactive
+        # --clean garante que o plugin de widgets regenere o AndroidManifest/providers
+        run: npx expo prebuild --platform android --clean --non-interactive
 
       - name: Configure stable release signing
         run: |

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Lista, Item, Categoria, Nota, GlobalTag } from '../types';
 import { localSyncService } from './localSyncService';
+import { CloudSyncService } from './cloudSyncService';
 
 const LISTAS_KEY = '@liteus_listas';
 const NOTAS_KEY = '@liteus_notas';
@@ -40,6 +41,7 @@ export class StorageService {
   static async salvarTags(tags: GlobalTag[]): Promise<void> {
     try {
       await AsyncStorage.setItem(TAGS_KEY, JSON.stringify(tags));
+      CloudSyncService.schedulePush();
     } catch (error) {
       console.error('Erro ao salvar tags globais:', error);
       throw error;
@@ -483,6 +485,9 @@ export class StorageService {
   static async salvarListas(listas: Lista[]): Promise<void> {
     try {
       await AsyncStorage.setItem(LISTAS_KEY, JSON.stringify(listas));
+      CloudSyncService.schedulePush();
+      const { scheduleWidgetRefresh } = await import('./widgetSyncService');
+      scheduleWidgetRefresh();
     } catch (error) {
       console.error('Erro ao salvar listas:', error);
       throw error;
@@ -933,6 +938,9 @@ export class StorageService {
   static async salvarNotas(notas: Nota[]): Promise<void> {
     try {
       await AsyncStorage.setItem(NOTAS_KEY, JSON.stringify(notas));
+      CloudSyncService.schedulePush();
+      const { scheduleWidgetRefresh } = await import('./widgetSyncService');
+      scheduleWidgetRefresh();
     } catch (error) {
       console.error('Erro ao salvar notas:', error);
       throw error;

@@ -5,8 +5,9 @@ import { useTheme } from '../services/ThemeContext';
 import { getPlaceholderColor } from '../services/theme';
 import { StorageService } from '../services/storage';
 import { GlobalTag, Nota } from '../types';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { localSyncService } from '../services/localSyncService';
+import { CloudSyncService } from '../services/cloudSyncService';
 import ColorWheelPicker from '../components/ColorWheelPicker';
 
 export default function NotasScreen() {
@@ -23,9 +24,15 @@ export default function NotasScreen() {
   const [filtroTagId, setFiltroTagId] = useState('');
   const [buscaFiltroTag, setBuscaFiltroTag] = useState('');
 
-  useEffect(() => {
-    carregar();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      carregar();
+      const unsub = CloudSyncService.onDataChanged(() => {
+        carregar();
+      });
+      return unsub;
+    }, [])
+  );
 
   const carregar = async () => {
     try {

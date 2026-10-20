@@ -26,6 +26,7 @@ import { DocumentProcessor } from '../services/documentProcessor';
 import { useTheme } from '../services/ThemeContext';
 import { SyncService } from '../services/syncService';
 import { localSyncService } from '../services/localSyncService';
+import { CloudSyncService } from '../services/cloudSyncService';
 import { getPlaceholderColor } from '../services/theme';
 import QuillInlineEditor from '../components/QuillInlineEditor';
 import ColorWheelPicker from '../components/ColorWheelPicker';
@@ -81,7 +82,11 @@ export default function ListasScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
-    carregarListas();
+      carregarListas();
+      const unsub = CloudSyncService.onDataChanged(() => {
+        carregarListas();
+      });
+      return unsub;
     }, [])
   );
 

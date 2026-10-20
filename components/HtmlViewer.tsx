@@ -1,7 +1,9 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useTheme } from '../services/ThemeContext';
+
+const isWeb = Platform.OS === 'web';
 
 interface HtmlViewerProps {
   html?: string;
@@ -31,11 +33,13 @@ export default function HtmlViewer({ html = '', style, maxHeight, autoHeight = f
       ? `
     (function reportHeight() {
       var el = document.getElementById('content');
-      if (!el || !window.ReactNativeWebView) return;
+      if (!el) return;
       var h = Math.ceil(el.scrollHeight);
       if (h < 1) h = 24;
       h = Math.min(Math.max(h, 24), 1200);
-      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'height', value: h }));
+      var msg = JSON.stringify({ type: 'height', value: h });
+      if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(msg);
+      else if (window.parent && window.parent !== window) window.parent.postMessage(msg, '*');
     })();
     if (document.readyState === 'complete') reportHeight();
     else window.addEventListener('load', reportHeight);
@@ -147,19 +151,44 @@ export default function HtmlViewer({ html = '', style, maxHeight, autoHeight = f
     } catch {}
   };
 
+  useEffect(() => {
+    if (!isWeb || !useAutoHeight) return;
+    const onMsg = (event: MessageEvent) => {
+      if (typeof event.data !== 'string' || !event.data.includes('"height"')) return;
+      handleMessage({ nativeEvent: { data: event.data } });
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, [useAutoHeight, html]);
+
   return (
     <View style={[styles.container, style, hasMaxHeight && { maxHeight }]}>
-      <WebView
-        originWhitelist={['*']}
-        source={{ html: htmlContent }}
-        onMessage={handleMessage}
-        style={[styles.webview, { backgroundColor: 'transparent', minHeight: useAutoHeight ? 24 : undefined, height: webViewHeight }]}
-        scrollEnabled={false}
-        showsVerticalScrollIndicator={false}
-        showsHorizontalScrollIndicator={false}
-        javaScriptEnabled={true}
-        domStorageEnabled={false}
-      />
+      {isWeb ? (
+        // @ts-expect-error iframe nativo no web
+        <iframe
+          title="html-viewer"
+          srcDoc={htmlContent}
+          style={{
+            border: 'none',
+            width: '100%',
+            height: webViewHeight,
+            background: 'transparent',
+            minHeight: useAutoHeight ? 24 : undefined,
+          }}
+        />
+      ) : (
+        <WebView
+          originWhitelist={['*']}
+          source={{ html: htmlContent }}
+          onMessage={handleMessage}
+          style={[styles.webview, { backgroundColor: 'transparent', minHeight: useAutoHeight ? 24 : undefined, height: webViewHeight }]}
+          scrollEnabled={false}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
+          javaScriptEnabled={true}
+          domStorageEnabled={false}
+        />
+      )}
     </View>
   );
 }

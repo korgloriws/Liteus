@@ -1,5 +1,5 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, Modal, Text, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, StyleSheet, Modal, Text, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useTheme } from '../services/ThemeContext';
 import { getPlaceholderColor } from '../services/theme';
@@ -12,6 +12,8 @@ type QuillInlineEditorProps = {
   minHeight?: number;
 };
 
+const isWeb = Platform.OS === 'web';
+
 export default function QuillInlineEditor({
   initialHtml = '',
   placeholder = 'Digite aqui...',
@@ -20,9 +22,42 @@ export default function QuillInlineEditor({
 }: QuillInlineEditorProps) {
   const { isDarkMode, colors } = useTheme();
   const webviewRef = useRef<WebView | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [showMoreModal, setShowMoreModal] = useState(false);
   const [textColor, setTextColor] = useState('#000000');
   const [backgroundColor, setBackgroundColor] = useState('#FFCC02');
+
+  const sendToEditor = (payload: object) => {
+    const msg = JSON.stringify(payload);
+    if (isWeb) {
+      iframeRef.current?.contentWindow?.postMessage(msg, '*');
+    } else {
+      webviewRef.current?.postMessage(msg);
+    }
+  };
+
+  const handleEditorMessage = (raw: string) => {
+    try {
+      const data = JSON.parse(raw || '{}');
+      if (data.type === 'change') {
+        onChange?.((data.text || '').replace(/\s+/g, ' ').trim(), data.html || '');
+      } else if (data.type === 'openMore') {
+        setShowMoreModal(true);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (!isWeb) return;
+    const onMsg = (event: MessageEvent) => {
+      if (typeof event.data !== 'string') return;
+      // só mensagens do nosso iframe Quill
+      if (!event.data.includes('"type"')) return;
+      handleEditorMessage(event.data);
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, [onChange]);
 
   const html = useMemo(() => {
     const h = `
@@ -231,10 +266,19 @@ export default function QuillInlineEditor({
       });
       document.querySelector('.ql-undo').addEventListener('click', function() { editor.history.undo(); });
       document.querySelector('.ql-redo').addEventListener('click', function() { editor.history.redo(); });
+      function postToHost(payload) {
+        try {
+          var msg = JSON.stringify(payload);
+          if (window.ReactNativeWebView) {
+            window.ReactNativeWebView.postMessage(msg);
+          } else if (window.parent && window.parent !== window) {
+            window.parent.postMessage(msg, '*');
+          }
+        } catch (e) {}
+      }
       function postChange() {
         try {
-          const payload = { type: 'change', html: editor.root.innerHTML, text: editor.getText() };
-          window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify(payload));
+          postToHost({ type: 'change', html: editor.root.innerHTML, text: editor.getText() });
         } catch (e) {}
       }
       editor.on('text-change', function() { postChange(); });
@@ -318,7 +362,7 @@ export default function QuillInlineEditor({
           btn.addEventListener('click', function(e){
             e.preventDefault(); e.stopPropagation();
             try {
-              window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'openMore' }));
+              postToHost({ type: 'openMore' });
             } catch (err) {}
           });
         }
@@ -332,37 +376,44 @@ export default function QuillInlineEditor({
     return h;
   }, [colors, isDarkMode, placeholder]);
 
+  const injectInitialHtml = () => {
+    try {
+      sendToEditor({ type: 'setHTML', html: initialHtml || '' });
+    } catch {}
+  };
+
   return (
     <View style={[styles.container, { minHeight }]}>
-      <WebView
-        ref={(r) => { webviewRef.current = r; }}
-        originWhitelist={['*']}
-        source={{ html }}
-        onLoadEnd={() => {
-          try {
-            const payload = JSON.stringify({ type: 'setHTML', html: initialHtml || '' })
-              .replace(/\\\\/g, '\\\\\\\\')
-              .replace(/\u2028|\u2029/g, '');
-            webviewRef.current?.postMessage(payload);
-          } catch {}
-        }}
-        onMessage={(event) => {
-          try {
-            const data = JSON.parse(event.nativeEvent.data || '{}');
-            if (data.type === 'change') {
-              onChange?.((data.text || '').replace(/\\s+/g, ' ').trim(), data.html || '');
-            } else if (data.type === 'openMore') {
-              setShowMoreModal(true);
-            }
-          } catch {}
-        }}
-        style={{ backgroundColor: 'transparent', flex: 1, minHeight }}
-        scrollEnabled={true}
-        nestedScrollEnabled={true}
-        bounces={true}
-        showsVerticalScrollIndicator={true}
-        showsHorizontalScrollIndicator={false}
-      />
+      {isWeb ? (
+        // @ts-expect-error iframe nativo no web
+        <iframe
+          ref={iframeRef}
+          title="quill-editor"
+          srcDoc={html}
+          onLoad={injectInitialHtml}
+          style={{
+            border: 'none',
+            width: '100%',
+            height: minHeight,
+            background: 'transparent',
+            flex: 1,
+          }}
+        />
+      ) : (
+        <WebView
+          ref={(r) => { webviewRef.current = r; }}
+          originWhitelist={['*']}
+          source={{ html }}
+          onLoadEnd={injectInitialHtml}
+          onMessage={(event) => handleEditorMessage(event.nativeEvent.data || '')}
+          style={{ backgroundColor: 'transparent', flex: 1, minHeight }}
+          scrollEnabled={true}
+          nestedScrollEnabled={true}
+          bounces={true}
+          showsVerticalScrollIndicator={true}
+          showsHorizontalScrollIndicator={false}
+        />
+      )}
       <Modal
         visible={showMoreModal}
         transparent
@@ -379,7 +430,7 @@ export default function QuillInlineEditor({
                 value={textColor}
                 onChange={(c) => {
                   setTextColor(c);
-                  webviewRef.current?.postMessage(JSON.stringify({ type: 'format', key: 'color', value: c }));
+                  sendToEditor({ type: 'format', key: 'color', value: c });
                 }}
               />
               <View style={{ height: 8 }} />
@@ -389,7 +440,7 @@ export default function QuillInlineEditor({
                 value={backgroundColor}
                 onChange={(c) => {
                   setBackgroundColor(c);
-                  webviewRef.current?.postMessage(JSON.stringify({ type: 'format', key: 'background', value: c }));
+                  sendToEditor({ type: 'format', key: 'background', value: c });
                 }}
               />
               <Text style={[styles.sectionLabel, { color: colors.text }]}>Títulos</Text>
@@ -398,7 +449,7 @@ export default function QuillInlineEditor({
                   <TouchableOpacity
                     key={'hdr-'+String(opt.value)}
                     style={[styles.optionChip, { borderColor: colors.border }]}
-                    onPress={() => webviewRef.current?.postMessage(JSON.stringify({ type: 'header', value: opt.value }))}
+                    onPress={() => sendToEditor({ type: 'header', value: opt.value })}
                   >
                     <Text style={{ color: colors.text }}>{opt.label}</Text>
                   </TouchableOpacity>
@@ -410,7 +461,7 @@ export default function QuillInlineEditor({
                   <TouchableOpacity
                     key={'size-'+String(opt.value)}
                     style={[styles.optionChip, { borderColor: colors.border }]}
-                    onPress={() => webviewRef.current?.postMessage(JSON.stringify({ type: 'size', value: opt.value }))}
+                    onPress={() => sendToEditor({ type: 'size', value: opt.value })}
                   >
                     <Text style={{ color: colors.text }}>{opt.label}</Text>
                   </TouchableOpacity>
@@ -420,13 +471,13 @@ export default function QuillInlineEditor({
               <View style={styles.optionRow}>
                 <TouchableOpacity
                   style={[styles.optionChip, { borderColor: colors.border }]}
-                  onPress={() => webviewRef.current?.postMessage(JSON.stringify({ type: 'list', value: 'bullet' }))}
+                  onPress={() => sendToEditor({ type: 'list', value: 'bullet' })}
                 >
                   <Text style={{ color: colors.text }}>Marcadores</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.optionChip, { borderColor: colors.border }]}
-                  onPress={() => webviewRef.current?.postMessage(JSON.stringify({ type: 'list', value: 'ordered' }))}
+                  onPress={() => sendToEditor({ type: 'list', value: 'ordered' })}
                 >
                   <Text style={{ color: colors.text }}>Numerada</Text>
                 </TouchableOpacity>
@@ -437,7 +488,7 @@ export default function QuillInlineEditor({
                   <TouchableOpacity
                     key={'al-'+opt.label}
                     style={[styles.optionChip, { borderColor: colors.border }]}
-                    onPress={() => webviewRef.current?.postMessage(JSON.stringify({ type: 'align', value: opt.value }))}
+                    onPress={() => sendToEditor({ type: 'align', value: opt.value })}
                   >
                     <Text style={{ color: colors.text }}>{opt.label}</Text>
                   </TouchableOpacity>

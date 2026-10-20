@@ -9,6 +9,8 @@ import { NotoSans_400Regular, NotoSans_700Bold } from '@expo-google-fonts/noto-s
 import { View } from 'react-native';
 import { useEffect, useState } from 'react';
 import { localSyncService } from '../services/localSyncService';
+import { CloudSyncService } from '../services/cloudSyncService';
+import { AccountService } from '../services/accountService';
 
 function TabLayoutContent() {
   const { isDarkMode, colors } = useTheme();
@@ -17,6 +19,19 @@ function TabLayoutContent() {
     localSyncService.initialize().catch((error) => {
       console.error('Falha ao inicializar sync local:', error);
     });
+
+    let cancelled = false;
+    (async () => {
+      if (cancelled) return;
+      if (await AccountService.isLoggedIn()) {
+        CloudSyncService.startLiveSync();
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      CloudSyncService.stopLiveSync();
+    };
   }, []);
 
   return (
@@ -58,6 +73,12 @@ function TabLayoutContent() {
         }}
       />
       <Tabs.Screen
+        name="criar-nota"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
         name="configuracoes"
         options={{
           title: 'Configurações',
@@ -69,6 +90,12 @@ function TabLayoutContent() {
       />
       <Tabs.Screen
         name="seguranca"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="conta"
         options={{
           href: null,
         }}

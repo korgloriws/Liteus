@@ -32,7 +32,8 @@ jobs:
       uses: android-actions/setup-android@v3
     
     - name: Generate Android project
-      run: npx expo prebuild --platform android
+      # --clean garante que o plugin de widgets regenere o AndroidManifest/providers
+      run: npx expo prebuild --platform android --clean --non-interactive
 
     - name: Configure stable release signing
       run: |

@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Switch,
   ScrollView,
   Alert,
   Modal,
@@ -18,16 +17,38 @@ import { Lista, Nota } from '../types';
 import { StorageService } from '../services/storage';
 import { SyncService } from '../services/syncService';
 import { useTheme } from '../services/ThemeContext';
-import { getPlaceholderColor } from '../services/theme';
+import { getPlaceholderColor, type ThemePreference } from '../services/theme';
 import Constants from 'expo-constants';
 import { localSyncService } from '../services/localSyncService';
 
 
 const isDevelopment = __DEV__;
 
+const THEME_OPTIONS: {
+  value: ThemePreference;
+  label: string;
+  hint: string;
+  icon: keyof typeof MaterialIcons.glyphMap;
+}[] = [
+  { value: 'light', label: 'Claro', hint: 'Sempre claro', icon: 'light-mode' },
+  { value: 'dark', label: 'Escuro', hint: 'Sempre escuro', icon: 'dark-mode' },
+  {
+    value: 'schedule',
+    label: 'Por horário',
+    hint: 'Claro 6h–18h · Escuro 18h–6h',
+    icon: 'schedule',
+  },
+  {
+    value: 'system',
+    label: 'Sistema',
+    hint: 'Segue o tema do aparelho',
+    icon: 'phone-android',
+  },
+];
+
 export default function ConfiguracoesScreen() {
-  const { isDarkMode, setDarkMode, colors, typography } = useTheme();
-  const [versao] = useState('1.2.1');
+  const { isDarkMode, themePreference, setThemePreference, colors, typography } = useTheme();
+  const [versao] = useState('1.2.2');
   const [listas, setListas] = useState<Lista[]>([]);
   const [modalSincronizacao, setModalSincronizacao] = useState(false);
   const [dadosSincronizacao, setDadosSincronizacao] = useState('');
@@ -134,12 +155,6 @@ export default function ConfiguracoesScreen() {
 
   
 
-  const handleModoEscuroChange = async (novoModoEscuro: boolean) => {
-    await setDarkMode(novoModoEscuro);
-  };
-
-
-
   const limparDados = async () => {
     Alert.alert(
       'Limpar Dados',
@@ -200,19 +215,58 @@ export default function ConfiguracoesScreen() {
           shadowColor: colors.text,
         }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>Aparência</Text>
-          
-          <View style={styles.optionItem}>
+          <Text style={[styles.modalSubtitle, { color: colors.textSecondary, marginBottom: 4, paddingHorizontal: 4 }, typography.caption]}>
+            Tema atual: {isDarkMode ? 'escuro' : 'claro'}
+          </Text>
+
+          {THEME_OPTIONS.map((opt, index) => {
+            const selected = themePreference === opt.value;
+            const isLast = index === THEME_OPTIONS.length - 1;
+            return (
+              <TouchableOpacity
+                key={opt.value}
+                style={[styles.optionItem, isLast && { borderBottomWidth: 0 }]}
+                onPress={() => setThemePreference(opt.value)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.optionInfo}>
+                  <MaterialIcons name={opt.icon} size={24} color={colors.primary} />
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={[{ color: colors.text }, typography.body]}>{opt.label}</Text>
+                    <Text style={[{ color: colors.textSecondary, marginTop: 2 }, typography.caption]}>
+                      {opt.hint}
+                    </Text>
+                  </View>
+                </View>
+                <MaterialIcons
+                  name={selected ? 'radio-button-checked' : 'radio-button-unchecked'}
+                  size={22}
+                  color={selected ? colors.primary : colors.textSecondary}
+                />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Seção de Conta (nuvem) */}
+        <View style={[styles.section, { 
+          backgroundColor: colors.surface,
+          shadowColor: colors.text,
+        }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }, typography.titleMedium]}>Conta</Text>
+          <Text style={[styles.modalSubtitle, { color: colors.textSecondary, marginBottom: 8, paddingHorizontal: 4 }, typography.caption]}>
+            Login na nuvem para sync entre aparelhos. A digital/PIN continua só neste dispositivo.
+          </Text>
+          <TouchableOpacity 
+            style={styles.optionItem} 
+            onPress={() => router.push('/conta')}
+          >
             <View style={styles.optionInfo}>
-              <MaterialIcons name="dark-mode" size={24} color={colors.primary} />
-              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>Modo Escuro</Text>
+              <MaterialIcons name="cloud" size={24} color={colors.primary} />
+              <Text style={[styles.optionText, { color: colors.text }, typography.body]}>Conta e servidor</Text>
             </View>
-            <Switch
-              value={isDarkMode}
-              onValueChange={handleModoEscuroChange}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={colors.white}
-            />
-          </View>
+            <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
+          </TouchableOpacity>
         </View>
 
         {/* Seção de Segurança */}
