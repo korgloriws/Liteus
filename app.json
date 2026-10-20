@@ -2,7 +2,7 @@
   "expo": {
     "name": "Liteus",
     "slug": "liteus",
-    "version": "1.2.2",
+    "version": "1.2.3",
     "orientation": "portrait",
     "icon": "./assets/iconLiteus.png",
     "userInterfaceStyle": "automatic",
@@ -19,7 +19,8 @@
     },
     "android": {
       "package": "com.liteus.app",
-      "versionCode": 12,
+      "versionCode": 13,
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/iconeLiteus.png",
         "backgroundColor": "#2f4366"
@@ -28,6 +29,7 @@
       "edgeToEdgeEnabled": true,
       "roundIcon": "./assets/iconeLiteus.png",
       "permissions": [
+        "android.permission.INTERNET",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.USE_BIOMETRIC",

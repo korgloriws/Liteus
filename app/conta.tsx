@@ -13,7 +13,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useTheme } from '../services/ThemeContext';
 import { getPlaceholderColor } from '../services/theme';
-import { AccountService, AccountUser } from '../services/accountService';
+import { AccountService, AccountUser, DEFAULT_API_URL } from '../services/accountService';
 import { CloudSyncService } from '../services/cloudSyncService';
 
 export default function ContaScreen() {
@@ -21,7 +21,7 @@ export default function ContaScreen() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [user, setUser] = useState<AccountUser | null>(null);
-  const [apiUrl, setApiUrl] = useState('http://localhost:4010');
+  const [apiUrl, setApiUrl] = useState(DEFAULT_API_URL);
   const [apiOk, setApiOk] = useState<boolean | null>(null);
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
@@ -253,7 +253,7 @@ export default function ContaScreen() {
             Servidor (VPS)
           </Text>
           <Text style={[styles.hint, { color: colors.textSecondary }, typography.caption]}>
-            URL da API Liteus. Ex.: http://SEU_IP:3001
+            URL da API Liteus (VPS). Ex.: {DEFAULT_API_URL}
           </Text>
           <TextInput
             style={[
@@ -264,7 +264,7 @@ export default function ContaScreen() {
             onChangeText={setApiUrl}
             autoCapitalize="none"
             autoCorrect={false}
-            placeholder="http://localhost:3001"
+            placeholder={DEFAULT_API_URL}
             placeholderTextColor={getPlaceholderColor(isDarkMode)}
           />
           <View style={styles.rowBetween}>

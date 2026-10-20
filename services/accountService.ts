@@ -4,6 +4,9 @@ const API_URL_KEY = '@liteus_api_url';
 const TOKEN_KEY = '@liteus_account_token';
 const USER_KEY = '@liteus_account_user';
 
+/** API de produção (VPS). Em Conta dá para trocar se precisar. */
+export const DEFAULT_API_URL = 'http://31.97.167.75:4010';
+
 export type AccountUser = {
   id: string;
   email: string;
@@ -19,7 +22,7 @@ type AuthResponse = {
 export class AccountService {
   static async getApiUrl(): Promise<string> {
     const saved = await AsyncStorage.getItem(API_URL_KEY);
-    return (saved || 'http://localhost:4010').replace(/\/$/, '');
+    return (saved || DEFAULT_API_URL).replace(/\/$/, '');
   }
 
   static async setApiUrl(url: string): Promise<void> {

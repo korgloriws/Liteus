@@ -48,7 +48,7 @@ const THEME_OPTIONS: {
 
 export default function ConfiguracoesScreen() {
   const { isDarkMode, themePreference, setThemePreference, colors, typography } = useTheme();
-  const [versao] = useState('1.2.2');
+  const [versao] = useState('1.2.3');
   const [listas, setListas] = useState<Lista[]>([]);
   const [modalSincronizacao, setModalSincronizacao] = useState(false);
   const [dadosSincronizacao, setDadosSincronizacao] = useState('');
