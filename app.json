@@ -2,7 +2,7 @@
   "expo": {
     "name": "Liteus",
     "slug": "liteus",
-    "version": "1.2.3",
+    "version": "1.2.4",
     "orientation": "portrait",
     "icon": "./assets/iconLiteus.png",
     "userInterfaceStyle": "automatic",
@@ -19,7 +19,7 @@
     },
     "android": {
       "package": "com.liteus.app",
-      "versionCode": 13,
+      "versionCode": 14,
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/iconeLiteus.png",
@@ -74,7 +74,16 @@
             }
           ]
         }
-      ]
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      "./plugins/withCleartextTraffic.js"
     ],
     "extra": {
       "router": {},

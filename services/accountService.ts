@@ -22,12 +22,16 @@ type AuthResponse = {
 export class AccountService {
   static async getApiUrl(): Promise<string> {
     const saved = await AsyncStorage.getItem(API_URL_KEY);
-    return (saved || DEFAULT_API_URL).replace(/\/$/, '');
+    // Instalação antiga / debug pode ter guardado localhost — ignora em produção
+    if (!saved || /localhost|127\.0\.0\.1/i.test(saved)) {
+      return DEFAULT_API_URL;
+    }
+    return saved.replace(/\/$/, '');
   }
 
   static async setApiUrl(url: string): Promise<void> {
     const clean = url.trim().replace(/\/$/, '');
-    await AsyncStorage.setItem(API_URL_KEY, clean);
+    await AsyncStorage.setItem(API_URL_KEY, clean || DEFAULT_API_URL);
   }
 
   static async getToken(): Promise<string | null> {
@@ -90,8 +94,12 @@ export class AccountService {
         ...options,
         headers,
       });
-    } catch {
-      throw new Error('Não foi possível conectar à API. Verifique a URL e a rede.');
+    } catch (err: any) {
+      throw new Error(
+        `Não foi possível conectar à API (${base}). ` +
+          `Confira a URL em Conta e se o celular tem internet. ` +
+          `${err?.message || ''}`.trim()
+      );
     }
 
     const data = await response.json().catch(() => ({}));
