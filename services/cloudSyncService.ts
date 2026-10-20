@@ -2,6 +2,11 @@ import { AppState, AppStateStatus } from 'react-native';
 import { Lista, Nota, GlobalTag } from '../types';
 import { AccountService } from './accountService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  mergeListasLww,
+  mergeNotasLww,
+  mergeTagsLww,
+} from './syncMerge';
 
 const LISTAS_KEY = '@liteus_listas';
 const NOTAS_KEY = '@liteus_notas';
@@ -11,13 +16,13 @@ const PULL_INTERVAL_MS = 15000;
 type SyncListeners = Set<() => void>;
 
 /**
- * Sync com o Postgres (quando logado).
- * - Mudanças locais marcam dirty e fazem push
- * - Pull só aplica se NÃO houver mudanças locais pendentes (evita reverter import/criação)
+ * Sincronização bidirecional (app ↔ admin/Postgres).
+ * Regra: last-write-wins por entidade (timestamp mais recente vence).
+ * Ciclo: GET remoto → mescla com local → grava local → POST mesclado.
  */
 export class CloudSyncService {
   private static syncing = false;
-  private static pendingPush = false;
+  private static pendingSync = false;
   private static timer: ReturnType<typeof setTimeout> | null = null;
   private static pauseDepth = 0;
   private static dirty = false;
@@ -38,6 +43,10 @@ export class CloudSyncService {
     });
   }
 
+  static emitDataChanged(): void {
+    this.notify();
+  }
+
   static async isEnabled(): Promise<boolean> {
     return AccountService.isLoggedIn();
   }
@@ -50,7 +59,6 @@ export class CloudSyncService {
     return this.dirty;
   }
 
-  /** Marca que o local está à frente do servidor — pull não pode sobrescrever. */
   static markDirty(): void {
     this.dirty = true;
   }
@@ -67,9 +75,6 @@ export class CloudSyncService {
     this.pauseDepth = Math.max(0, this.pauseDepth - 1);
   }
 
-  /**
-   * Import / operação em massa: para o polling e impede pull até o push.
-   */
   static beginBulkLocalWrite(): void {
     this.stopLiveSync();
     this.pause();
@@ -80,12 +85,8 @@ export class CloudSyncService {
     }
   }
 
-  static endBulkLocalWrite(pushedOk: boolean): void {
-    if (pushedOk) {
-      this.dirty = false;
-    } else {
-      this.dirty = true;
-    }
+  static endBulkLocalWrite(syncedOk: boolean): void {
+    this.dirty = !syncedOk;
     this.resume();
     this.isEnabled().then((ok) => {
       if (ok) this.startLiveSync();
@@ -97,66 +98,138 @@ export class CloudSyncService {
     if (this.isPaused()) return;
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => {
-      this.pushLocalSnapshot().catch((err) => {
-        console.log('Cloud push falhou:', err?.message || err);
+      this.reconcile().catch((err) => {
+        console.log('Cloud sync falhou:', err?.message || err);
       });
     }, delayMs);
   }
 
-  /** Sobe snapshot local para o servidor */
+  private static async readLocal(): Promise<{
+    listas: Lista[];
+    notas: Nota[];
+    tags: GlobalTag[];
+  }> {
+    const [listasRaw, notasRaw, tagsRaw] = await Promise.all([
+      AsyncStorage.getItem(LISTAS_KEY),
+      AsyncStorage.getItem(NOTAS_KEY),
+      AsyncStorage.getItem(TAGS_KEY),
+    ]);
+    return {
+      listas: listasRaw ? JSON.parse(listasRaw) : [],
+      notas: notasRaw ? JSON.parse(notasRaw) : [],
+      tags: tagsRaw ? JSON.parse(tagsRaw) : [],
+    };
+  }
+
+  private static async writeLocal(data: {
+    listas: Lista[];
+    notas: Nota[];
+    tags: GlobalTag[];
+  }): Promise<void> {
+    await AsyncStorage.multiSet([
+      [LISTAS_KEY, JSON.stringify(data.listas)],
+      [NOTAS_KEY, JSON.stringify(data.notas)],
+      [TAGS_KEY, JSON.stringify(data.tags)],
+    ]);
+  }
+
+  private static async postSnapshot(data: {
+    listas: Lista[];
+    notas: Nota[];
+    tags: GlobalTag[];
+  }) {
+    return AccountService.authRequest<{
+      ok: boolean;
+      counts: { tags: number; listas: number; notas: number; itens: number };
+    }>('/sync/full', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * Reconcilia app e servidor: mescla LWW e publica o resultado nos dois lados.
+   */
+  static async reconcile(): Promise<{
+    ok: boolean;
+    skipped?: boolean;
+    counts?: any;
+    error?: string;
+    merged?: boolean;
+  }> {
+    if (!(await this.isEnabled())) {
+      return { ok: false, skipped: true };
+    }
+    if (this.isPaused()) {
+      return { ok: false, skipped: true };
+    }
+    if (this.syncing) {
+      this.pendingSync = true;
+      return { ok: false, skipped: true };
+    }
+
+    this.syncing = true;
+    try {
+      const remote = await AccountService.authRequest<{
+        ok: boolean;
+        listas: Lista[];
+        notas: Nota[];
+        tags: GlobalTag[];
+      }>('/sync/full', { method: 'GET' });
+
+      if (this.isPaused()) {
+        return { ok: false, skipped: true };
+      }
+
+      const local = await this.readLocal();
+      const merged = {
+        listas: mergeListasLww(local.listas, remote.listas || []),
+        notas: mergeNotasLww(local.notas, remote.notas || []),
+        tags: mergeTagsLww(local.tags, remote.tags || []),
+      };
+
+      const localJson = JSON.stringify(local);
+      const mergedJson = JSON.stringify(merged);
+      const localChanged = localJson !== mergedJson;
+
+      if (localChanged) {
+        await this.writeLocal(merged);
+        this.notify();
+      }
+
+      const posted = await this.postSnapshot(merged);
+      this.dirty = false;
+
+      return {
+        ok: true,
+        counts: posted.counts,
+        merged: localChanged,
+      };
+    } catch (error: any) {
+      console.log('Cloud reconcile falhou:', error?.message || error);
+      this.dirty = true;
+      return { ok: false, error: error?.message || 'Falha na sincronização' };
+    } finally {
+      this.syncing = false;
+      if (this.pendingSync) {
+        this.pendingSync = false;
+        if (!this.isPaused()) {
+          this.schedulePush(400);
+        }
+      }
+    }
+  }
+
+  /** @deprecated use reconcile — mantido para chamadas antigas */
   static async pushLocalSnapshot(): Promise<{
     ok: boolean;
     skipped?: boolean;
     counts?: any;
     error?: string;
   }> {
-    if (!(await this.isEnabled())) {
-      return { ok: false, skipped: true };
-    }
-
-    if (this.syncing) {
-      this.pendingPush = true;
-      return { ok: false, skipped: true };
-    }
-
-    this.syncing = true;
-    try {
-      const [listasRaw, notasRaw, tagsRaw] = await Promise.all([
-        AsyncStorage.getItem(LISTAS_KEY),
-        AsyncStorage.getItem(NOTAS_KEY),
-        AsyncStorage.getItem(TAGS_KEY),
-      ]);
-
-      const listas: Lista[] = listasRaw ? JSON.parse(listasRaw) : [];
-      const notas: Nota[] = notasRaw ? JSON.parse(notasRaw) : [];
-      const tags: GlobalTag[] = tagsRaw ? JSON.parse(tagsRaw) : [];
-
-      const data = await AccountService.authRequest<{
-        ok: boolean;
-        counts: { tags: number; listas: number; notas: number; itens: number };
-      }>('/sync/full', {
-        method: 'POST',
-        body: JSON.stringify({ listas, notas, tags }),
-      });
-
-      this.dirty = false;
-      return { ok: true, counts: data.counts };
-    } catch (error: any) {
-      console.log('Cloud push falhou:', error?.message || error);
-      this.dirty = true;
-      return { ok: false, error: error?.message || 'Falha no push' };
-    } finally {
-      this.syncing = false;
-      if (this.pendingPush) {
-        this.pendingPush = false;
-        if (!this.isPaused()) {
-          this.schedulePush(300);
-        }
-      }
-    }
+    return this.reconcile();
   }
 
-  /** Push com algumas tentativas (import grande / rede instável). */
   static async pushLocalSnapshotWithRetry(
     attempts = 3
   ): Promise<{ ok: boolean; skipped?: boolean; counts?: any; error?: string }> {
@@ -165,72 +238,29 @@ export class CloudSyncService {
       error: 'Sem tentativas',
     };
     for (let i = 0; i < attempts; i++) {
-      last = await this.pushLocalSnapshot();
+      last = await this.reconcile();
       if (last.ok || last.skipped) return last;
       await new Promise((r) => setTimeout(r, 800 * (i + 1)));
     }
     return last;
   }
 
-  /**
-   * Baixa snapshot do servidor e substitui o cache local.
-   * Nunca aplica se houver mudanças locais ainda não enviadas.
-   */
+  /** @deprecated use reconcile */
   static async pullRemoteSnapshot(): Promise<{
     ok: boolean;
     skipped?: boolean;
     counts?: any;
     error?: string;
   }> {
-    if (!(await this.isEnabled())) {
-      return { ok: false, skipped: true };
-    }
-    if (this.syncing || this.isPaused() || this.dirty) {
-      return { ok: false, skipped: true };
-    }
-
-    this.syncing = true;
-    try {
-      const data = await AccountService.authRequest<{
-        ok: boolean;
-        listas: Lista[];
-        notas: Nota[];
-        tags: GlobalTag[];
-        counts: { tags: number; listas: number; notas: number; itens: number };
-      }>('/sync/full', { method: 'GET' });
-
-      // Re-checa dirty: local pode ter mudado durante o GET
-      if (this.dirty || this.isPaused()) {
-        return { ok: false, skipped: true };
-      }
-
-      await AsyncStorage.multiSet([
-        [LISTAS_KEY, JSON.stringify(data.listas || [])],
-        [NOTAS_KEY, JSON.stringify(data.notas || [])],
-        [TAGS_KEY, JSON.stringify(data.tags || [])],
-      ]);
-
-      this.notify();
-      return { ok: true, counts: data.counts };
-    } catch (error: any) {
-      console.log('Cloud pull falhou:', error?.message || error);
-      return { ok: false, error: error?.message || 'Falha no pull' };
-    } finally {
-      this.syncing = false;
-    }
+    return this.reconcile();
   }
 
-  /** Login: sobe dados locais e depois alinha com o servidor */
   static async syncAfterLogin(): Promise<void> {
     this.markDirty();
     await this.pushLocalSnapshotWithRetry(3);
-    if (!this.dirty) {
-      await this.pullRemoteSnapshot();
-    }
     this.startLiveSync();
   }
 
-  /** Ciclo contínuo: prioriza push de mudanças locais; só então puxa o servidor */
   static startLiveSync(): void {
     this.stopLiveSync();
 
@@ -241,13 +271,7 @@ export class CloudSyncService {
       }
       if (AppState.currentState !== 'active') return;
       if (this.isPaused()) return;
-
-      if (this.dirty) {
-        await this.pushLocalSnapshot();
-      }
-      if (!this.dirty) {
-        await this.pullRemoteSnapshot();
-      }
+      await this.reconcile();
     };
 
     this.liveTimer = setInterval(() => {

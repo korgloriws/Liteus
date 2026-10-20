@@ -20,6 +20,7 @@ import { useTheme } from '../services/ThemeContext';
 import { getPlaceholderColor, type ThemePreference } from '../services/theme';
 import Constants from 'expo-constants';
 import { localSyncService } from '../services/localSyncService';
+import { CloudSyncService } from '../services/cloudSyncService';
 
 
 const isDevelopment = __DEV__;
@@ -48,7 +49,7 @@ const THEME_OPTIONS: {
 
 export default function ConfiguracoesScreen() {
   const { isDarkMode, themePreference, setThemePreference, colors, typography } = useTheme();
-  const [versao] = useState('1.2.4');
+  const [versao] = useState('1.2.5');
   const [listas, setListas] = useState<Lista[]>([]);
   const [modalSincronizacao, setModalSincronizacao] = useState(false);
   const [dadosSincronizacao, setDadosSincronizacao] = useState('');
@@ -133,8 +134,9 @@ export default function ConfiguracoesScreen() {
     try {
       const result = await localSyncService.importData();
       if (result.success) {
+        await carregarListas();
+        CloudSyncService.emitDataChanged();
         Alert.alert('Sucesso', result.message);
-        await carregarListas(); 
       } else {
         Alert.alert('Erro', result.message);
       }

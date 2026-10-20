@@ -6,6 +6,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Lista, Item, Categoria, Nota, GlobalTag } from '../types';
 import { StorageService } from './storage';
 import { CloudSyncService } from './cloudSyncService';
+import { bumpSyncTimestamps } from './syncMerge';
 
 const isWeb = Platform.OS === 'web';
 
@@ -543,11 +544,10 @@ class LocalSyncService {
     }
   }
 
-  /** Mescla payload SyncData no armazenamento local (last-write-wins por nome/id). */
+  /** Mescla payload SyncData no armazenamento local e sincroniza com a nuvem (LWW). */
   async importFromSyncData(
     syncData: SyncData
   ): Promise<{ success: boolean; message: string; imported: number }> {
-    // Para o polling e impede o pull de apagar o import antes do push
     CloudSyncService.beginBulkLocalWrite();
     try {
       if (!syncData.lists || !Array.isArray(syncData.lists)) {
@@ -555,169 +555,169 @@ class LocalSyncService {
         return { success: false, message: 'Formato de arquivo inválido', imported: 0 };
       }
 
-      const listasExistentes = await StorageService.carregarListas();
-      let imported = 0;
       const conflitos: string[] = [];
+      let imported = 0;
       let tagsImportadas = 0;
+      let notasAtualizadas = 0;
+      let notasCriadas = 0;
 
-      const tagsDoArquivo = this.collectTagsFromImportPayload(syncData);
-      if (tagsDoArquivo.length > 0) {
-        const atuais = await StorageService.carregarTags();
-        const map = new Map(atuais.map((t) => [t.id, t]));
+      const listasExistentes = await StorageService.carregarListas();
+      const notasExistentes = await StorageService.carregarNotas();
+      const tagsExistentes = await StorageService.carregarTags();
 
-        for (const tag of tagsDoArquivo) {
-          const existing = map.get(tag.id);
-          if (!existing) {
-            map.set(tag.id, {
-              ...tag,
-              listIds: Array.isArray(tag.listIds) ? tag.listIds : [],
-              updatedAt: tag.updatedAt || new Date().toISOString(),
-              createdAt: tag.createdAt || new Date().toISOString(),
-            });
-            tagsImportadas++;
-          } else {
-            map.set(tag.id, {
-              ...existing,
-              nome: tag.nome || existing.nome,
-              cor: tag.cor || existing.cor,
-              listIds: Array.from(
-                new Set([...(existing.listIds || []), ...(tag.listIds || [])])
-              ),
-              updatedAt: new Date().toISOString(),
-            });
-          }
+      const tagsMap = new Map(tagsExistentes.map((t) => [String(t.id), t]));
+      for (const tag of this.collectTagsFromImportPayload(syncData)) {
+        const id = String(tag.id);
+        const existing = tagsMap.get(id);
+        if (!existing) {
+          tagsMap.set(id, {
+            ...tag,
+            id,
+            listIds: Array.isArray(tag.listIds) ? tag.listIds.map(String) : [],
+            createdAt: tag.createdAt || new Date().toISOString(),
+            updatedAt: tag.updatedAt || new Date().toISOString(),
+          });
+          tagsImportadas++;
+        } else {
+          tagsMap.set(id, {
+            ...existing,
+            nome: tag.nome || existing.nome,
+            cor: tag.cor || existing.cor,
+            listIds: Array.from(
+              new Set([
+                ...(existing.listIds || []).map(String),
+                ...(Array.isArray(tag.listIds) ? tag.listIds.map(String) : []),
+              ])
+            ),
+          });
         }
-
-        await StorageService.salvarTags(Array.from(map.values()));
       }
 
+      const listasMap = new Map(listasExistentes.map((l) => [String(l.id), { ...l }]));
+      const listasByNome = new Map(
+        listasExistentes.map((l) => [(l.nome || '').trim().toLowerCase(), String(l.id)])
+      );
+
       for (const lista of syncData.lists) {
-        const listaExistente = listasExistentes.find((l) => l.nome === lista.nome);
         const categorias = Array.isArray(lista.categorias) ? lista.categorias : [];
         const tagIds =
           Array.isArray(lista.tagIds) && lista.tagIds.length > 0
-            ? lista.tagIds
-            : categorias.map((c) => c.id);
+            ? lista.tagIds.map(String)
+            : categorias.map((c) => String(c.id));
 
-        const payloadLista: Lista = {
+        const nomeKey = (lista.nome || '').trim().toLowerCase();
+        const existingId =
+          (lista.id && listasMap.has(String(lista.id)) && String(lista.id)) ||
+          listasByNome.get(nomeKey);
+
+        const payload: Lista = {
           ...lista,
+          id: existingId || String(lista.id || `lista_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`),
           categorias,
           tagIds,
           itens: Array.isArray(lista.itens) ? lista.itens : [],
+          dataCriacao: lista.dataCriacao || Date.now(),
+          dataModificacao: Date.now(),
         };
 
-        if (listaExistente) {
-          await StorageService.atualizarLista(listaExistente.id, {
-            ...payloadLista,
-            id: listaExistente.id,
+        if (existingId) {
+          const prev = listasMap.get(existingId)!;
+          listasMap.set(existingId, {
+            ...prev,
+            ...payload,
+            id: existingId,
           });
-          conflitos.push(`Lista "${lista.nome}" foi atualizada`);
+          conflitos.push(`Lista "${lista.nome}" atualizada`);
         } else {
-          await StorageService.criarLista(payloadLista);
+          listasMap.set(String(payload.id), payload);
+          listasByNome.set(nomeKey, String(payload.id));
           imported++;
         }
       }
 
-      if (Array.isArray(syncData.notes)) {
-        const notasAtuais = await StorageService.carregarNotas();
-        const matchedLocalIds = new Set<string>();
-        let notasAtualizadas = 0;
-        let notasCriadas = 0;
+      const notasMap = new Map(notasExistentes.map((n) => [String(n.id), { ...n }]));
+      const matchedLocalIds = new Set<string>();
 
-        for (const nota of syncData.notes) {
-          const tituloNorm = (nota.titulo || '').trim().toLowerCase();
-          const byId = notasAtuais.find(
-            (n) => n.id === nota.id && !matchedLocalIds.has(n.id)
-          );
-          const byTitulo = !byId
-            ? notasAtuais.find(
-                (n) =>
-                  (n.titulo || '').trim().toLowerCase() === tituloNorm &&
-                  tituloNorm.length > 0 &&
-                  !matchedLocalIds.has(n.id)
-              )
+      for (const nota of syncData.notes || []) {
+        const tituloNorm = (nota.titulo || '').trim().toLowerCase();
+        const byId =
+          nota.id && !matchedLocalIds.has(String(nota.id))
+            ? notasMap.get(String(nota.id))
             : undefined;
+        const byTitulo = !byId
+          ? Array.from(notasMap.values()).find(
+              (n) =>
+                (n.titulo || '').trim().toLowerCase() === tituloNorm &&
+                tituloNorm.length > 0 &&
+                !matchedLocalIds.has(String(n.id))
+            )
+          : undefined;
+        const existente = byId || byTitulo;
 
-          const existente = byId || byTitulo;
-
-          if (existente) {
-            matchedLocalIds.add(existente.id);
-            await StorageService.atualizarNota(existente.id, {
-              titulo: nota.titulo,
-              conteudo: nota.conteudo,
-              html: nota.html,
-              cor: nota.cor,
-              tags: nota.tags,
-              textoFormatado: nota.textoFormatado,
-            });
-            const idx = notasAtuais.findIndex((n) => n.id === existente.id);
-            if (idx >= 0) {
-              notasAtuais[idx] = {
-                ...notasAtuais[idx],
-                titulo: nota.titulo,
-                conteudo: nota.conteudo,
-                html: nota.html,
-                cor: nota.cor,
-                tags: nota.tags,
-                textoFormatado: nota.textoFormatado,
-              };
-            }
-            notasAtualizadas++;
-          } else {
-            const novaId = String(
-              nota.id || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-            );
-            await StorageService.criarNota({
-              ...nota,
-              id: novaId,
-              titulo: nota.titulo || '',
-              conteudo: nota.conteudo || '',
-              createdAt: nota.createdAt || new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            });
-            matchedLocalIds.add(novaId);
-            notasAtuais.push({
-              ...nota,
-              id: novaId,
-              titulo: nota.titulo || '',
-              conteudo: nota.conteudo || '',
-              createdAt: nota.createdAt || new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            });
-            notasCriadas++;
-          }
-        }
-
-        if (notasAtualizadas > 0 || notasCriadas > 0) {
-          conflitos.push(
-            `${notasAtualizadas} notas atualizadas, ${notasCriadas} notas criadas`
+        if (existente) {
+          matchedLocalIds.add(String(existente.id));
+          notasMap.set(String(existente.id), {
+            ...existente,
+            titulo: nota.titulo,
+            conteudo: nota.conteudo,
+            html: nota.html,
+            cor: nota.cor,
+            tags: nota.tags,
+            textoFormatado: nota.textoFormatado,
+            updatedAt: new Date().toISOString(),
+          });
+          notasAtualizadas++;
+        } else {
+          const novaId = String(
+            nota.id || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
           );
+          matchedLocalIds.add(novaId);
+          notasMap.set(novaId, {
+            ...nota,
+            id: novaId,
+            titulo: nota.titulo || '',
+            conteudo: nota.conteudo || '',
+            createdAt: nota.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+          notasCriadas++;
         }
       }
 
-      if (tagsImportadas > 0) {
-        conflitos.push(`${tagsImportadas} tags globais criadas`);
-      }
+      // Backup antigo: bump timestamps para vencer LWW no servidor
+      const bumped = bumpSyncTimestamps({
+        listas: Array.from(listasMap.values()),
+        notas: Array.from(notasMap.values()),
+        tags: Array.from(tagsMap.values()),
+      });
 
+      await StorageService.salvarTags(bumped.tags);
+      await StorageService.salvarListas(bumped.listas);
+      await StorageService.salvarNotas(bumped.notas);
       await AsyncStorage.setItem('@liteus_last_import', new Date().toISOString());
 
-      // Um único push completo (com retry) — só libera o pull se o servidor aceitou
-      const cloud = await CloudSyncService.pushLocalSnapshotWithRetry(3);
-      if (cloud.ok && cloud.counts) {
-        conflitos.push(
-          `nuvem: ${cloud.counts.listas} listas, ${cloud.counts.itens} itens, ${cloud.counts.notas} notas`
-        );
-      } else if (cloud.error) {
-        conflitos.push(
-          `nuvem: falhou (${cloud.error}) — dados ficaram neste aparelho; o sync tentará de novo`
-        );
+      if (tagsImportadas > 0) conflitos.push(`${tagsImportadas} tags criadas`);
+      if (notasAtualizadas > 0 || notasCriadas > 0) {
+        conflitos.push(`${notasAtualizadas} notas atualizadas, ${notasCriadas} notas criadas`);
       }
 
-      CloudSyncService.endBulkLocalWrite(Boolean(cloud.ok));
+      // Atualiza a UI na hora; nuvem em background (não trava o import)
+      CloudSyncService.emitDataChanged();
+
+      CloudSyncService.pushLocalSnapshotWithRetry(3)
+        .then((cloud) => {
+          CloudSyncService.endBulkLocalWrite(Boolean(cloud.ok));
+          if (cloud.ok) {
+            CloudSyncService.emitDataChanged();
+          }
+        })
+        .catch(() => {
+          CloudSyncService.endBulkLocalWrite(false);
+        });
 
       return {
         success: true,
-        message: `Importação concluída! ${imported} listas importadas. ${conflitos.join(' | ')}`,
+        message: `Importação concluída! ${imported} listas novas. ${conflitos.join(' | ')} Sync com a nuvem em andamento.`,
         imported,
       };
     } catch (error) {
@@ -765,8 +765,9 @@ class LocalSyncService {
       }
 
       const result = await DocumentPicker.getDocumentAsync({
-        type: 'application/json',
-        copyToCacheDirectory: true
+        // Android às vezes não marca .json como application/json
+        type: ['application/json', 'text/*', '*/*'],
+        copyToCacheDirectory: true,
       });
 
       if (result.canceled || !result.assets || result.assets.length === 0) {

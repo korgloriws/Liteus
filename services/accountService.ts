@@ -89,17 +89,26 @@ export class AccountService {
     }
 
     let response: Response;
+    const controller = new AbortController();
+    const timeoutMs = path.includes('/sync/') ? 120000 : 30000;
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
       response = await fetch(`${base}${path}`, {
         ...options,
         headers,
+        signal: controller.signal,
       });
     } catch (err: any) {
+      const aborted = err?.name === 'AbortError';
       throw new Error(
-        `Não foi possível conectar à API (${base}). ` +
-          `Confira a URL em Conta e se o celular tem internet. ` +
-          `${err?.message || ''}`.trim()
+        aborted
+          ? `Tempo esgotado ao falar com a API (${base}${path}).`
+          : `Não foi possível conectar à API (${base}). ` +
+              `Confira a URL em Conta e se o celular tem internet. ` +
+              `${err?.message || ''}`.trim()
       );
+    } finally {
+      clearTimeout(timeoutId);
     }
 
     const data = await response.json().catch(() => ({}));
