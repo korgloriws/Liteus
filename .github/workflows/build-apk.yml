@@ -29,7 +29,10 @@ jobs:
         java-version: '17'
     
     - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+      uses: android-actions/setup-android@v4
+      with:
+        # Google removeu o pacote legado "tools"; sem isso o setup falha antes do Gradle
+        packages: platform-tools
     
     - name: Generate Android project
       # --clean garante que o plugin de widgets regenere o AndroidManifest/providers
