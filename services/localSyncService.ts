@@ -7,6 +7,7 @@ import { Lista, Item, Categoria, Nota, GlobalTag } from '../types';
 import { StorageService } from './storage';
 import { CloudSyncService } from './cloudSyncService';
 import { bumpSyncTimestamps } from './syncMerge';
+import { TombstoneStore } from './tombstones';
 
 const isWeb = Platform.OS === 'web';
 
@@ -694,6 +695,12 @@ class LocalSyncService {
       await StorageService.salvarTags(bumped.tags);
       await StorageService.salvarListas(bumped.listas);
       await StorageService.salvarNotas(bumped.notas);
+      await TombstoneStore.forgetMany({
+        listas: bumped.listas.map((l) => String(l.id)),
+        notas: bumped.notas.map((n) => String(n.id)),
+        tags: bumped.tags.map((t) => String(t.id)),
+        itens: bumped.listas.flatMap((l) => (l.itens || []).map((i) => String(i.id))),
+      });
       await AsyncStorage.setItem('@liteus_last_import', new Date().toISOString());
 
       if (tagsImportadas > 0) conflitos.push(`${tagsImportadas} tags criadas`);

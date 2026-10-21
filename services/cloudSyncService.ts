@@ -7,6 +7,13 @@ import {
   mergeNotasLww,
   mergeTagsLww,
 } from './syncMerge';
+import {
+  TombstoneStore,
+  emptyTombstones,
+  mergeTombstoneSets,
+  normalizeTombstones,
+  type TombstoneSet,
+} from './tombstones';
 
 const LISTAS_KEY = '@liteus_listas';
 const NOTAS_KEY = '@liteus_notas';
@@ -108,16 +115,19 @@ export class CloudSyncService {
     listas: Lista[];
     notas: Nota[];
     tags: GlobalTag[];
+    tombstones: TombstoneSet;
   }> {
-    const [listasRaw, notasRaw, tagsRaw] = await Promise.all([
+    const [listasRaw, notasRaw, tagsRaw, tombstones] = await Promise.all([
       AsyncStorage.getItem(LISTAS_KEY),
       AsyncStorage.getItem(NOTAS_KEY),
       AsyncStorage.getItem(TAGS_KEY),
+      TombstoneStore.load(),
     ]);
     return {
       listas: listasRaw ? JSON.parse(listasRaw) : [],
       notas: notasRaw ? JSON.parse(notasRaw) : [],
       tags: tagsRaw ? JSON.parse(tagsRaw) : [],
+      tombstones,
     };
   }
 
@@ -125,18 +135,21 @@ export class CloudSyncService {
     listas: Lista[];
     notas: Nota[];
     tags: GlobalTag[];
+    tombstones: TombstoneSet;
   }): Promise<void> {
     await AsyncStorage.multiSet([
       [LISTAS_KEY, JSON.stringify(data.listas)],
       [NOTAS_KEY, JSON.stringify(data.notas)],
       [TAGS_KEY, JSON.stringify(data.tags)],
     ]);
+    await TombstoneStore.save(data.tombstones);
   }
 
   private static async postSnapshot(data: {
     listas: Lista[];
     notas: Nota[];
     tags: GlobalTag[];
+    tombstones: TombstoneSet;
   }) {
     return AccountService.authRequest<{
       ok: boolean;
@@ -175,6 +188,7 @@ export class CloudSyncService {
         listas: Lista[];
         notas: Nota[];
         tags: GlobalTag[];
+        tombstones?: TombstoneSet;
       }>('/sync/full', { method: 'GET' });
 
       if (this.isPaused()) {
@@ -182,14 +196,27 @@ export class CloudSyncService {
       }
 
       const local = await this.readLocal();
+      const tombstones = mergeTombstoneSets(
+        local.tombstones,
+        normalizeTombstones(remote.tombstones || emptyTombstones())
+      );
       const merged = {
-        listas: mergeListasLww(local.listas, remote.listas || []),
-        notas: mergeNotasLww(local.notas, remote.notas || []),
-        tags: mergeTagsLww(local.tags, remote.tags || []),
+        listas: mergeListasLww(local.listas, remote.listas || [], tombstones),
+        notas: mergeNotasLww(local.notas, remote.notas || [], tombstones),
+        tags: mergeTagsLww(local.tags, remote.tags || [], tombstones),
+        tombstones,
       };
 
-      const localJson = JSON.stringify(local);
-      const mergedJson = JSON.stringify(merged);
+      const localJson = JSON.stringify({
+        listas: local.listas,
+        notas: local.notas,
+        tags: local.tags,
+      });
+      const mergedJson = JSON.stringify({
+        listas: merged.listas,
+        notas: merged.notas,
+        tags: merged.tags,
+      });
       const localChanged = localJson !== mergedJson;
 
       if (localChanged) {

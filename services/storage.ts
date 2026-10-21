@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Lista, Item, Categoria, Nota, GlobalTag } from '../types';
 import { localSyncService } from './localSyncService';
 import { CloudSyncService } from './cloudSyncService';
+import { TombstoneStore } from './tombstones';
 
 const LISTAS_KEY = '@liteus_listas';
 const NOTAS_KEY = '@liteus_notas';
@@ -89,6 +90,7 @@ export class StorageService {
         })),
       }));
 
+      await TombstoneStore.record('tag', tagId);
       await Promise.all([
         this.salvarTags(tags),
         this.salvarListas(listasAtualizadas),
@@ -461,6 +463,7 @@ export class StorageService {
         dataModificacao: Date.now(),
       };
       listas.push(listaToRestore);
+      await TombstoneStore.forget('lista', String(listaToRestore.id));
       await this.salvarListas(listas);
       try { await localSyncService.onListaCreated(listaToRestore); } catch {}
     } else if (entry.type === 'nota') {
@@ -472,6 +475,7 @@ export class StorageService {
         updatedAt: new Date().toISOString(),
       };
       notas.push(notaToRestore);
+      await TombstoneStore.forget('nota', String(notaToRestore.id));
       await this.salvarNotas(notas);
       try { await localSyncService.onNotaCreated(notaToRestore); } catch {}
     }
@@ -632,6 +636,12 @@ export class StorageService {
       
       if (listasFiltradas.length === listas.length) return false;
       
+      await TombstoneStore.record('lista', id);
+      for (const item of listaRemovida?.itens || []) {
+        if (item?.id) {
+          await TombstoneStore.record('item', String(item.id), { listaId: id });
+        }
+      }
       await this.salvarListas(listasFiltradas);
       if (listaRemovida) {
         // Mover para lixeira
@@ -712,7 +722,7 @@ export class StorageService {
       
       listas[listaIndex].itens.splice(itemIndex, 1);
       listas[listaIndex].dataModificacao = Date.now();
-      
+      await TombstoneStore.record('item', itemId, { listaId });
       await this.salvarListas(listas);
       return true;
     } catch (error) {
@@ -1036,6 +1046,7 @@ export class StorageService {
       const nota = notas.find(n => n.id === id);
       const filtradas = notas.filter(n => n.id !== id);
       if (filtradas.length === notas.length) return false;
+      await TombstoneStore.record('nota', id);
       await this.salvarNotas(filtradas);
       if (nota) {
         await this.adicionarNaLixeira('nota', nota);

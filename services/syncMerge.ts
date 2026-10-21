@@ -1,4 +1,10 @@
 import { Lista, Nota, GlobalTag, Item } from '../types';
+import {
+  TombstoneSet,
+  emptyTombstones,
+  isCoveredByTombstone,
+  tombstoneMap,
+} from './tombstones';
 
 /** Converte data/número/ISO em ms epoch. */
 export function toMs(value: unknown): number {
@@ -36,7 +42,7 @@ export function tagTs(tag: GlobalTag): number {
   return Math.max(toMs(tag.updatedAt), toMs(tag.createdAt));
 }
 
-function mergeItems(local: Item[] = [], remote: Item[] = []): Item[] {
+function mergeItems(local: Item[] = [], remote: Item[] = [], deletedAtById: Map<string, number>): Item[] {
   const map = new Map<string, Item>();
   for (const item of remote) {
     if (!item?.id) continue;
@@ -50,24 +56,32 @@ function mergeItems(local: Item[] = [], remote: Item[] = []): Item[] {
       map.set(id, item);
     }
   }
-  return Array.from(map.values());
+  return Array.from(map.values()).filter(
+    (item) => !isCoveredByTombstone(itemTs(item), deletedAtById.get(String(item.id)))
+  );
 }
 
-function mergeOneLista(local: Lista, remote: Lista): Lista {
+function mergeOneLista(local: Lista, remote: Lista, itemTombstones: Map<string, number>): Lista {
   const localNewer = listaTs(local) >= listaTs(remote);
   const base = localNewer ? local : remote;
   return {
     ...base,
-    itens: mergeItems(local.itens || [], remote.itens || []),
+    itens: mergeItems(local.itens || [], remote.itens || [], itemTombstones),
     dataModificacao: Math.max(listaTs(local), listaTs(remote)),
   };
 }
 
 /**
- * Last-write-wins por id: o lado com timestamp mais recente prevalece.
- * Entidades só de um lado entram no resultado (união).
+ * Last-write-wins por id. Exclusão também entra na regra:
+ * se a lápide for no mínimo tão recente quanto o registro, ele some.
  */
-export function mergeListasLww(local: Lista[], remote: Lista[]): Lista[] {
+export function mergeListasLww(
+  local: Lista[],
+  remote: Lista[],
+  tombstones: TombstoneSet = emptyTombstones()
+): Lista[] {
+  const deletedListas = tombstoneMap(tombstones.listas);
+  const deletedItens = tombstoneMap(tombstones.itens);
   const map = new Map<string, Lista>();
   for (const lista of remote) {
     if (!lista?.id) continue;
@@ -80,13 +94,23 @@ export function mergeListasLww(local: Lista[], remote: Lista[]): Lista[] {
     if (!other) {
       map.set(id, lista);
     } else {
-      map.set(id, mergeOneLista(lista, other));
+      map.set(id, mergeOneLista(lista, other, deletedItens));
     }
   }
-  return Array.from(map.values());
+  return Array.from(map.values())
+    .filter((lista) => !isCoveredByTombstone(listaTs(lista), deletedListas.get(String(lista.id))))
+    .map((lista) => ({
+      ...lista,
+      itens: mergeItems(lista.itens || [], [], deletedItens),
+    }));
 }
 
-export function mergeNotasLww(local: Nota[], remote: Nota[]): Nota[] {
+export function mergeNotasLww(
+  local: Nota[],
+  remote: Nota[],
+  tombstones: TombstoneSet = emptyTombstones()
+): Nota[] {
+  const deleted = tombstoneMap(tombstones.notas);
   const map = new Map<string, Nota>();
   for (const nota of remote) {
     if (!nota?.id) continue;
@@ -100,10 +124,17 @@ export function mergeNotasLww(local: Nota[], remote: Nota[]): Nota[] {
       map.set(id, nota);
     }
   }
-  return Array.from(map.values());
+  return Array.from(map.values()).filter(
+    (nota) => !isCoveredByTombstone(notaTs(nota), deleted.get(String(nota.id)))
+  );
 }
 
-export function mergeTagsLww(local: GlobalTag[], remote: GlobalTag[]): GlobalTag[] {
+export function mergeTagsLww(
+  local: GlobalTag[],
+  remote: GlobalTag[],
+  tombstones: TombstoneSet = emptyTombstones()
+): GlobalTag[] {
+  const deleted = tombstoneMap(tombstones.tags);
   const map = new Map<string, GlobalTag>();
   for (const tag of remote) {
     if (!tag?.id) continue;
@@ -134,7 +165,9 @@ export function mergeTagsLww(local: GlobalTag[], remote: GlobalTag[]): GlobalTag
       map.set(id, { ...other, listIds });
     }
   }
-  return Array.from(map.values());
+  return Array.from(map.values()).filter(
+    (tag) => !isCoveredByTombstone(tagTs(tag), deleted.get(String(tag.id)))
+  );
 }
 
 /** Marca entidades como "agora" para vencer LWW após import de backup antigo. */
