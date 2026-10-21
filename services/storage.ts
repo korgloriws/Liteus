@@ -95,6 +95,9 @@ export class StorageService {
         this.salvarTags(tags),
         this.salvarListas(listasAtualizadas),
       ]);
+      CloudSyncService.pushTombstonesNow().catch((err) => {
+        console.log('Tombstone tag falhou:', err?.message || err);
+      });
 
       return true;
     } catch (error) {
@@ -643,6 +646,9 @@ export class StorageService {
         }
       }
       await this.salvarListas(listasFiltradas);
+      CloudSyncService.pushTombstonesNow().catch((err) => {
+        console.log('Tombstone lista falhou:', err?.message || err);
+      });
       if (listaRemovida) {
         // Mover para lixeira
         await this.adicionarNaLixeira('lista', listaRemovida);
@@ -724,6 +730,9 @@ export class StorageService {
       listas[listaIndex].dataModificacao = Date.now();
       await TombstoneStore.record('item', itemId, { listaId });
       await this.salvarListas(listas);
+      CloudSyncService.pushTombstonesNow().catch((err) => {
+        console.log('Tombstone item falhou:', err?.message || err);
+      });
       return true;
     } catch (error) {
       console.error('Erro ao remover item:', error);
@@ -1048,6 +1057,9 @@ export class StorageService {
       if (filtradas.length === notas.length) return false;
       await TombstoneStore.record('nota', id);
       await this.salvarNotas(filtradas);
+      CloudSyncService.pushTombstonesNow().catch((err) => {
+        console.log('Tombstone nota falhou:', err?.message || err);
+      });
       if (nota) {
         await this.adicionarNaLixeira('nota', nota);
         try { await localSyncService.onNotaDeleted(id); } catch {}

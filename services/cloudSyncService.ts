@@ -18,7 +18,7 @@ import {
 const LISTAS_KEY = '@liteus_listas';
 const NOTAS_KEY = '@liteus_notas';
 const TAGS_KEY = '@liteus_tags';
-const PULL_INTERVAL_MS = 15000;
+const PULL_INTERVAL_MS = 5000;
 
 type SyncListeners = Set<() => void>;
 
@@ -109,6 +109,22 @@ export class CloudSyncService {
         console.log('Cloud sync falhou:', err?.message || err);
       });
     }, delayMs);
+  }
+
+  /** Envia exclusões ao banco na hora — não espera o snapshot completo. */
+  static async pushTombstonesNow(): Promise<void> {
+    if (!(await this.isEnabled())) return;
+    const tombstones = await TombstoneStore.load();
+    const total =
+      tombstones.listas.length +
+      tombstones.itens.length +
+      tombstones.notas.length +
+      tombstones.tags.length;
+    if (total === 0) return;
+    await AccountService.authRequest('/sync/tombstones', {
+      method: 'POST',
+      body: JSON.stringify(tombstones),
+    });
   }
 
   private static async readLocal(): Promise<{
@@ -218,6 +234,7 @@ export class CloudSyncService {
         tags: merged.tags,
       });
       const localChanged = localJson !== mergedJson;
+      await TombstoneStore.save(merged.tombstones);
 
       if (localChanged) {
         await this.writeLocal(merged);
