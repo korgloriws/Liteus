@@ -49,7 +49,7 @@ const THEME_OPTIONS: {
 
 export default function ConfiguracoesScreen() {
   const { isDarkMode, themePreference, setThemePreference, colors, typography } = useTheme();
-  const [versao] = useState('1.2.7');
+  const [versao] = useState('1.2.8');
   const [listas, setListas] = useState<Lista[]>([]);
   const [modalSincronizacao, setModalSincronizacao] = useState(false);
   const [dadosSincronizacao, setDadosSincronizacao] = useState('');

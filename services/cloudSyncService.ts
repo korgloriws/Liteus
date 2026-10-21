@@ -18,7 +18,29 @@ import {
 const LISTAS_KEY = '@liteus_listas';
 const NOTAS_KEY = '@liteus_notas';
 const TAGS_KEY = '@liteus_tags';
-const PULL_INTERVAL_MS = 5000;
+const PULL_INTERVAL_MS = 8000;
+
+function snapshotSignature(data: { listas: Lista[]; notas: Nota[]; tags: GlobalTag[] }): string {
+  const listas = (data.listas || [])
+    .map((lista) => {
+      const itens = (lista.itens || [])
+        .map((item) => `${item.id}:${item.updatedAt || ''}:${item.concluido ? 1 : 0}:${item.texto || ''}`)
+        .sort()
+        .join(',');
+      return `${lista.id}:${lista.dataModificacao}:${lista.nome}:${itens}`;
+    })
+    .sort()
+    .join('|');
+  const notas = (data.notas || [])
+    .map((nota) => `${nota.id}:${nota.updatedAt || ''}:${nota.titulo || ''}`)
+    .sort()
+    .join('|');
+  const tags = (data.tags || [])
+    .map((tag) => `${tag.id}:${tag.updatedAt || ''}:${tag.nome || ''}`)
+    .sort()
+    .join('|');
+  return `${listas}#${notas}#${tags}`;
+}
 
 type SyncListeners = Set<() => void>;
 
@@ -223,17 +245,7 @@ export class CloudSyncService {
         tombstones,
       };
 
-      const localJson = JSON.stringify({
-        listas: local.listas,
-        notas: local.notas,
-        tags: local.tags,
-      });
-      const mergedJson = JSON.stringify({
-        listas: merged.listas,
-        notas: merged.notas,
-        tags: merged.tags,
-      });
-      const localChanged = localJson !== mergedJson;
+      const localChanged = snapshotSignature(local) !== snapshotSignature(merged);
       await TombstoneStore.save(merged.tombstones);
 
       if (localChanged) {
@@ -241,7 +253,10 @@ export class CloudSyncService {
         this.notify();
       }
 
-      const posted = await this.postSnapshot(merged);
+      // Só reenvia o snapshot se houve mudança local ou o merge alterou dados
+      if (this.dirty || localChanged) {
+        await this.postSnapshot(merged);
+      }
       this.dirty = false;
 
       return {

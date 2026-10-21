@@ -23,6 +23,7 @@ import QuillInlineEditor from '../components/QuillInlineEditor';
 import { SyncService } from '../services/syncService';
 import { useTheme } from '../services/ThemeContext';
 import { getPlaceholderColor } from '../services/theme';
+import { CloudSyncService } from '../services/cloudSyncService';
 
 export default function ListaDetalhesScreen() {
   const { isDarkMode, colors, typography } = useTheme();
@@ -50,19 +51,25 @@ export default function ListaDetalhesScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
-      carregarLista();
+      carregarLista(false);
+      const unsub = CloudSyncService.onDataChanged(() => {
+        carregarLista(true);
+      });
+      return unsub;
     }, [id])
   );
 
-  const carregarLista = async () => {
+  const carregarLista = async (silencioso = false) => {
     try {
-      setLoading(true);
+      if (!silencioso) setLoading(true);
       const listaCarregada = await StorageService.buscarLista(id);
       setLista(listaCarregada);
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível carregar a lista');
+      if (!silencioso) {
+        Alert.alert('Erro', 'Não foi possível carregar a lista');
+      }
     } finally {
-      setLoading(false);
+      if (!silencioso) setLoading(false);
     }
   };
 

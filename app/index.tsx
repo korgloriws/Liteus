@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -37,6 +37,10 @@ export default function ListasScreen() {
   const [listasFiltradas, setListasFiltradas] = useState<Lista[]>([]);
   const [notas, setNotas] = useState<Nota[]>([]);
   const [loading, setLoading] = useState(true);
+  const textoBuscaRef = useRef('');
+  const ordenacaoTipoRef = useRef<OrdenacaoTipo>('ultimoModificado');
+  const ordenacaoDirecaoRef = useRef<OrdenacaoDirecao>('desc');
+  const filtroTagRef = useRef('');
   const [textoBusca, setTextoBusca] = useState('');
   const [ordenacaoTipo, setOrdenacaoTipo] = useState<OrdenacaoTipo>('ultimoModificado');
   const [ordenacaoDirecao, setOrdenacaoDirecao] = useState<OrdenacaoDirecao>('desc');
@@ -82,28 +86,36 @@ export default function ListasScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
-      carregarListas();
+      carregarListas(false);
       const unsub = CloudSyncService.onDataChanged(() => {
-        carregarListas();
+        carregarListas(true);
       });
       return unsub;
     }, [])
   );
 
-  const carregarListas = async () => {
+  const carregarListas = async (silencioso = false) => {
     try {
-      setLoading(true);
+      if (!silencioso) setLoading(true);
       const listasCarregadas = await StorageService.carregarListas();
       const notasCarregadas = await StorageService.carregarNotas();
       const tagsCarregadas = await StorageService.carregarTags();
       setListas(listasCarregadas);
       setNotas(notasCarregadas);
       setGlobalTags(tagsCarregadas);
-      aplicarFiltrosEOrdenacao(listasCarregadas, textoBusca, ordenacaoTipo, ordenacaoDirecao, filtroTagListaId);
+      aplicarFiltrosEOrdenacao(
+        listasCarregadas,
+        textoBuscaRef.current,
+        ordenacaoTipoRef.current,
+        ordenacaoDirecaoRef.current,
+        filtroTagRef.current
+      );
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível carregar as listas');
+      if (!silencioso) {
+        Alert.alert('Erro', 'Não foi possível carregar as listas');
+      }
     } finally {
-      setLoading(false);
+      if (!silencioso) setLoading(false);
     }
   };
 
@@ -136,16 +148,20 @@ export default function ListasScreen() {
 
   const handleBusca = (texto: string) => {
     setTextoBusca(texto);
+    textoBuscaRef.current = texto;
     aplicarFiltrosEOrdenacao(listas, texto, ordenacaoTipo, ordenacaoDirecao, filtroTagListaId);
   };
 
   const handleOrdenacao = (tipo: OrdenacaoTipo, direcao: OrdenacaoDirecao) => {
     setOrdenacaoTipo(tipo);
     setOrdenacaoDirecao(direcao);
+    ordenacaoTipoRef.current = tipo;
+    ordenacaoDirecaoRef.current = direcao;
     aplicarFiltrosEOrdenacao(listas, textoBusca, tipo, direcao, filtroTagListaId);
   };
 
   useEffect(() => {
+    filtroTagRef.current = filtroTagListaId;
     aplicarFiltrosEOrdenacao(listas, textoBusca, ordenacaoTipo, ordenacaoDirecao, filtroTagListaId);
   }, [filtroTagListaId]);
 
